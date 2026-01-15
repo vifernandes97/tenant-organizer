@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
+import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,10 +42,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="text-center py-12">
-                      <h2 className="text-2xl font-bold mb-2">Clientes</h2>
-                      <p className="text-muted-foreground">Em breve...</p>
-                    </div>
+                    <Clients />
                   </AppLayout>
                 </ProtectedRoute>
               }
