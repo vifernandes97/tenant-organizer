@@ -164,11 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .replace(/(^-|-$)/g, '')
         + '-' + Date.now().toString(36);
 
-      const { data: tenantData, error: tenantError } = await supabase
+      const tenantId = crypto.randomUUID();
+
+      const { error: tenantError } = await supabase
         .from('tenants')
-        .insert({ name: tenantName, slug })
-        .select()
-        .single();
+        .insert({ id: tenantId, name: tenantName, slug });
 
       if (tenantError) throw tenantError;
 
@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .insert({
           id: userId,
-          tenant_id: tenantData.id,
+          tenant_id: tenantId,
           full_name: fullName,
         });
 
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('user_roles')
         .insert({
           user_id: userId,
-          tenant_id: tenantData.id,
+          tenant_id: tenantId,
           role: 'owner',
         });
 
@@ -216,11 +216,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .replace(/(^-|-$)/g, '')
         + '-' + Date.now().toString(36);
 
-      const { data: tenantData, error: tenantError } = await supabase
+      const tenantId = crypto.randomUUID();
+
+      const { error: tenantError } = await supabase
         .from('tenants')
-        .insert({ name: tenantName, slug })
-        .select()
-        .single();
+        .insert({ id: tenantId, name: tenantName, slug });
 
       if (tenantError) throw tenantError;
 
@@ -229,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .insert({
           id: user.id,
-          tenant_id: tenantData.id,
+          tenant_id: tenantId,
           full_name: fullName,
         });
 
@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('user_roles')
         .insert({
           user_id: user.id,
-          tenant_id: tenantData.id,
+          tenant_id: tenantId,
           role: 'owner',
         });
 
