@@ -27,10 +27,12 @@ interface AuthContextType {
   userRole: UserRole | null;
   tenant: Tenant | null;
   isLoading: boolean;
+  profileNotFound: boolean;
   signUp: (email: string, password: string, fullName: string, tenantName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  completeSetup: (fullName: string, tenantName: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,46 +44,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileNotFound, setProfileNotFound] = useState(false);
 
   const fetchUserData = async (userId: string) => {
     try {
+      setProfileNotFound(false);
+      
       // Fetch profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (profileData) {
-        setProfile(profileData);
+      if (profileError || !profileData) {
+        console.log('Profile not found for user:', userId);
+        setProfileNotFound(true);
+        setProfile(null);
+        setUserRole(null);
+        setTenant(null);
+        return;
+      }
 
-        // Fetch user role
-        if (profileData.tenant_id) {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role, tenant_id')
-            .eq('user_id', userId)
-            .eq('tenant_id', profileData.tenant_id)
-            .single();
+      setProfile(profileData);
+      setProfileNotFound(false);
 
-          if (roleData) {
-            setUserRole(roleData as UserRole);
-          }
+      // Fetch user role
+      if (profileData.tenant_id) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role, tenant_id')
+          .eq('user_id', userId)
+          .eq('tenant_id', profileData.tenant_id)
+          .single();
 
-          // Fetch tenant
-          const { data: tenantData } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('id', profileData.tenant_id)
-            .single();
+        if (roleData) {
+          setUserRole(roleData as UserRole);
+        }
 
-          if (tenantData) {
-            setTenant(tenantData);
-          }
+        // Fetch tenant
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('id', profileData.tenant_id)
+          .single();
+
+        if (tenantData) {
+          setTenant(tenantData);
         }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setProfileNotFound(true);
     }
   };
 
@@ -105,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setUserRole(null);
           setTenant(null);
+          setProfileNotFound(false);
         }
         setIsLoading(false);
       }
@@ -186,6 +201,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const completeSetup = async (fullName: string, tenantName: string) => {
+    if (!user) {
+      return { error: new Error('Usuário não autenticado') };
+    }
+
+    try {
+      // 1. Create tenant
+      const slug = tenantName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        + '-' + Date.now().toString(36);
+
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('tenants')
+        .insert({ name: tenantName, slug })
+        .select()
+        .single();
+
+      if (tenantError) throw tenantError;
+
+      // 2. Create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          tenant_id: tenantData.id,
+          full_name: fullName,
+        });
+
+      if (profileError) throw profileError;
+
+      // 3. Create user role (owner)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.id,
+          tenant_id: tenantData.id,
+          role: 'owner',
+        });
+
+      if (roleError) throw roleError;
+
+      // 4. Refresh user data
+      await fetchUserData(user.id);
+
+      return { error: null };
+    } catch (error) {
+      console.error('Complete setup error:', error);
+      return { error: error as Error };
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -205,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setUserRole(null);
     setTenant(null);
+    setProfileNotFound(false);
   };
 
   return (
@@ -216,10 +287,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRole,
         tenant,
         isLoading,
+        profileNotFound,
         signUp,
         signIn,
         signOut,
         refreshProfile,
+        completeSetup,
       }}
     >
       {children}
