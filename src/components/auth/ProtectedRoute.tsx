@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading, profile } = useAuth();
+  const { user, isLoading, profile, profileNotFound } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -25,8 +25,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Wait for profile to load
-  if (!profile) {
+  // If user exists but profile not found, redirect to setup
+  if (profileNotFound) {
+    return <Navigate to="/setup" state={{ from: location }} replace />;
+  }
+
+  // Wait for profile to load (but not indefinitely)
+  if (!profile && !profileNotFound) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
