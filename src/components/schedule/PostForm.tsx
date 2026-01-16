@@ -9,9 +9,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ChevronDown, X } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
-import { postSchema, PostFormData, PostWithImages, useCreatePost, useUpdatePost } from '@/hooks/usePosts';
+import { 
+  postSchema, 
+  postEditSchema, 
+  PostFormData, 
+  PostEditFormData, 
+  PostWithImages, 
+  useCreatePost, 
+  useUpdatePost 
+} from '@/hooks/usePosts';
 import { ImageUploader } from './ImageUploader';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import type { Database } from '@/integrations/supabase/types';
@@ -36,6 +47,17 @@ const channelLabels: Record<SocialChannel, string> = {
   twitter: 'Twitter',
 };
 
+const allChannels: SocialChannel[] = [
+  'instagram_feed',
+  'instagram_reels',
+  'instagram_story',
+  'tiktok',
+  'linkedin',
+  'youtube',
+  'facebook',
+  'twitter',
+];
+
 export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProps) {
   const { data: clients = [] } = useClients();
   const createPost = useCreatePost();
@@ -43,12 +65,25 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const [images, setImages] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
+  const [channelPopoverOpen, setChannelPopoverOpen] = useState(false);
 
   const isEditing = !!post;
   const isLoading = createPost.isPending || updatePost.isPending;
 
+  // Use different schemas for create vs edit
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
+    defaultValues: {
+      client_id: '',
+      channels: [],
+      scheduled_at: '',
+      caption: '',
+      status: 'draft',
+    },
+  });
+
+  const editForm = useForm<PostEditFormData>({
+    resolver: zodResolver(postEditSchema),
     defaultValues: {
       client_id: '',
       channel: 'instagram_feed',
@@ -58,13 +93,22 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     },
   });
 
-  const selectedClientId = form.watch('client_id');
+  // Watch client_id from the appropriate form
+  const createClientId = form.watch('client_id');
+  const editClientId = editForm.watch('client_id');
+  const selectedClientId = isEditing ? editClientId : createClientId;
   const selectedClient = clients.find((c) => c.id === selectedClientId);
-  const availableChannels = selectedClient?.channels || [];
+  const availableChannels: SocialChannel[] = (selectedClient?.channels as SocialChannel[]) || allChannels;
+
+  // For create mode - watch the form directly
+  const selectedChannels = form.watch('channels') || [];
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeForm = (isEditing ? editForm : form) as any;
 
   useEffect(() => {
     if (post) {
-      form.reset({
+      editForm.reset({
         client_id: post.client_id,
         channel: post.channel,
         scheduled_at: new Date(post.scheduled_at).toISOString().slice(0, 16),
@@ -77,7 +121,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     } else {
       form.reset({
         client_id: '',
-        channel: 'instagram_feed',
+        channels: [],
         scheduled_at: defaultDate
           ? new Date(defaultDate).toISOString().slice(0, 16)
           : new Date().toISOString().slice(0, 16),
@@ -88,19 +132,19 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     }
     setImages([]);
     setRemovedImageIds([]);
-  }, [post, defaultDate, form]);
+  }, [post, defaultDate, form, editForm]);
 
-  const onSubmit = async (data: PostFormData) => {
+  const onSubmit = async (data: PostFormData | PostEditFormData) => {
     if (isEditing && post) {
       await updatePost.mutateAsync({
         id: post.id,
-        post: data,
+        post: data as PostEditFormData,
         newImages: images,
         removedImageIds,
       });
     } else {
       await createPost.mutateAsync({
-        post: data,
+        post: data as PostFormData,
         images,
       });
     }
@@ -112,6 +156,22 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     setRemovedImageIds((prev) => [...prev, id]);
   };
 
+  const toggleChannel = (channel: SocialChannel) => {
+    const current = form.getValues('channels') || [];
+    if (current.includes(channel)) {
+      form.setValue('channels', current.filter((c) => c !== channel), { shouldValidate: true });
+    } else {
+      form.setValue('channels', [...current, channel], { shouldValidate: true });
+    }
+  };
+
+  const removeChannel = (channel: SocialChannel) => {
+    const current = form.getValues('channels') || [];
+    form.setValue('channels', current.filter((c) => c !== channel), { shouldValidate: true });
+  };
+
+  const postCount = selectedChannels.length;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -119,8 +179,8 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
           <DialogTitle>{isEditing ? 'Editar Post' : 'Novo Post'}</DialogTitle>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...activeForm}>
+          <form onSubmit={activeForm.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="content" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="content">Conteúdo</TabsTrigger>
@@ -130,7 +190,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
               <TabsContent value="content" className="space-y-4 pt-4">
                 {/* Cliente */}
                 <FormField
-                  control={form.control}
+                  control={activeForm.control}
                   name="client_id"
                   render={({ field }) => (
                     <FormItem>
@@ -154,44 +214,114 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                   )}
                 />
 
-                {/* Canal */}
-                <FormField
-                  control={form.control}
-                  name="channel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Canal *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={!selectedClientId}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um canal" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(availableChannels.length > 0 ? availableChannels : Object.keys(channelLabels)).map(
-                            (ch) => (
+                {/* Canal - Multi-select for create, single select for edit */}
+                {isEditing ? (
+                  <FormField
+                    control={editForm.control}
+                    name="channel"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Canal *</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={!selectedClientId}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um canal" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableChannels.map((ch) => (
                               <SelectItem key={ch} value={ch}>
                                 <div className="flex items-center gap-2">
-                                  <ChannelBadges channels={[ch as SocialChannel]} size="sm" />
-                                  {channelLabels[ch as SocialChannel]}
+                                  <ChannelBadges channels={[ch]} size="sm" />
+                                  {channelLabels[ch]}
                                 </div>
                               </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="channels"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Canais *</FormLabel>
+                        <Popover open={channelPopoverOpen} onOpenChange={setChannelPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={channelPopoverOpen}
+                              className="w-full justify-between h-auto min-h-10"
+                              disabled={!selectedClientId}
+                            >
+                              {selectedChannels.length === 0 ? (
+                                <span className="text-muted-foreground">Selecione os canais</span>
+                              ) : (
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedChannels.slice(0, 3).map((channel) => (
+                                    <Badge
+                                      key={channel}
+                                      variant="secondary"
+                                      className="flex items-center gap-1"
+                                    >
+                                      <ChannelBadges channels={[channel]} size="sm" />
+                                      {channelLabels[channel].split(' ')[0]}
+                                      <X
+                                        className="h-3 w-3 cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeChannel(channel);
+                                        }}
+                                      />
+                                    </Badge>
+                                  ))}
+                                  {selectedChannels.length > 3 && (
+                                    <Badge variant="secondary">
+                                      +{selectedChannels.length - 3} mais
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-2" align="start">
+                            <div className="space-y-2">
+                              {availableChannels.map((channel) => (
+                                <div
+                                  key={channel}
+                                  className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                                  onClick={() => toggleChannel(channel)}
+                                >
+                                  <Checkbox
+                                    checked={selectedChannels.includes(channel)}
+                                    onCheckedChange={() => toggleChannel(channel)}
+                                  />
+                                  <ChannelBadges channels={[channel]} size="sm" />
+                                  <span className="text-sm">{channelLabels[channel]}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Data e Hora */}
                 <FormField
-                  control={form.control}
+                  control={activeForm.control}
                   name="scheduled_at"
                   render={({ field }) => (
                     <FormItem>
@@ -206,7 +336,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
 
                 {/* Status */}
                 <FormField
-                  control={form.control}
+                  control={activeForm.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
@@ -231,7 +361,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
 
                 {/* Legenda */}
                 <FormField
-                  control={form.control}
+                  control={activeForm.control}
                   name="caption"
                   render={({ field }) => (
                     <FormItem>
@@ -273,7 +403,12 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditing ? 'Salvar' : 'Criar Post'}
+                {isEditing 
+                  ? 'Salvar' 
+                  : postCount > 1 
+                    ? `Criar ${postCount} Posts` 
+                    : 'Criar Post'
+                }
               </Button>
             </div>
           </form>

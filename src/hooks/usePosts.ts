@@ -17,9 +17,20 @@ export type PostWithImages = Post & {
   clients?: { name: string } | null;
 };
 
+const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 'tiktok', 'linkedin', 'youtube', 'facebook', 'twitter'] as const;
+
 export const postSchema = z.object({
   client_id: z.string().uuid('Selecione um cliente'),
-  channel: z.enum(['instagram_feed', 'instagram_reels', 'instagram_story', 'tiktok', 'linkedin', 'youtube', 'facebook', 'twitter'] as const, {
+  channels: z.array(z.enum(socialChannels)).min(1, 'Selecione pelo menos um canal'),
+  scheduled_at: z.string().min(1, 'Selecione data e hora'),
+  caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
+  status: z.enum(['draft', 'approved', 'scheduled', 'published'] as const).default('draft'),
+});
+
+// Schema for editing (single channel)
+export const postEditSchema = z.object({
+  client_id: z.string().uuid('Selecione um cliente'),
+  channel: z.enum(socialChannels, {
     required_error: 'Selecione um canal',
   }),
   scheduled_at: z.string().min(1, 'Selecione data e hora'),
@@ -28,6 +39,7 @@ export const postSchema = z.object({
 });
 
 export type PostFormData = z.infer<typeof postSchema>;
+export type PostEditFormData = z.infer<typeof postEditSchema>;
 
 interface PostFilters {
   month?: Date;
@@ -116,29 +128,15 @@ export function useCreatePost() {
     mutationFn: async ({ post, images }: { post: PostFormData; images: File[] }) => {
       if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
 
-      const postData: PostInsert = {
-        tenant_id: profile.tenant_id,
-        client_id: post.client_id,
-        channel: post.channel,
-        scheduled_at: post.scheduled_at,
-        caption: post.caption || null,
-        status: post.status,
-      };
+      const createdPosts: Post[] = [];
 
-      const { data: newPost, error: postError } = await supabase
-        .from('posts')
-        .insert(postData)
-        .select()
-        .single();
-
-      if (postError) throw postError;
-
-      // Upload images
+      // Upload images first (will be shared across all posts)
+      const uploadedImageUrls: string[] = [];
       if (images.length > 0) {
         for (let i = 0; i < images.length; i++) {
           const file = images[i];
           const fileExt = file.name.split('.').pop();
-          const fileName = `${profile.tenant_id}/${newPost.id}/${i}-${Date.now()}.${fileExt}`;
+          const fileName = `${profile.tenant_id}/shared/${Date.now()}-${i}.${fileExt}`;
 
           const { error: uploadError } = await supabase.storage
             .from('post-images')
@@ -150,24 +148,52 @@ export function useCreatePost() {
             .from('post-images')
             .getPublicUrl(fileName);
 
+          uploadedImageUrls.push(publicUrl);
+        }
+      }
+
+      // Create a post for each selected channel
+      for (const channel of post.channels) {
+        const postData: PostInsert = {
+          tenant_id: profile.tenant_id,
+          client_id: post.client_id,
+          channel: channel,
+          scheduled_at: post.scheduled_at,
+          caption: post.caption || null,
+          status: post.status,
+        };
+
+        const { data: newPost, error: postError } = await supabase
+          .from('posts')
+          .insert(postData)
+          .select()
+          .single();
+
+        if (postError) throw postError;
+
+        // Link uploaded images to this post
+        for (let i = 0; i < uploadedImageUrls.length; i++) {
           const { error: imageError } = await supabase
             .from('post_images')
             .insert({
               post_id: newPost.id,
               tenant_id: profile.tenant_id,
-              image_url: publicUrl,
+              image_url: uploadedImageUrls[i],
               display_order: i,
             });
 
           if (imageError) throw imageError;
         }
+
+        createdPosts.push(newPost);
       }
 
-      return newPost;
+      return createdPosts;
     },
-    onSuccess: () => {
+    onSuccess: (posts) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      toast.success('Post criado com sucesso!');
+      const count = posts.length;
+      toast.success(`${count} post${count > 1 ? 's criados' : ' criado'} com sucesso!`);
     },
     onError: (error) => {
       console.error('Erro ao criar post:', error);
@@ -188,7 +214,7 @@ export function useUpdatePost() {
       removedImageIds 
     }: { 
       id: string; 
-      post: Partial<PostFormData>; 
+      post: Partial<PostEditFormData>; 
       newImages?: File[]; 
       removedImageIds?: string[] 
     }) => {
