@@ -1,0 +1,1 @@
+ALTER TYPE social_channel ADD VALUE 'wordpress';

@@ -45,6 +45,7 @@ const channelLabels: Record<SocialChannel, string> = {
   youtube: 'YouTube',
   facebook: 'Facebook',
   twitter: 'Twitter',
+  wordpress: 'WordPress',
 };
 
 const allChannels: SocialChannel[] = [
@@ -56,6 +57,7 @@ const allChannels: SocialChannel[] = [
   'youtube',
   'facebook',
   'twitter',
+  'wordpress',
 ];
 
 export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProps) {

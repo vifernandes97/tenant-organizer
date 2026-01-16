@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Instagram, Linkedin, Facebook, Twitter, Youtube } from "lucide-react";
+import { Instagram, Linkedin, Facebook, Twitter, Youtube, Globe } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type SocialChannel = Database["public"]["Enums"]["social_channel"];
@@ -7,6 +7,7 @@ type SocialChannel = Database["public"]["Enums"]["social_channel"];
 interface ChannelBadgesProps {
   channels: SocialChannel[] | null;
   size?: "sm" | "md";
+  iconOnly?: boolean;
 }
 
 const channelConfig: Record<SocialChannel, { label: string; icon: React.ReactNode; className: string }> = {
@@ -54,11 +55,32 @@ const channelConfig: Record<SocialChannel, { label: string; icon: React.ReactNod
     icon: <Youtube className="h-3 w-3" />,
     className: "bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20",
   },
+  wordpress: {
+    label: "WordPress",
+    icon: <Globe className="h-3 w-3" />,
+    className: "bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/20",
+  },
 };
 
-export function ChannelBadges({ channels, size = "sm" }: ChannelBadgesProps) {
+export function ChannelBadges({ channels, size = "sm", iconOnly = false }: ChannelBadgesProps) {
   if (!channels || channels.length === 0) {
     return <span className="text-muted-foreground text-sm">—</span>;
+  }
+
+  if (iconOnly) {
+    return (
+      <div className="flex gap-1">
+        {channels.map((channel) => {
+          const config = channelConfig[channel];
+          if (!config) return null;
+          return (
+            <span key={channel} className={config.className.split(' ').find(c => c.startsWith('text-'))}>
+              {config.icon}
+            </span>
+          );
+        })}
+      </div>
+    );
   }
 
   return (

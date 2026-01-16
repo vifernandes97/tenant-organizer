@@ -17,7 +17,7 @@ export type PostWithImages = Post & {
   clients?: { name: string } | null;
 };
 
-const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 'tiktok', 'linkedin', 'youtube', 'facebook', 'twitter'] as const;
+const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 'tiktok', 'linkedin', 'youtube', 'facebook', 'twitter', 'wordpress'] as const;
 
 export const postSchema = z.object({
   client_id: z.string().uuid('Selecione um cliente'),
