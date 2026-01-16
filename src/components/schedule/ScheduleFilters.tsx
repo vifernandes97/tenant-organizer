@@ -36,6 +36,7 @@ const channelOptions: { value: SocialChannel; label: string }[] = [
   { value: 'youtube', label: 'YouTube' },
   { value: 'facebook', label: 'Facebook' },
   { value: 'twitter', label: 'Twitter' },
+  { value: 'wordpress', label: 'WordPress' },
 ];
 
 export function ScheduleFilters({

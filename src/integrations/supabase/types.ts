@@ -297,6 +297,7 @@ export type Database = {
         | "facebook"
         | "twitter"
         | "youtube"
+        | "wordpress"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -436,6 +437,7 @@ export const Constants = {
         "facebook",
         "twitter",
         "youtube",
+        "wordpress",
       ],
     },
   },

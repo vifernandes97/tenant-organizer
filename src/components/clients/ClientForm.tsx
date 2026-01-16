@@ -50,6 +50,7 @@ const channels: { value: SocialChannel; label: string }[] = [
   { value: "facebook", label: "Facebook" },
   { value: "twitter", label: "Twitter" },
   { value: "youtube", label: "YouTube" },
+  { value: "wordpress", label: "WordPress" },
 ];
 
 export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {

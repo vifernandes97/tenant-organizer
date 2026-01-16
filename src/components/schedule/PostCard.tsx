@@ -29,7 +29,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <ChannelBadges channels={[post.channel]} size="sm" />
+            <ChannelBadges channels={[post.channel]} iconOnly />
             <span className="truncate text-xs text-muted-foreground">
               {post.clients?.name}
             </span>

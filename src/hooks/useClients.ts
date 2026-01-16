@@ -21,7 +21,7 @@ export const clientSchema = z.object({
   contact_phone: z.string().max(20, "Telefone muito longo").optional().nullable(),
   persona: z.string().max(1000, "Persona muito longa").optional().nullable(),
   tone_of_voice: z.string().max(500, "Tom de voz muito longo").optional().nullable(),
-  channels: z.array(z.enum(["instagram_feed", "instagram_reels", "instagram_story", "tiktok", "linkedin", "facebook", "twitter", "youtube"] as const)).default([]),
+  channels: z.array(z.enum(["instagram_feed", "instagram_reels", "instagram_story", "tiktok", "linkedin", "facebook", "twitter", "youtube", "wordpress"] as const)).default([]),
   tags: z.array(z.string()).default([]),
   important_links: z.array(z.object({ label: z.string(), url: z.string().url() })).default([]),
   notes: z.string().max(2000, "Notas muito longas").optional().nullable(),
