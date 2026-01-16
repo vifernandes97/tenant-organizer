@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContentNoPortal, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronDown, X } from 'lucide-react';
@@ -295,7 +295,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-full min-w-[300px] p-2 bg-popover" align="start">
+                      <PopoverContentNoPortal className="w-full min-w-[300px] p-2" align="start">
                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
                           {availableChannels.map((channel) => (
                             <div
@@ -312,7 +312,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                             </div>
                           ))}
                         </div>
-                      </PopoverContent>
+                      </PopoverContentNoPortal>
                     </Popover>
                     {form.formState.errors.channels && (
                       <p className="text-sm font-medium text-destructive">
