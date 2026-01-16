@@ -250,75 +250,76 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                     )}
                   />
                 ) : (
-                  <FormField
-                    control={form.control}
-                    name="channels"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>Canais *</FormLabel>
-                        <Popover open={channelPopoverOpen} onOpenChange={setChannelPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={channelPopoverOpen}
-                              className="w-full justify-between h-auto min-h-10"
-                              disabled={!selectedClientId}
-                            >
-                              {selectedChannels.length === 0 ? (
-                                <span className="text-muted-foreground">Selecione os canais</span>
-                              ) : (
-                                <div className="flex flex-wrap gap-1">
-                                  {selectedChannels.slice(0, 3).map((channel) => (
-                                    <Badge
-                                      key={channel}
-                                      variant="secondary"
-                                      className="flex items-center gap-1"
-                                    >
-                                      <ChannelBadges channels={[channel]} size="sm" />
-                                      {channelLabels[channel].split(' ')[0]}
-                                      <X
-                                        className="h-3 w-3 cursor-pointer"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          removeChannel(channel);
-                                        }}
-                                      />
-                                    </Badge>
-                                  ))}
-                                  {selectedChannels.length > 3 && (
-                                    <Badge variant="secondary">
-                                      +{selectedChannels.length - 3} mais
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-full p-2" align="start">
-                            <div className="space-y-2">
-                              {availableChannels.map((channel) => (
-                                <div
+                  <div className="space-y-2">
+                    <Label className={form.formState.errors.channels ? "text-destructive" : ""}>
+                      Canais *
+                    </Label>
+                    <Popover open={channelPopoverOpen} onOpenChange={setChannelPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={channelPopoverOpen}
+                          className={`w-full justify-between h-auto min-h-10 ${form.formState.errors.channels ? "border-destructive" : ""}`}
+                          disabled={!selectedClientId}
+                        >
+                          {selectedChannels.length === 0 ? (
+                            <span className="text-muted-foreground">Selecione os canais</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {selectedChannels.slice(0, 3).map((channel) => (
+                                <Badge
                                   key={channel}
-                                  className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                                  onClick={() => toggleChannel(channel)}
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
                                 >
-                                  <Checkbox
-                                    checked={selectedChannels.includes(channel)}
-                                    onCheckedChange={() => toggleChannel(channel)}
+                                  <ChannelBadges channels={[channel]} iconOnly />
+                                  {channelLabels[channel].split(' ')[0]}
+                                  <X
+                                    className="h-3 w-3 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeChannel(channel);
+                                    }}
                                   />
-                                  <ChannelBadges channels={[channel]} size="sm" />
-                                  <span className="text-sm">{channelLabels[channel]}</span>
-                                </div>
+                                </Badge>
                               ))}
+                              {selectedChannels.length > 3 && (
+                                <Badge variant="secondary">
+                                  +{selectedChannels.length - 3} mais
+                                </Badge>
+                              )}
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
+                          )}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full min-w-[300px] p-2 bg-popover" align="start">
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {availableChannels.map((channel) => (
+                            <div
+                              key={channel}
+                              className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                              onClick={() => toggleChannel(channel)}
+                            >
+                              <Checkbox
+                                checked={selectedChannels.includes(channel)}
+                                onCheckedChange={() => toggleChannel(channel)}
+                              />
+                              <ChannelBadges channels={[channel]} iconOnly />
+                              <span className="text-sm">{channelLabels[channel]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    {form.formState.errors.channels && (
+                      <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.channels.message}
+                      </p>
                     )}
-                  />
+                  </div>
                 )}
 
                 {/* Data e Hora */}
