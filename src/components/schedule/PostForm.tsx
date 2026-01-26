@@ -100,7 +100,11 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const editClientId = editForm.watch('client_id');
   const selectedClientId = isEditing ? editClientId : createClientId;
   const selectedClient = clients.find((c) => c.id === selectedClientId);
-  const availableChannels: SocialChannel[] = (selectedClient?.channels as SocialChannel[]) || allChannels;
+  
+  // Fallback to allChannels when client has no channels configured (empty array or null)
+  const clientChannels = selectedClient?.channels as SocialChannel[] | null;
+  const hasClientChannels = clientChannels && clientChannels.length > 0;
+  const availableChannels: SocialChannel[] = hasClientChannels ? clientChannels : allChannels;
 
   // For create mode - watch the form directly
   const selectedChannels = form.watch('channels') || [];
@@ -296,24 +300,39 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                         </Button>
                       </PopoverTrigger>
                       <PopoverContentNoPortal className="w-full min-w-[300px] p-2" align="start">
+                        {/* Helper message when client has no channels configured */}
+                        {selectedClientId && !hasClientChannels && (
+                          <p className="text-xs text-muted-foreground mb-2 px-2">
+                            Este cliente não tem canais configurados. Mostrando todos os canais.
+                          </p>
+                        )}
                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                          {availableChannels.map((channel) => (
-                            <div
-                              key={channel}
-                              className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                              onClick={() => toggleChannel(channel)}
-                            >
-                              <Checkbox
-                                checked={selectedChannels.includes(channel)}
-                                onCheckedChange={() => toggleChannel(channel)}
-                              />
-                              <ChannelBadges channels={[channel]} iconOnly />
-                              <span className="text-sm">{channelLabels[channel]}</span>
-                            </div>
-                          ))}
+                          {availableChannels.length === 0 ? (
+                            <p className="text-sm text-muted-foreground p-2">Nenhum canal disponível</p>
+                          ) : (
+                            availableChannels.map((channel) => (
+                              <div
+                                key={channel}
+                                className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                                onClick={() => toggleChannel(channel)}
+                              >
+                                <Checkbox
+                                  checked={selectedChannels.includes(channel)}
+                                  onCheckedChange={() => toggleChannel(channel)}
+                                />
+                                <ChannelBadges channels={[channel]} iconOnly />
+                                <span className="text-sm">{channelLabels[channel]}</span>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </PopoverContentNoPortal>
                     </Popover>
+                    {!selectedClientId && (
+                      <p className="text-xs text-muted-foreground">
+                        Selecione um cliente para escolher os canais.
+                      </p>
+                    )}
                     {form.formState.errors.channels && (
                       <p className="text-sm font-medium text-destructive">
                         {form.formState.errors.channels.message}
