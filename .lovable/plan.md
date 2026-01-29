@@ -1,66 +1,80 @@
 
-## Correção: Exibir Arte Integralmente no PostDetails
+## Visualizacao em Tela Cheia: Imagens e Editor de Legenda
 
-### Problema Identificado
-A visualização da arte está forçando formato quadrado (`aspect-square`) com `object-cover`, o que corta imagens verticais ou horizontais que não sejam 1:1.
+### Problema
+Atualmente o modal PostDetails exibe imagens e legendas em um espaco limitado. O usuario deseja poder expandir para tela cheia para melhor visualizacao e edicao.
 
-### Solução Proposta
-Alterar o container da imagem principal para preservar a proporção original da arte, permitindo visualização completa.
+### Solucao Proposta
+Adicionar um modo de tela cheia (fullscreen) acessivel a partir do modal PostDetails, que permitira:
+1. Visualizar as imagens em tamanho grande
+2. Editar a legenda em um espaco mais amplo
+3. Navegar entre imagens no modo fullscreen
 
-### Mudanças em `src/components/schedule/PostDetails.tsx`
+### Componentes Envolvidos
 
-1. **Remover `aspect-square`**: Substituir por um container flexível com altura máxima
-2. **Trocar `object-cover` por `object-contain`**: Isso garante que a imagem inteira seja visível
-3. **Adicionar altura máxima**: Limitar para não ocupar a tela toda, mas permitir scroll se necessário
-4. **Manter fundo para imagens com transparência**: Manter `bg-muted` para dar contraste
+**Novo componente:** `src/components/schedule/FullscreenViewer.tsx`
+- Modal de tela cheia usando Dialog com classes para ocupar toda a viewport
+- Layout dividido: imagem principal a esquerda, editor de legenda a direita
+- Navegacao entre imagens (setas e thumbnails)
+- Contador de caracteres para a legenda
+- Botao para fechar e salvar
+
+**Modificacao:** `src/components/schedule/PostDetails.tsx`
+- Adicionar botao "Tela Cheia" / icone Maximize na area da imagem
+- Estado para controlar abertura do FullscreenViewer
+- Passar dados do post para o novo componente
+
+### Layout Proposto
 
 ```text
-Antes:
-┌─────────────────────┐
-│  ┌───────────────┐  │
-│  │   IMAGEM      │  │ ← aspect-square + object-cover
-│  │   (cortada)   │  │   corta partes da imagem
-│  └───────────────┘  │
-└─────────────────────┘
-
-Depois:
-┌─────────────────────┐
-│  ┌───────────────┐  │
-│  │               │  │
-│  │   IMAGEM      │  │ ← max-h-[500px] + object-contain
-│  │   COMPLETA    │  │   mostra imagem inteira
-│  │               │  │
-│  └───────────────┘  │
-└─────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  [X]                    TELA CHEIA                              │
+├───────────────────────────────────┬─────────────────────────────┤
+│                                   │  Legenda                    │
+│                                   │  ┌───────────────────────┐  │
+│     [<]     IMAGEM      [>]       │  │                       │  │
+│                                   │  │   Editor de texto     │  │
+│             PRINCIPAL             │  │   com contador        │  │
+│                                   │  │                       │  │
+│                                   │  └───────────────────────┘  │
+│                                   │  0/2200 caracteres          │
+├───────────────────────────────────┴─────────────────────────────┤
+│  [thumb1] [thumb2] [thumb3]           [Cancelar] [Salvar]       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Detalhes Tecnicos
 
-Linha 58-63 atual:
+**FullscreenViewer.tsx:**
 ```tsx
-<div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-  <img
-    src={images[currentImageIndex]?.image_url}
-    alt=""
-    className="h-full w-full object-cover"
-  />
+interface FullscreenViewerProps {
+  post: PostWithImages;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave?: (caption: string) => void;
+}
 ```
 
-Nova versao:
-```tsx
-<div className="relative flex items-center justify-center overflow-hidden rounded-lg bg-muted" style={{ maxHeight: '500px' }}>
-  <img
-    src={images[currentImageIndex]?.image_url}
-    alt=""
-    className="max-h-[500px] w-full object-contain"
-  />
-```
+- Usar `Dialog` com `className="fixed inset-0 max-w-full w-screen h-screen"`
+- Imagem com `object-contain` para mostrar completa
+- Textarea com resize para legenda
+- Navegacao com ArrowLeft/ArrowRight (teclado) e botoes visuais
+- Hook `useUpdatePost` para salvar alteracoes na legenda
 
-### Arquivos a Modificar
-- `src/components/schedule/PostDetails.tsx` (linhas 58-63)
+**PostDetails.tsx:**
+- Adicionar import do `Maximize` icon do lucide-react
+- Estado `fullscreenOpen` para controlar o viewer
+- Botao sobreposto na imagem para abrir fullscreen
+- Passar callback `onSave` para atualizar a legenda e refetch dos dados
 
-### Resultado Esperado
-- A arte sera exibida integralmente, sem cortes
-- Imagens verticais e horizontais serao visualizadas completamente
-- O container se adapta a proporcao da imagem ate um maximo de 500px de altura
-- Thumbnails continuam funcionando normalmente para navegacao entre imagens
+### Arquivos a Criar/Modificar
+1. **Criar:** `src/components/schedule/FullscreenViewer.tsx` - novo componente
+2. **Modificar:** `src/components/schedule/PostDetails.tsx` - adicionar botao e integracao
+
+### Fluxo de Uso
+1. Usuario abre PostDetails (Sheet lateral)
+2. Clica no icone de tela cheia na imagem
+3. Abre modal fullscreen com imagem grande e editor de legenda
+4. Edita legenda se desejar
+5. Salva ou cancela
+6. Retorna ao PostDetails atualizado
