@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAcceptInvitation } from '@/hooks/useInvitations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,11 +10,58 @@ import { toast } from 'sonner';
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function Login() {
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite');
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [inviteData, setInviteData] = useState<{ tenantName: string } | null>(null);
+  
+  const { signIn, user } = useAuth();
+  const { validateToken, acceptInvitation } = useAcceptInvitation();
   const navigate = useNavigate();
+
+  // Validar convite se token presente
+  useEffect(() => {
+    const checkInvite = async () => {
+      if (!inviteToken) return;
+      
+      const result = await validateToken(inviteToken);
+      
+      if (result.valid && result.tenantName) {
+        setInviteData({ tenantName: result.tenantName });
+      }
+    };
+    
+    checkInvite();
+  }, [inviteToken, validateToken]);
+
+  // Se usuário já está logado e tem convite, aceitar automaticamente
+  useEffect(() => {
+    const handleLoggedInWithInvite = async () => {
+      if (user && inviteToken) {
+        setIsLoading(true);
+        acceptInvitation(
+          { token: inviteToken, userId: user.id },
+          {
+            onSuccess: () => {
+              toast.success('Convite aceito com sucesso!');
+              navigate('/dashboard');
+            },
+            onError: (error) => {
+              toast.error('Erro ao aceitar convite', {
+                description: error.message,
+              });
+              setIsLoading(false);
+            },
+          }
+        );
+      }
+    };
+    
+    handleLoggedInWithInvite();
+  }, [user, inviteToken, acceptInvitation, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +79,11 @@ export default function Login() {
       return;
     }
 
-    toast.success('Login realizado com sucesso!');
-    navigate('/dashboard');
+    // Se tem convite, o useEffect acima vai cuidar de aceitar
+    if (!inviteToken) {
+      toast.success('Login realizado com sucesso!');
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -48,7 +99,9 @@ export default function Login() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Bem-vindo de volta!</CardTitle>
           <CardDescription>
-            Entre com suas credenciais para acessar sua conta
+            {inviteData
+              ? `Faça login para aceitar o convite de ${inviteData.tenantName}`
+              : 'Entre com suas credenciais para acessar sua conta'}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -83,7 +136,7 @@ export default function Login() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Entrando...
+                  {inviteToken ? 'Entrando e aceitando convite...' : 'Entrando...'}
                 </>
               ) : (
                 'Entrar'
@@ -91,7 +144,10 @@ export default function Login() {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Não tem uma conta?{' '}
-              <Link to="/registro" className="font-medium text-primary hover:underline">
+              <Link 
+                to={inviteToken ? `/registro?invite=${inviteToken}` : '/registro'} 
+                className="font-medium text-primary hover:underline"
+              >
                 Criar conta
               </Link>
             </p>
