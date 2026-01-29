@@ -1,75 +1,121 @@
 
-## Correção: Exibição da Formatação da Legenda
 
-### Problema Identificado
-O editor rico (Tiptap) salva a legenda como HTML com tags de formatação:
-```html
-<p>Logística door to door não é apenas sobre contratar um frete.</p>
-<p>É sobre entender as necessidades do cliente...</p>
+## Edição Inline Estilo ClickUp no Modal de Detalhes
+
+### Conceito
+Transformar o modal de detalhes do post em uma experiência de edição inline, onde cada campo pode ser editado diretamente ao clicar nele. Ao clicar fora (blur) ou pressionar Enter, as mudanças são salvas automaticamente.
+
+### Campos Editáveis
+
+| Campo | Comportamento Atual | Comportamento Novo |
+|-------|--------------------|--------------------|
+| Cliente | Texto estático | Select ao clicar |
+| Data/Hora | Texto estático | Input datetime ao clicar |
+| Legenda | HTML readonly | Editor rico inline ao clicar |
+| Status | Select sempre visível | Mantém (já funciona assim) |
+| Canal | Badge estático | Select ao clicar |
+
+### UX Proposta
+
+```text
+Modo Visualizacao (padrao):
+┌────────────────────────────────────────┐
+│  Cliente                               │
+│  Empresa ABC  ← texto normal, cursor   │
+│               pointer indica clicavel  │
+└────────────────────────────────────────┘
+
+Modo Edicao (ao clicar):
+┌────────────────────────────────────────┐
+│  Cliente                               │
+│  ┌──────────────────────────────────┐  │
+│  │ Empresa ABC            ▼         │  │
+│  └──────────────────────────────────┘  │
+└────────────────────────────────────────┘
 ```
 
-Mas na exibição, a função `extractPlainText()` remove todas as tags HTML, gerando texto corrido sem quebras de linha.
+### Componente Reutilizavel: InlineEditable
 
-### Solução
+Criar um componente generico que:
+- Renderiza conteudo como texto normal
+- Ao clicar, troca para o componente de edicao (Input, Select, RichTextEditor)
+- Ao blur ou Enter, salva automaticamente e volta ao modo visualizacao
+- Mostra indicador sutil de "editavel" no hover
 
-Modificar a exibição para renderizar o HTML diretamente, preservando:
-- Quebras de parágrafo (`<p>`)
-- Negrito (`<strong>`)
-- Itálico (`<em>`)
-- Sublinhado (`<u>`)
-- Listas (`<ul>`, `<ol>`)
+### Arquivos a Modificar/Criar
 
-### Mudanças no Arquivo
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| `src/components/ui/inline-editable.tsx` | Criar | Componente base para edicao inline |
+| `src/components/schedule/PostDetails.tsx` | Modificar | Integrar campos editaveis |
+| `src/hooks/usePosts.ts` | Manter | Ja tem useUpdatePost |
 
-**`src/components/schedule/PostDetails.tsx`**
+### Detalhes Tecnicos
 
-**1. Visualização compacta da legenda (linhas 207-213)**
+**1. InlineEditable Component**
 
-De:
+Props principais:
+- `value`: valor atual
+- `onSave`: callback quando salvar (recebe novo valor)
+- `type`: "text" | "select" | "datetime" | "richtext"
+- `options`: opcoes para select
+- `isLoading`: mostrar loading durante save
+
+**2. Integracao no PostDetails**
+
+Para cada campo:
 ```tsx
-{displayCaption ? (
-  <div className="max-h-[200px] overflow-y-auto rounded-lg bg-muted/50 p-4">
-    <p className="whitespace-pre-wrap text-sm">{displayCaption}</p>
-  </div>
-) : (
-  <p className="text-sm italic text-muted-foreground">Sem legenda</p>
-)}
+<InlineEditable
+  type="select"
+  value={post.client_id}
+  displayValue={post.clients?.name}
+  options={clients.map(c => ({ value: c.id, label: c.name }))}
+  onSave={(value) => handleFieldUpdate('client_id', value)}
+/>
 ```
 
-Para:
+**3. Handler de Update por Campo**
+
 ```tsx
-{post.caption ? (
-  <div 
-    className="prose prose-sm dark:prose-invert max-h-[200px] max-w-none overflow-y-auto rounded-lg bg-muted/50 p-4"
-    dangerouslySetInnerHTML={{ __html: post.caption }}
-  />
-) : (
-  <p className="text-sm italic text-muted-foreground">Sem legenda</p>
-)}
+const handleFieldUpdate = async (field: string, value: any) => {
+  await updatePost.mutateAsync({
+    id: post.id,
+    post: { [field]: value }
+  });
+};
 ```
 
-**2. Manter `extractPlainText` apenas para contagem de caracteres**
+**4. Legenda com Editor Rico Inline**
 
-A função `extractPlainText` continuará sendo usada apenas para calcular o número de caracteres (sem tags HTML), exibido no contador.
+A legenda usara uma versao compacta do RichTextEditor que:
+- Mostra HTML formatado quando nao esta editando
+- Ao clicar, ativa o editor Tiptap no local
+- Toolbar aparece acima quando em modo edicao
+- Salva no blur
 
-**3. Adicionar estilos prose para formatação correta**
+### Indicadores Visuais
 
-A classe `prose prose-sm dark:prose-invert max-w-none` do Tailwind Typography garante que:
-- Parágrafos tenham espaçamento adequado
-- Negrito, itálico e sublinhado sejam exibidos corretamente
-- Listas tenham marcadores
-- O tema dark seja respeitado
+- Cursor `pointer` em campos editaveis
+- Borda sutil no hover para indicar clicavel
+- Icone de lapis pequeno no canto (opcional)
+- Toast de confirmacao ao salvar
 
-### Resumo Visual
+### Sequencia de Implementacao
 
-| Antes | Depois |
-|-------|--------|
-| Texto corrido sem quebras | Parágrafos separados |
-| Formatação (negrito, itálico) perdida | Formatação preservada |
-| `extractPlainText` → texto puro | `dangerouslySetInnerHTML` → HTML renderizado |
+1. Criar componente `InlineEditable` com suporte a text/select/datetime
+2. Implementar handler `handleFieldUpdate` no PostDetails
+3. Substituir campos estaticos por InlineEditable:
+   - Cliente (select)
+   - Data/Hora (datetime-local)
+   - Canal (select)
+4. Criar versao inline do RichTextEditor para legenda
+5. Testar fluxo completo de edicao
+6. Ajustar loading states e feedback visual
 
-### Arquivo a Modificar
+### Comportamento de Save
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/schedule/PostDetails.tsx` | Trocar exibição de texto puro para HTML renderizado com classes prose |
+- Debounce de 500ms para evitar saves excessivos
+- Mostrar loading sutil no campo sendo salvo
+- Toast de sucesso/erro apos save
+- Reverter valor se save falhar
+
