@@ -85,6 +85,7 @@ export type Database = {
       invitations: {
         Row: {
           accepted_at: string | null
+          client_ids: string[] | null
           created_at: string
           email: string
           expires_at: string
@@ -97,6 +98,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          client_ids?: string[] | null
           created_at?: string
           email: string
           expires_at: string
@@ -109,6 +111,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          client_ids?: string[] | null
           created_at?: string
           email?: string
           expires_at?: string
@@ -281,6 +284,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_client_access: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_client_access_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_client_access_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -319,6 +361,10 @@ export type Database = {
     }
     Functions: {
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
+      has_client_access: {
+        Args: { _client_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

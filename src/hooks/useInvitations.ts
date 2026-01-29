@@ -14,6 +14,8 @@ export interface Invitation {
   token: string;
   expires_at: string;
   created_at: string;
+  client_ids: string[] | null;
+  tenant_id: string;
 }
 
 export function useInvitations() {
@@ -40,7 +42,15 @@ export function useInvitations() {
   const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
 
   const createInvitationMutation = useMutation({
-    mutationFn: async ({ email, role }: { email: string; role: 'member' | 'owner' }) => {
+    mutationFn: async ({ 
+      email, 
+      role, 
+      clientIds 
+    }: { 
+      email: string; 
+      role: 'member' | 'owner';
+      clientIds?: string[] | null;
+    }) => {
       if (!profile?.tenant_id || !user?.id) {
         throw new Error('Dados do usuário não encontrados');
       }
@@ -58,6 +68,7 @@ export function useInvitations() {
           invited_by: user.id,
           status: 'pending',
           expires_at: expiresAt.toISOString(),
+          client_ids: clientIds || null,
         })
         .select()
         .single();
@@ -220,7 +231,25 @@ export function useAcceptInvitation() {
 
       if (roleError) throw roleError;
 
-      // 4. Marcar convite como aceito
+      // 4. Criar acessos aos clientes (se especificados no convite)
+      if (invitation.client_ids && invitation.client_ids.length > 0) {
+        const accessInserts = invitation.client_ids.map((clientId: string) => ({
+          user_id: userId,
+          client_id: clientId,
+          tenant_id: invitation.tenant_id,
+        }));
+
+        const { error: accessError } = await supabase
+          .from('user_client_access')
+          .insert(accessInserts);
+
+        if (accessError) {
+          console.error('Error creating client access:', accessError);
+          // Não falhar o aceite do convite por causa disso
+        }
+      }
+
+      // 5. Marcar convite como aceito
       const { error: updateError } = await supabase
         .from('invitations')
         .update({
