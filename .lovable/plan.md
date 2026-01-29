@@ -1,110 +1,56 @@
 
+## Correção: Imagem Muito Grande no Modo Tela Cheia
 
-## Visualizacao Separada: Modo Imagem vs Modo Editor
+### Problema Identificado
+No modo de visualização de imagem do FullscreenViewer, a imagem está ultrapassando os limites do container e sendo cortada. Isso acontece porque:
+1. O container da imagem usa `flex-1` mas não tem `overflow-hidden`
+2. A tag `img` usa `max-h-full max-w-full` mas o container pai não tem dimensões fixas que limitem corretamente
 
-### Problema
-Atualmente o FullscreenViewer exibe imagens e editor de legenda lado a lado. O usuario deseja poder alternar entre:
-1. **Modo Imagem**: Tela cheia dedicada apenas a visualizacao das imagens
-2. **Modo Editor**: Tela cheia dedicada apenas a edicao da legenda
+### Solução Proposta
+Adicionar controles de overflow e usar posicionamento absoluto para garantir que a imagem fique contida dentro do espaço disponível.
 
-### Solucao Proposta
-Adicionar sistema de abas/toggle para alternar entre os dois modos, maximizando o espaco disponivel para cada funcao.
+### Mudanças em `src/components/schedule/FullscreenViewer.tsx`
 
-### Layout Proposto
-
-**Modo Imagem (padrao):**
+**Linha 104 - Container da imagem principal:**
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Visualizacao em Tela Cheia          [Imagem] [Editor]    [X]   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│                                                                 │
-│     [<]              IMAGEM PRINCIPAL              [>]          │
-│                    (ocupa toda a area)                          │
-│                                                                 │
-│                                                                 │
-│                           1 / 3                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  [thumb1] [thumb2] [thumb3]                                     │
-└─────────────────────────────────────────────────────────────────┘
+Antes:
+<div className="relative flex flex-1 items-center justify-center">
+  <img ... className="max-h-full max-w-full object-contain" />
+
+Depois:
+<div className="relative flex flex-1 items-center justify-center overflow-hidden">
+  <img ... className="max-h-full max-w-full object-contain" />
 ```
 
-**Modo Editor:**
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Visualizacao em Tela Cheia          [Imagem] [Editor]    [X]   │
-├─────────────────────────────────────────────────────────────────┤
-│  Legenda                                                        │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                                                           │  │
-│  │              EDITOR DE TEXTO GRANDE                       │  │
-│  │              (ocupa toda a area)                          │  │
-│  │                                                           │  │
-│  │                                                           │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  245/2200 caracteres                                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                       [Cancelar] [Salvar]       │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Ajuste adicional: usar inset-0 com absolute para garantir limites**
 
-### Mudancas em `src/components/schedule/FullscreenViewer.tsx`
-
-1. **Adicionar estado de modo**: `viewMode: 'image' | 'editor'`
-2. **Adicionar toggle no header**: Usar `Tabs` ou botoes toggle para alternar entre modos
-3. **Renderizacao condicional**: Mostrar apenas a secao ativa ocupando 100% do espaco
-4. **Manter navegacao por teclado**: ArrowLeft/ArrowRight no modo imagem
-
-### Detalhes Tecnicos
+O problema é que `flex-1` não define uma altura fixa, então `max-h-full` não tem uma referência correta. A solução é usar posicionamento absoluto dentro de um container relativo:
 
 ```tsx
-const [viewMode, setViewMode] = useState<'image' | 'editor'>('image');
-```
-
-**Header com toggle:**
-```tsx
-<DialogHeader className="flex-shrink-0 border-b px-6 py-4">
-  <div className="flex items-center justify-between">
-    <DialogTitle>Visualizacao em Tela Cheia</DialogTitle>
-    <div className="flex gap-1 rounded-lg bg-muted p-1">
-      <Button 
-        variant={viewMode === 'image' ? 'secondary' : 'ghost'}
-        size="sm"
-        onClick={() => setViewMode('image')}
-      >
-        <Image className="mr-2 h-4 w-4" />
-        Imagem
-      </Button>
-      <Button
-        variant={viewMode === 'editor' ? 'secondary' : 'ghost'}
-        size="sm"
-        onClick={() => setViewMode('editor')}
-      >
-        <Type className="mr-2 h-4 w-4" />
-        Editor
-      </Button>
-    </div>
+<div className="relative flex-1 overflow-hidden">
+  <div className="absolute inset-0 flex items-center justify-center p-4">
+    <img
+      src={images[currentImageIndex]?.image_url}
+      alt=""
+      className="max-h-full max-w-full object-contain"
+    />
   </div>
-</DialogHeader>
-```
-
-**Conteudo condicional:**
-```tsx
-<div className="flex flex-1 overflow-hidden">
-  {viewMode === 'image' ? (
-    <ImageViewer ... />  // Ocupa 100% do espaco
-  ) : (
-    <CaptionEditor ... /> // Ocupa 100% do espaco
-  )}
+  {/* Navigation arrows usando absolute já funcionam */}
 </div>
 ```
 
+### Detalhes Tecnicos
+
+O problema técnico é que `flex-1` com `max-h-full` não funciona bem porque:
+- `flex-1` faz o elemento crescer para preencher o espaço disponível
+- Mas `max-h-full` (100%) calcula baseado no pai, que não tem altura definida explicitamente
+- Usando `absolute inset-0` dentro de um container `relative flex-1`, forçamos o container interno a ter exatamente o tamanho do container flex
+
 ### Arquivos a Modificar
-- `src/components/schedule/FullscreenViewer.tsx`
+- `src/components/schedule/FullscreenViewer.tsx` (linhas 102-143)
 
-### Beneficios
-- Imagens ocupam toda a viewport no modo imagem
-- Editor de texto grande e confortavel no modo editor
-- Transicao suave entre modos
-- Mantém botoes de salvar/cancelar visiveis em ambos os modos
-
+### Resultado Esperado
+- A imagem será exibida integralmente dentro do espaço disponível
+- Imagens muito grandes (verticais ou horizontais) serão redimensionadas para caber
+- O padding de 4 (1rem) garante que a imagem não encoste nas bordas
+- Navegação e contador continuam funcionando normalmente
