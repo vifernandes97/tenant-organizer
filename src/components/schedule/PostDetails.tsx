@@ -61,18 +61,18 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="h-[90vh] w-[90vw] max-w-[90vw] gap-0 overflow-hidden p-0">
-          <div className="flex h-full flex-col lg:flex-row">
+        <DialogContent className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col gap-0 overflow-hidden p-0">
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             {/* Left Column - Image Gallery (60%) */}
-            <div className="relative flex w-full flex-col bg-muted/30 lg:w-3/5">
+            <div className="relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5">
               {/* Main Image */}
               {images.length > 0 ? (
                 <>
-                  <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+                  <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
                     <img
                       src={images[currentImageIndex]?.image_url}
                       alt=""
-                      className="max-h-full max-w-full rounded-lg object-contain"
+                      className="h-full w-full rounded-lg object-contain"
                     />
                     
                     {/* Navigation Arrows */}
@@ -117,7 +117,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
 
                   {/* Thumbnails */}
                   {images.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto border-t bg-background/50 p-4">
+                    <div className="flex shrink-0 gap-2 overflow-x-auto border-t bg-background/50 p-4">
                       {images.map((img, idx) => (
                         <button
                           key={img.id}
@@ -145,20 +145,26 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
             </div>
 
             {/* Right Column - Info Panel (40%) */}
-            <div className="flex w-full flex-col border-t lg:w-2/5 lg:border-l lg:border-t-0">
-              {/* Header */}
-              <div className="border-b p-6">
+            <div className="flex min-h-0 flex-1 w-full flex-col border-t lg:w-2/5 lg:flex-none lg:border-l lg:border-t-0">
+              {/* Header with Edit button */}
+              <div className="shrink-0 border-b p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2">
                     <ChannelBadges channels={[post.channel]} />
                     <h2 className="text-xl font-semibold">{post.clients?.name}</h2>
                   </div>
-                  <PostStatusBadge status={post.status} />
+                  <div className="flex items-center gap-2">
+                    <Button onClick={onEdit} size="sm" variant="outline">
+                      <Edit className="mr-1 h-3.5 w-3.5" />
+                      Editar
+                    </Button>
+                    <PostStatusBadge status={post.status} />
+                  </div>
                 </div>
               </div>
 
               {/* Content with scroll */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 {/* Schedule Info */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                   <div className="flex items-center gap-2 text-muted-foreground">
