@@ -2,17 +2,20 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus } from '@/hooks/usePosts';
 import { useClients } from '@/hooks/useClients';
+import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
 import { PostStatusBadge } from './PostStatusBadge';
-import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { FullscreenViewer } from './FullscreenViewer';
 import { InlineEditable } from '@/components/ui/inline-editable';
 import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
+import { CommentsList } from '@/components/comments/CommentsList';
+import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -43,15 +46,20 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
   const { data: clients = [] } = useClients();
+  const { data: comments = [] } = useAllPostComments(post?.id || null);
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('details');
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
 
   if (!post) return null;
 
   const scheduledDate = new Date(post.scheduled_at);
   const images = post.post_images || [];
+  const openCommentsCount = comments.filter(c => c.status === 'open').length;
 
   const handleDelete = async () => {
     await deletePost.mutateAsync(post.id);
@@ -80,6 +88,13 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
 
   const handleNextImage = () => {
     setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  const handleCommentClick = (comment: PostCommentWithAuthor, imageIndex?: number) => {
+    setActiveCommentId(comment.id);
+    if (imageIndex !== undefined) {
+      setCurrentImageIndex(imageIndex);
+    }
   };
 
   // Format datetime for input
@@ -114,16 +129,19 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col gap-0 overflow-hidden p-0">
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-            {/* Left Column - Image Gallery (60%) */}
+            {/* Left Column - Image Gallery with Comments (60%) */}
             <div className="relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5">
-              {/* Main Image */}
+              {/* Main Image with Comment Layer */}
               {images.length > 0 ? (
                 <>
                   <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-                    <img
-                      src={images[currentImageIndex]?.image_url}
-                      alt=""
-                      className="h-full w-full rounded-lg object-contain"
+                    <ImageCommentLayer
+                      postId={post.id}
+                      imageId={images[currentImageIndex]?.id || null}
+                      imageUrl={images[currentImageIndex]?.image_url}
+                      className="h-full w-full"
+                      activeCommentId={activeCommentId}
+                      onCommentClick={(comment) => setActiveCommentId(comment.id)}
                     />
                     
                     {/* Navigation Arrows */}
@@ -195,14 +213,39 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
               )}
             </div>
 
-            {/* Right Column - Info Panel (40%) */}
+            {/* Right Column - Info Panel with Tabs (40%) */}
             <div className="flex min-h-0 flex-1 w-full flex-col border-t lg:w-2/5 lg:flex-none lg:border-l lg:border-t-0">
-              {/* Header */}
-              <div className="shrink-0 border-b p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    {/* Channel - Inline Editable */}
-                    <div>
+              {/* Header with Status */}
+              <div className="shrink-0 border-b p-4">
+                <div className="flex items-center justify-between">
+                  <PostStatusBadge status={post.status} />
+                  <span className="text-xs text-muted-foreground">
+                    {post.clients?.name}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
+                <TabsList className="mx-4 mt-4 shrink-0 grid w-auto grid-cols-2">
+                  <TabsTrigger value="details">Detalhes</TabsTrigger>
+                  <TabsTrigger value="comments" className="gap-1">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Comentários
+                    {openCommentsCount > 0 && (
+                      <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs text-primary-foreground">
+                        {openCommentsCount}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Details Tab */}
+                <TabsContent value="details" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+                  {/* Content with scroll */}
+                  <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                    {/* Channel */}
+                    <div className="mb-4">
                       <h4 className="mb-1 text-xs font-medium text-muted-foreground">Canal</h4>
                       <InlineEditable
                         type="select"
@@ -214,8 +257,8 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       />
                     </div>
                     
-                    {/* Client - Inline Editable */}
-                    <div>
+                    {/* Client */}
+                    <div className="mb-4">
                       <h4 className="mb-1 text-xs font-medium text-muted-foreground">Cliente</h4>
                       <InlineEditable
                         type="select"
@@ -226,115 +269,121 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                         isLoading={savingField === 'client_id'}
                       />
                     </div>
+
+                    {/* Schedule Info */}
+                    <div className="mb-4">
+                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">Data e Hora</h4>
+                      <InlineEditable
+                        type="datetime"
+                        value={formatDateTimeForInput(scheduledDate)}
+                        displayValue={`${scheduledDate.toLocaleDateString('pt-BR', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })} às ${scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                        onSave={(value) => handleFieldUpdate('scheduled_at', value)}
+                        isLoading={savingField === 'scheduled_at'}
+                      />
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Caption */}
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-xs font-medium text-muted-foreground">Legenda</h4>
+                        {post.caption && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCaptionDialogOpen(true)}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Maximize2 className="mr-1 h-3 w-3" />
+                            Expandir
+                          </Button>
+                        )}
+                      </div>
+                      <InlineRichTextEditor
+                        value={post.caption || ''}
+                        onSave={(value) => handleFieldUpdate('caption', value)}
+                        isLoading={savingField === 'caption'}
+                        placeholder="Clique para adicionar legenda..."
+                      />
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Quick Status Change */}
+                    <div>
+                      <h4 className="mb-2 text-xs font-medium text-muted-foreground">Alterar Status</h4>
+                      <Select value={post.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Rascunho</SelectItem>
+                          <SelectItem value="approved">Aprovado</SelectItem>
+                          <SelectItem value="scheduled">Agendado</SelectItem>
+                          <SelectItem value="published">Publicado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <PostStatusBadge status={post.status} />
-                </div>
-              </div>
 
-              {/* Content with scroll */}
-              <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                {/* Schedule Info - Inline Editable */}
-                <div>
-                  <h4 className="mb-1 text-xs font-medium text-muted-foreground">Data e Hora</h4>
-                  <InlineEditable
-                    type="datetime"
-                    value={formatDateTimeForInput(scheduledDate)}
-                    displayValue={`${scheduledDate.toLocaleDateString('pt-BR', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })} às ${scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
-                    onSave={(value) => handleFieldUpdate('scheduled_at', value)}
-                    isLoading={savingField === 'scheduled_at'}
-                  />
-                </div>
+                  {/* Footer - always visible */}
+                  <div className="shrink-0 border-t bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    {/* Metadata */}
+                    <div className="mb-3 text-xs text-muted-foreground">
+                      <p>Criado: {new Date(post.created_at).toLocaleString('pt-BR')}</p>
+                      <p>Atualizado: {new Date(post.updated_at).toLocaleString('pt-BR')}</p>
+                    </div>
 
-                <Separator className="my-6" />
-
-                {/* Caption - Inline Rich Text Editor */}
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-muted-foreground">Legenda</h4>
-                    {post.caption && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setCaptionDialogOpen(true)}
-                        className="h-7 px-2 text-xs"
-                      >
-                        <Maximize2 className="mr-1 h-3 w-3" />
-                        Expandir
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Button onClick={onEdit} className="flex-1">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
                       </Button>
-                    )}
+                      <Button variant="outline" size="icon" title="Copiar">
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="icon" title="Excluir">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Post?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. O post e todas as imagens serão excluídos permanentemente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                  <InlineRichTextEditor
-                    value={post.caption || ''}
-                    onSave={(value) => handleFieldUpdate('caption', value)}
-                    isLoading={savingField === 'caption'}
-                    placeholder="Clique para adicionar legenda..."
+                </TabsContent>
+
+                {/* Comments Tab */}
+                <TabsContent value="comments" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+                  <CommentsList
+                    postId={post.id}
+                    images={images}
+                    activeCommentId={activeCommentId}
+                    onCommentClick={handleCommentClick}
                   />
-                </div>
-
-                <Separator className="my-6" />
-
-                {/* Quick Status Change */}
-                <div>
-                  <h4 className="mb-3 text-sm font-medium text-muted-foreground">Alterar Status</h4>
-                  <Select value={post.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Rascunho</SelectItem>
-                      <SelectItem value="approved">Aprovado</SelectItem>
-                      <SelectItem value="scheduled">Agendado</SelectItem>
-                      <SelectItem value="published">Publicado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Footer - always visible */}
-              <div className="shrink-0 border-t bg-background p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                {/* Metadata */}
-                <div className="mb-4 text-xs text-muted-foreground">
-                  <p>Criado em: {new Date(post.created_at).toLocaleString('pt-BR')}</p>
-                  <p>Atualizado em: {new Date(post.updated_at).toLocaleString('pt-BR')}</p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Button onClick={onEdit} className="flex-1">
-                    <Edit className="mr-2 h-4 w-4" />
-                    Editar Completo
-                  </Button>
-                  <Button variant="outline" size="icon" title="Copiar">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon" title="Excluir">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir Post?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. O post e todas as imagens serão excluídos permanentemente.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
 

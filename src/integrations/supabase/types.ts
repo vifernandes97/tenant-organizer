@@ -132,6 +132,86 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          image_id: string | null
+          parent_id: string | null
+          post_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["comment_status"]
+          tenant_id: string
+          updated_at: string
+          x_position: number | null
+          y_position: number | null
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          image_id?: string | null
+          parent_id?: string | null
+          post_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["comment_status"]
+          tenant_id: string
+          updated_at?: string
+          x_position?: number | null
+          y_position?: number | null
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          image_id?: string | null
+          parent_id?: string | null
+          post_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["comment_status"]
+          tenant_id?: string
+          updated_at?: string
+          x_position?: number | null
+          y_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "post_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_images: {
         Row: {
           created_at: string
@@ -380,6 +460,7 @@ export type Database = {
     Enums: {
       app_role: "owner" | "member"
       client_status: "active" | "paused"
+      comment_status: "open" | "resolved"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       post_status: "draft" | "approved" | "scheduled" | "published"
       social_channel:
@@ -521,6 +602,7 @@ export const Constants = {
     Enums: {
       app_role: ["owner", "member"],
       client_status: ["active", "paused"],
+      comment_status: ["open", "resolved"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       post_status: ["draft", "approved", "scheduled", "published"],
       social_channel: [
