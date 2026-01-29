@@ -1,80 +1,110 @@
 
-## Visualizacao em Tela Cheia: Imagens e Editor de Legenda
+
+## Visualizacao Separada: Modo Imagem vs Modo Editor
 
 ### Problema
-Atualmente o modal PostDetails exibe imagens e legendas em um espaco limitado. O usuario deseja poder expandir para tela cheia para melhor visualizacao e edicao.
+Atualmente o FullscreenViewer exibe imagens e editor de legenda lado a lado. O usuario deseja poder alternar entre:
+1. **Modo Imagem**: Tela cheia dedicada apenas a visualizacao das imagens
+2. **Modo Editor**: Tela cheia dedicada apenas a edicao da legenda
 
 ### Solucao Proposta
-Adicionar um modo de tela cheia (fullscreen) acessivel a partir do modal PostDetails, que permitira:
-1. Visualizar as imagens em tamanho grande
-2. Editar a legenda em um espaco mais amplo
-3. Navegar entre imagens no modo fullscreen
-
-### Componentes Envolvidos
-
-**Novo componente:** `src/components/schedule/FullscreenViewer.tsx`
-- Modal de tela cheia usando Dialog com classes para ocupar toda a viewport
-- Layout dividido: imagem principal a esquerda, editor de legenda a direita
-- Navegacao entre imagens (setas e thumbnails)
-- Contador de caracteres para a legenda
-- Botao para fechar e salvar
-
-**Modificacao:** `src/components/schedule/PostDetails.tsx`
-- Adicionar botao "Tela Cheia" / icone Maximize na area da imagem
-- Estado para controlar abertura do FullscreenViewer
-- Passar dados do post para o novo componente
+Adicionar sistema de abas/toggle para alternar entre os dois modos, maximizando o espaco disponivel para cada funcao.
 
 ### Layout Proposto
 
+**Modo Imagem (padrao):**
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  [X]                    TELA CHEIA                              │
-├───────────────────────────────────┬─────────────────────────────┤
-│                                   │  Legenda                    │
-│                                   │  ┌───────────────────────┐  │
-│     [<]     IMAGEM      [>]       │  │                       │  │
-│                                   │  │   Editor de texto     │  │
-│             PRINCIPAL             │  │   com contador        │  │
-│                                   │  │                       │  │
-│                                   │  └───────────────────────┘  │
-│                                   │  0/2200 caracteres          │
-├───────────────────────────────────┴─────────────────────────────┤
-│  [thumb1] [thumb2] [thumb3]           [Cancelar] [Salvar]       │
+│  Visualizacao em Tela Cheia          [Imagem] [Editor]    [X]   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                                                                 │
+│     [<]              IMAGEM PRINCIPAL              [>]          │
+│                    (ocupa toda a area)                          │
+│                                                                 │
+│                                                                 │
+│                           1 / 3                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  [thumb1] [thumb2] [thumb3]                                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Detalhes Tecnicos
-
-**FullscreenViewer.tsx:**
-```tsx
-interface FullscreenViewerProps {
-  post: PostWithImages;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave?: (caption: string) => void;
-}
+**Modo Editor:**
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Visualizacao em Tela Cheia          [Imagem] [Editor]    [X]   │
+├─────────────────────────────────────────────────────────────────┤
+│  Legenda                                                        │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                                                           │  │
+│  │              EDITOR DE TEXTO GRANDE                       │  │
+│  │              (ocupa toda a area)                          │  │
+│  │                                                           │  │
+│  │                                                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  245/2200 caracteres                                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                       [Cancelar] [Salvar]       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-- Usar `Dialog` com `className="fixed inset-0 max-w-full w-screen h-screen"`
-- Imagem com `object-contain` para mostrar completa
-- Textarea com resize para legenda
-- Navegacao com ArrowLeft/ArrowRight (teclado) e botoes visuais
-- Hook `useUpdatePost` para salvar alteracoes na legenda
+### Mudancas em `src/components/schedule/FullscreenViewer.tsx`
 
-**PostDetails.tsx:**
-- Adicionar import do `Maximize` icon do lucide-react
-- Estado `fullscreenOpen` para controlar o viewer
-- Botao sobreposto na imagem para abrir fullscreen
-- Passar callback `onSave` para atualizar a legenda e refetch dos dados
+1. **Adicionar estado de modo**: `viewMode: 'image' | 'editor'`
+2. **Adicionar toggle no header**: Usar `Tabs` ou botoes toggle para alternar entre modos
+3. **Renderizacao condicional**: Mostrar apenas a secao ativa ocupando 100% do espaco
+4. **Manter navegacao por teclado**: ArrowLeft/ArrowRight no modo imagem
 
-### Arquivos a Criar/Modificar
-1. **Criar:** `src/components/schedule/FullscreenViewer.tsx` - novo componente
-2. **Modificar:** `src/components/schedule/PostDetails.tsx` - adicionar botao e integracao
+### Detalhes Tecnicos
 
-### Fluxo de Uso
-1. Usuario abre PostDetails (Sheet lateral)
-2. Clica no icone de tela cheia na imagem
-3. Abre modal fullscreen com imagem grande e editor de legenda
-4. Edita legenda se desejar
-5. Salva ou cancela
-6. Retorna ao PostDetails atualizado
+```tsx
+const [viewMode, setViewMode] = useState<'image' | 'editor'>('image');
+```
+
+**Header com toggle:**
+```tsx
+<DialogHeader className="flex-shrink-0 border-b px-6 py-4">
+  <div className="flex items-center justify-between">
+    <DialogTitle>Visualizacao em Tela Cheia</DialogTitle>
+    <div className="flex gap-1 rounded-lg bg-muted p-1">
+      <Button 
+        variant={viewMode === 'image' ? 'secondary' : 'ghost'}
+        size="sm"
+        onClick={() => setViewMode('image')}
+      >
+        <Image className="mr-2 h-4 w-4" />
+        Imagem
+      </Button>
+      <Button
+        variant={viewMode === 'editor' ? 'secondary' : 'ghost'}
+        size="sm"
+        onClick={() => setViewMode('editor')}
+      >
+        <Type className="mr-2 h-4 w-4" />
+        Editor
+      </Button>
+    </div>
+  </div>
+</DialogHeader>
+```
+
+**Conteudo condicional:**
+```tsx
+<div className="flex flex-1 overflow-hidden">
+  {viewMode === 'image' ? (
+    <ImageViewer ... />  // Ocupa 100% do espaco
+  ) : (
+    <CaptionEditor ... /> // Ocupa 100% do espaco
+  )}
+</div>
+```
+
+### Arquivos a Modificar
+- `src/components/schedule/FullscreenViewer.tsx`
+
+### Beneficios
+- Imagens ocupam toda a viewport no modo imagem
+- Editor de texto grande e confortavel no modo editor
+- Transicao suave entre modos
+- Mantém botoes de salvar/cancelar visiveis em ambos os modos
+
