@@ -138,7 +138,8 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     }
     setImages([]);
     setRemovedImageIds([]);
-  }, [post, defaultDate, form, editForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post, defaultDate]);
 
   const onSubmit = async (data: PostFormData | PostEditFormData) => {
     if (isEditing && post) {
