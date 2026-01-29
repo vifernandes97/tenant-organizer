@@ -204,10 +204,11 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       </Button>
                     )}
                   </div>
-                  {displayCaption ? (
-                    <div className="max-h-[200px] overflow-y-auto rounded-lg bg-muted/50 p-4">
-                      <p className="whitespace-pre-wrap text-sm">{displayCaption}</p>
-                    </div>
+                  {post.caption ? (
+                    <div 
+                      className="prose prose-sm dark:prose-invert max-h-[200px] max-w-none overflow-y-auto rounded-lg bg-muted/50 p-4"
+                      dangerouslySetInnerHTML={{ __html: post.caption }}
+                    />
                   ) : (
                     <p className="text-sm italic text-muted-foreground">Sem legenda</p>
                   )}
