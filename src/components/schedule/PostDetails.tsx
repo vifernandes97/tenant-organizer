@@ -353,13 +353,14 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           <DialogHeader>
             <DialogTitle>Legenda</DialogTitle>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1">
             <RichTextEditor
               value={post.caption || ''}
               onChange={(value) => handleFieldUpdate('caption', value)}
               placeholder="Digite a legenda..."
               maxLength={2200}
               className="h-full"
+              maxHeight="calc(85vh - 180px)"
             />
           </div>
         </DialogContent>
