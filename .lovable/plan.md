@@ -1,122 +1,97 @@
 
+## Objetivo
+Corrigir 3 problemas no modal de detalhes do Cronograma:
+1) a imagem não estar ficando totalmente visível (em alguns casos ela fica “cortada”/limitada),
+2) o botão **Editar** não aparecer,
+3) não conseguir **scrollar** dentro do modal (o que também pode estar impedindo o acesso ao rodapé).
 
-## Correções no Modal de Detalhes da Publicação
+Pelos prints, o rodapé (onde está o “Editar”) está sendo “clippado” e o scroll do painel direito não está funcionando.
 
-### Problemas Identificados
+---
 
-**1. Botão de Editar não visível**
-O botão de editar está presente no código (linha 223-226), mas o footer onde ele está pode estar sendo cortado em algumas resoluções de tela. Isso acontece porque:
-- O painel direito usa `flex-1 overflow-y-auto` na área de conteúdo
-- O footer está fixo na parte inferior, mas pode não estar acessível se o conteúdo central for muito grande
+## Diagnóstico (o que está causando isso)
+### 1) Scroll quebrado por layout flex sem `min-h-0`
+No `PostDetails.tsx`, o painel direito tem um bloco com `flex-1 overflow-y-auto`, mas, em layouts com `flex` aninhado, o scroll frequentemente não funciona se os pais não tiverem `min-h-0`. Isso faz o conteúdo “crescer” e ser cortado pelo contêiner (ainda mais porque o `DialogContent` tem `overflow-hidden`).
 
-**2. Legenda não expansível**
-Atualmente a legenda é exibida apenas como texto estático. Para uma experiência de apresentação, o usuário deveria poder clicar para ver a legenda formatada em tela cheia.
+Resultado: você não consegue rolar e o footer (com o botão Editar) “some”.
 
-### Soluções Propostas
+### 2) Mobile/tablet: layout em coluna pode tornar o painel de baixo inacessível
+O wrapper principal usa `flex-col` fora do `lg`. A coluna esquerda está com `flex-1`, então ela tende a consumir toda a altura disponível, empurrando a coluna direita para “fora” — e como o `DialogContent` está `overflow-hidden`, não dá para rolar para alcançá-la.
 
-**1. Garantir visibilidade do footer com botões de ação**
-- Mover o footer para uma posição mais proeminente ou garantir que ele sempre fique visível
-- Adicionar uma sombra sutil para indicar que há conteúdo abaixo quando há scroll
-- Reorganizar para que os botões de ação fiquem sempre acessíveis
+### 3) Imagem não 100% visível
+Mesmo com `object-contain`, se o contêiner pai não estiver com alturas corretamente calculadas (ou se o flex estiver estourando), a imagem pode acabar “limitada” por overflow/clipping. Também ajuda tornar o `<img>` explicitamente `h-full w-full object-contain` com um contêiner que tenha altura bem definida e `min-h-0`.
 
-**2. Adicionar visualizador de legenda expansível**
-- Adicionar um botão de expandir ao lado do título "Legenda"
-- Abrir um dialog de visualização apenas leitura com a legenda formatada
-- Usar o RichTextEditor em modo somente leitura ou criar um componente de visualização
+---
 
-### Mudanças no Layout
+## Mudanças propostas (sem mudar o conceito do layout 90vw)
+### A) Ajustar o `DialogContent` para um layout mais “scroll-safe”
+No `src/components/schedule/PostDetails.tsx`:
+- Transformar o `DialogContent` em um contêiner `flex` (ou manter como está, mas garantindo a cadeia de `min-h-0`).
+- Manter `h-[90vh] w-[90vw]`, mas:
+  - adicionar `min-h-0` no wrapper principal
+  - revisar onde `overflow-hidden` é realmente necessário
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Legenda                                           [ Expandir ] │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Texto da legenda...                                         ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
+Sugestão de regra prática:
+- `DialogContent`: pode continuar com `overflow-hidden` no desktop para manter a moldura limpa
+- mas precisa permitir que as áreas internas consigam scrollar (com `min-h-0` nos pais)
 
-Dialog expandido (somente leitura):
-┌─────────────────────────────────────────────────────────────────┐
-│  Legenda                                                   [X]  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Texto da legenda com **formatação** preservada                 │
-│  e múltiplas linhas visíveis...                                 │
-│                                                                 │
-│  - Item de lista                                                │
-│  - Outro item                                                   │
-│                                                                 │
-│                                                    245 caracteres│
-└─────────────────────────────────────────────────────────────────┘
-```
+### B) Consertar o scroll e o “sumir” do footer (Editar)
+Ainda em `PostDetails.tsx`:
+- No wrapper `div` que contém as duas colunas, adicionar `min-h-0`.
+- Na coluna direita, adicionar `min-h-0`.
+- No bloco “Content with scroll”, garantir `min-h-0 flex-1 overflow-y-auto`.
 
-### Arquivo a Modificar
+Isso faz o conteúdo realmente virar área scrollável e garante que o footer com `shrink-0` fique visível.
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/schedule/PostDetails.tsx` | Ajustar layout do footer e adicionar visualizador de legenda expansível |
+### C) Responsividade correta (evitar que a coluna esquerda engula tudo no mobile)
+No modo `flex-col` (abaixo de `lg`):
+- Definir altura máxima para a área da imagem (ex.: `h-[45vh]` ou `max-h-[45vh]`), em vez de deixar `flex-1` “comer” a tela toda.
+- Fazer o painel direito ocupar o restante (`flex-1 min-h-0`) e ser scrollável.
 
-### Implementação
+Assim, no mobile:
+- imagem fica “grande o suficiente”
+- informações + legenda + status + botões ficam acessíveis com scroll interno
 
-**1. Ajuste do layout do footer**
-```tsx
-{/* Right Column - agora com grid para garantir footer fixo */}
-<div className="flex w-full flex-col lg:w-2/5 lg:border-l lg:border-t-0">
-  {/* Header - fixo no topo */}
-  <div className="border-b p-6">...</div>
-  
-  {/* Content - área com scroll */}
-  <div className="flex-1 overflow-y-auto p-6">
-    {/* Data, legenda, status */}
-  </div>
-  
-  {/* Footer - fixo no fundo, com shadow para destacar */}
-  <div className="border-t bg-background p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-    {/* Botões de ação */}
-  </div>
-</div>
-```
+### D) Garantir que a imagem fique integralmente visível
+Na área da imagem principal:
+- Ajustar o contêiner para ter `min-h-0` e altura bem definida.
+- Trocar o `<img>` de `max-h-full max-w-full` para algo mais determinístico:
+  - `className="h-full w-full object-contain"`
+- Manter `p-4` e os overlays (setas/contador) como estão.
 
-**2. Seção de legenda com botão expandir**
-```tsx
-<div>
-  <div className="mb-3 flex items-center justify-between">
-    <h4 className="text-sm font-medium text-muted-foreground">Legenda</h4>
-    {post.caption && (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setCaptionDialogOpen(true)}
-      >
-        <Maximize2 className="mr-1 h-3 w-3" />
-        Expandir
-      </Button>
-    )}
-  </div>
-  {/* Preview da legenda */}
-</div>
+Isso evita casos em que o browser calcula o `max-height: 100%` de forma inesperada.
 
-{/* Dialog de legenda em tela cheia */}
-<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
-  <DialogContent className="max-w-3xl">
-    <DialogHeader>
-      <DialogTitle>Legenda</DialogTitle>
-    </DialogHeader>
-    <div 
-      className="prose prose-sm max-h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4"
-      dangerouslySetInnerHTML={{ __html: post.caption || '' }}
-    />
-    <div className="text-right text-sm text-muted-foreground">
-      {displayCaption?.length || 0} caracteres
-    </div>
-  </DialogContent>
-</Dialog>
-```
+### E) “Editar” mais amigável (redundância visual)
+Mesmo corrigindo scroll/rodapé, para apresentação é útil ter o **Editar** “sempre à vista”:
+- Adicionar um botão “Editar” também no header do painel direito (próximo do status), além do rodapé.
+- Benefício: mesmo se alguém estiver com viewport baixo, o CTA principal não desaparece.
 
-### Ordem de Implementação
+---
 
-1. Adicionar estado para controlar dialog de legenda
-2. Criar a seção de legenda com botão de expandir
-3. Adicionar dialog de visualização da legenda formatada
-4. Ajustar layout do footer para garantir visibilidade
-5. Adicionar sombra sutil no footer para indicar separação
+## Arquivos a mexer
+- `src/components/schedule/PostDetails.tsx` (único necessário para essas correções)
+
+---
+
+## Critérios de aceite (o que vamos validar)
+1) No desktop:
+   - Footer com **Editar** aparece sempre.
+   - Se o conteúdo do painel direito crescer, o scroll funciona no bloco correto.
+2) No mobile/tablet:
+   - A coluna direita fica acessível (não “some”).
+   - Dá para rolar o painel de informações/legenda sem travar.
+3) Imagem:
+   - A imagem fica sempre integralmente visível (fit/contain), sem precisar scroll do modal para ver o topo/rodapé da imagem.
+4) Legenda:
+   - O botão **Expandir** continua funcionando e abre a legenda completa.
+
+---
+
+## Sequência de implementação
+1) Ajustar classes do `DialogContent` e wrapper principal para suportar `min-h-0`.
+2) Corrigir coluna esquerda no mobile (altura controlada) e coluna direita como `flex-1 min-h-0`.
+3) Garantir scroll no painel direito (`overflow-y-auto` funcionando de verdade).
+4) Ajustar o `<img>` para `h-full w-full object-contain` e corrigir contêineres com `min-h-0`.
+5) Duplicar CTA “Editar” no header (opcional, mas recomendado para apresentação).
+6) Teste final end-to-end no /cronogramas: abrir post, rolar, visualizar footer, expandir legenda e abrir fullscreen.
 
