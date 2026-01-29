@@ -1,260 +1,167 @@
 
-## Editor de Texto Rico com Formatacao
+
+## Modal de Visualizacao de Publicacao Expandido
 
 ### Visao Geral
-Adicionar suporte a formatacao de texto no editor de legenda (ExpandableTextarea) usando a biblioteca **Tiptap** - um editor headless baseado em ProseMirror que oferece excelente suporte para React e TypeScript, alem de ser altamente customizavel.
+Transformar o modal de detalhes da publicacao em um layout amplo e profissional, ocupando 90% da largura do viewport. O novo design utiliza um layout de duas colunas para exibir imagens e informacoes lado a lado, eliminando a necessidade de scroll e proporcionando uma experiencia ideal para apresentacao e aprovacao de conteudo.
 
-### Por que Tiptap?
-
-| Criterio | Tiptap | Lexical | Slate |
-|----------|--------|---------|-------|
-| Facilidade de integracao | Alta | Media | Media |
-| TypeScript nativo | Sim | Sim | Sim |
-| Peso do bundle | Leve (tree-shakable) | Medio | Pesado |
-| Extensoes prontas | Muitas | Poucas | Manual |
-| Curva de aprendizado | Baixa | Alta | Media |
-
-### Consideracao Importante: Redes Sociais
-
-As redes sociais (Instagram, TikTok, etc.) **nao suportam HTML nativo** nas legendas. No entanto, a formatacao no editor e util para:
-
-1. **Visualizacao e organizacao** durante a escrita
-2. **Exportacao futura** com conversao para unicode (caracteres especiais como 𝗻𝗲𝗴𝗿𝗶𝘁𝗼)
-3. **Posts em plataformas que suportam** (LinkedIn, Twitter com limitacoes, WordPress)
-
-O sistema armazenara o conteudo em formato HTML internamente, com opcao de converter para texto plano ao publicar.
-
-### Interface da Barra de Ferramentas
+### Layout Proposto
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Editor de Legenda                                         [X]  │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │ [B] [I] [U] [S] │ [≡] [•] │ [T▾]  │ [↩] [↪]               │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                                                           │  │
-│  │  Texto formatado aqui...                                  │  │
-│  │  Com **negrito** e _italico_                              │  │
-│  │                                                           │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  245/2200 caracteres                                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                       [Cancelar] [Aplicar]      │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│  [X]                                                                                     │
+│  ┌────────────────────────────────────────────┬─────────────────────────────────────────┐│
+│  │                                            │  📱 Instagram Feed                      ││
+│  │                                            │  Cliente: Marca ABC                     ││
+│  │                                            │  ┌─────────────────────────────────────┐││
+│  │                                            │  │ 🟢 Aprovado                         │││
+│  │           IMAGEM PRINCIPAL                 │  └─────────────────────────────────────┘││
+│  │              (grande)                      │                                         ││
+│  │                                            │  📅 Segunda-feira, 3 de fevereiro 2026  ││
+│  │                                            │  🕐 14:30                               ││
+│  │                                            │  ─────────────────────────────────────  ││
+│  │                                            │                                         ││
+│  │                                            │  Legenda                                ││
+│  │                                            │  ┌─────────────────────────────────────┐││
+│  │                                            │  │ Texto da legenda completo           │││
+│  │  [⬅]                              [➡]      │  │ com multiplas linhas e              │││
+│  │                                            │  │ formatacao preservada...            │││
+│  ├────────────────────────────────────────────┤  └─────────────────────────────────────┘││
+│  │ [img1] [img2] [img3] [img4]                │                                         ││
+│  └────────────────────────────────────────────┤  Alterar Status                         ││
+│                                               │  [ Aprovado ▼ ]                         ││
+│                                               │                                         ││
+│                                               │  ─────────────────────────────────────  ││
+│                                               │                                         ││
+│                                               │  [ ✏️ Editar ]  [ 📋 ]  [ 🗑️ ]          ││
+│                                               │                                         ││
+│                                               │  Criado: 28/01/2026 10:30              ││
+│                                               │  Atualizado: 29/01/2026 14:15          ││
+│                                               └─────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Legenda dos botoes:**
-- `[B]` Negrito (Bold)
-- `[I]` Italico
-- `[U]` Sublinhado (Underline)
-- `[S]` Tachado (Strikethrough)
-- `[≡]` Lista ordenada
-- `[•]` Lista com marcadores
-- `[T▾]` Tamanho do texto (dropdown)
-- `[↩][↪]` Desfazer/Refazer
+### Mudancas Principais
 
-### Arquitetura do Componente
+**1. Componente Dialog em vez de Sheet**
+- Substituir o `Sheet` (painel lateral) por `Dialog` (modal centralizado)
+- Largura de 90vw para ocupar quase toda a tela horizontal
+- Altura de 90vh para aproveitar o espaco vertical
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     RichTextEditor                              │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                 EditorToolbar                             │  │
-│  │  - Botoes de formatacao                                   │  │
-│  │  - Toggle states (negrito ativo, etc)                     │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                 EditorContent (Tiptap)                    │  │
-│  │  - Area de edicao                                         │  │
-│  │  - Extensoes: Bold, Italic, Underline, etc               │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+**2. Layout de Duas Colunas**
+- **Coluna Esquerda (60%)**: Area de imagem grande com navegacao e thumbnails
+- **Coluna Direita (40%)**: Informacoes do post, status, legenda e acoes
 
-┌─────────────────────────────────────────────────────────────────┐
-│             ExpandableTextarea (atualizado)                     │
-│  - Modo compacto: preview do HTML como texto                    │
-│  - Modo fullscreen: RichTextEditor completo                     │
-└─────────────────────────────────────────────────────────────────┘
-```
+**3. Galeria de Imagens Melhorada**
+- Imagem principal em tamanho grande
+- Botoes de navegacao sobrepostos (setas esquerda/direita)
+- Thumbnails na parte inferior para navegacao rapida
+- Contador de imagens (1/4)
 
-### Dependencias a Adicionar
+**4. Painel de Informacoes**
+- Header com icone do canal e badge de status
+- Data e hora formatados com icones
+- Legenda em area com scroll proprio se necessario
+- Seletor de status destacado para aprovacao rapida
+- Acoes agrupadas no rodape
 
-```json
-{
-  "@tiptap/react": "^2.x",
-  "@tiptap/starter-kit": "^2.x",
-  "@tiptap/extension-underline": "^2.x",
-  "@tiptap/extension-text-style": "^2.x",
-  "@tiptap/extension-font-size": "^2.x",
-  "@tiptap/extension-placeholder": "^2.x",
-  "@tiptap/extension-character-count": "^2.x"
-}
-```
+### Beneficios para Apresentacao
 
-### Arquivos a Criar
+| Antes | Depois |
+|-------|--------|
+| Modal lateral estreito (max 500px) | Modal centralizado amplo (90vw) |
+| Precisa scroll para ver tudo | Tudo visivel em uma unica tela |
+| Imagem pequena | Imagem grande e destacada |
+| Informacoes espremidas | Layout espacado e organizado |
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/ui/rich-text-editor.tsx` | Componente principal do editor rico |
-| `src/components/ui/editor-toolbar.tsx` | Barra de ferramentas de formatacao |
-
-### Arquivos a Modificar
+### Arquivo a Modificar
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/ui/expandable-textarea.tsx` | Substituir Textarea por RichTextEditor no modo fullscreen |
-| `package.json` | Adicionar dependencias do Tiptap |
+| `src/components/schedule/PostDetails.tsx` | Refatorar para Dialog com layout de duas colunas |
 
-### Componente RichTextEditor
-
-```tsx
-interface RichTextEditorProps {
-  value?: string;           // HTML content
-  onChange?: (html: string) => void;
-  placeholder?: string;
-  maxLength?: number;
-  className?: string;
-}
-
-// Extensoes utilizadas
-const extensions = [
-  StarterKit.configure({
-    // Desabilita funcionalidades desnecessarias
-    heading: false,
-    codeBlock: false,
-  }),
-  Underline,
-  TextStyle,
-  FontSize.configure({
-    types: ['textStyle'],
-  }),
-  Placeholder.configure({
-    placeholder: 'Escreva sua legenda...',
-  }),
-  CharacterCount.configure({
-    limit: 2200,
-  }),
-];
-```
-
-### Componente EditorToolbar
+### Estrutura do Componente Atualizado
 
 ```tsx
-interface EditorToolbarProps {
-  editor: Editor | null;
-}
+<Dialog open={open} onOpenChange={onOpenChange}>
+  <DialogContent className="h-[90vh] w-[90vw] max-w-[90vw] p-0">
+    <div className="flex h-full">
+      {/* Coluna da Imagem - 60% */}
+      <div className="relative flex w-3/5 flex-col bg-muted/50">
+        {/* Imagem Principal */}
+        <div className="relative flex-1">
+          <img src={...} className="object-contain" />
+          {/* Navegacao */}
+          <Button className="absolute left-4">←</Button>
+          <Button className="absolute right-4">→</Button>
+          <div className="absolute bottom-4">1/4</div>
+        </div>
+        {/* Thumbnails */}
+        <div className="flex gap-2 p-4">
+          {images.map(...)}
+        </div>
+      </div>
 
-// Formatacoes disponiveis
-const formatButtons = [
-  { icon: Bold, action: 'toggleBold', active: 'bold' },
-  { icon: Italic, action: 'toggleItalic', active: 'italic' },
-  { icon: Underline, action: 'toggleUnderline', active: 'underline' },
-  { icon: Strikethrough, action: 'toggleStrike', active: 'strike' },
-];
+      {/* Coluna de Informacoes - 40% */}
+      <div className="flex w-2/5 flex-col border-l">
+        {/* Header */}
+        <div className="border-b p-6">
+          <ChannelBadges />
+          <h2>{client.name}</h2>
+          <PostStatusBadge />
+        </div>
 
-const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px'];
+        {/* Conteudo com scroll */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Data/Hora */}
+          <div className="flex items-center gap-4">
+            <Calendar /> {date}
+            <Clock /> {time}
+          </div>
+
+          {/* Legenda */}
+          <div className="mt-6">
+            <h4>Legenda</h4>
+            <p>{caption}</p>
+          </div>
+
+          {/* Status */}
+          <div className="mt-6">
+            <h4>Alterar Status</h4>
+            <Select value={status}>...</Select>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-6">
+          <Button>Editar</Button>
+          <Button>Copiar</Button>
+          <Button>Excluir</Button>
+        </div>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
 ```
 
-### Fluxo de Dados
+### Detalhes de UX para Aprovacao
 
-```text
-   PostForm
-      │
-      ▼
-ExpandableTextarea ◄──── value (HTML string)
-      │
-      ├── Modo compacto: exibe texto sem tags
-      │
-      └── Modo fullscreen:
-            │
-            ▼
-      RichTextEditor
-            │
-            ├── EditorToolbar (controles)
-            │
-            └── EditorContent (Tiptap)
-                    │
-                    ▼
-              onChange(html)
-```
+1. **Badge de status grande e colorido** para facil identificacao
+2. **Botao de aprovar rapido** disponivel no seletor de status
+3. **Legenda completa visivel** sem precisar clicar em "ver mais"
+4. **Navegacao por teclado**: setas para trocar imagem, Esc para fechar
+5. **Botao de tela cheia** mantido para visualizacao ainda mais imersiva
 
-### Estilos do Editor
+### Responsividade
 
-O editor tera estilos consistentes com o design system atual:
+Em telas menores (tablet), o layout pode mudar para:
+- Coluna unica com imagem em cima e informacoes embaixo
+- Ou manter o Sheet lateral como fallback
 
 ```tsx
-// Estilos da area de edicao
-const editorStyles = `
-  .ProseMirror {
-    min-height: 200px;
-    padding: 12px;
-    border: 1px solid hsl(var(--input));
-    border-radius: var(--radius);
-    background: hsl(var(--background));
-    outline: none;
-    
-    &:focus {
-      ring: 2px;
-      ring-color: hsl(var(--ring));
-    }
-  }
-  
-  .ProseMirror p.is-editor-empty:first-child::before {
-    content: attr(data-placeholder);
-    color: hsl(var(--muted-foreground));
-    pointer-events: none;
-  }
-`;
+// Exemplo de classes responsivas
+className="flex h-full flex-col lg:flex-row"
+className="w-full lg:w-3/5"
+className="w-full lg:w-2/5"
 ```
-
-### Detalhes Tecnicos
-
-1. **Armazenamento**: O conteudo sera armazenado como HTML no campo `caption` do banco
-2. **Contador de caracteres**: Usa `CharacterCount` extension que conta texto sem tags
-3. **Atalhos de teclado**: Tiptap inclui nativamente (Ctrl+B, Ctrl+I, etc)
-4. **Undo/Redo**: Gerenciado automaticamente pelo StarterKit
-5. **Modo compacto**: Extrai texto plano do HTML para preview
-
-### Funcao de Extracao de Texto
-
-Para o modo compacto e para publicacao em redes sociais:
-
-```tsx
-const extractPlainText = (html: string): string => {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
-};
-```
-
-### Conversao para Unicode (futuro)
-
-Para redes sociais, e possivel converter formatacao para caracteres unicode:
-
-```text
-Texto normal  →  Texto normal
-**Negrito**   →  𝗧𝗲𝘅𝘁𝗼 𝗻𝗲𝗴𝗿𝗶𝘁𝗼
-_Italico_     →  𝘛𝘦𝘹𝘵𝘰 𝘪𝘵𝘢𝘭𝘪𝘤𝘰
-```
-
-Esta funcionalidade pode ser adicionada futuramente como opcao de exportacao.
-
-### Ordem de Implementacao
-
-1. Instalar dependencias do Tiptap
-2. Criar componente EditorToolbar
-3. Criar componente RichTextEditor
-4. Atualizar ExpandableTextarea para usar RichTextEditor no fullscreen
-5. Adicionar estilos CSS do editor
-6. Testar integracao com PostForm
-
-### Beneficios
-
-- Editor profissional similar ao ClickUp/Notion
-- Atalhos de teclado nativos
-- Facil extensao para novas formatacoes
-- Leve e performatico (tree-shakable)
-- TypeScript completo
-- Reutilizavel em outros campos de texto
 
