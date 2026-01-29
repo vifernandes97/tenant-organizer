@@ -1,60 +1,66 @@
 
-Objetivo
-- No “Novo Post”, o campo “Canais” deve abrir e listar opções selecionáveis.
+## Correção: Exibir Arte Integralmente no PostDetails
 
-Diagnóstico (causa raiz)
-- Em src/components/schedule/PostForm.tsx, as opções exibidas no popover vêm de:
-  - selectedClient?.channels (canais configurados no cliente) OU allChannels
-- O código atual usa:
-  - const availableChannels = (selectedClient?.channels as SocialChannel[]) || allChannels;
-- Problema: quando selectedClient.channels existe mas é um array vazio ([] / {} no banco), isso é “truthy” em JS, então availableChannels vira vazio e o popover não tem itens para renderizar.
-- Confirmação no backend: há cliente(s) com channels = {} (array vazio). Exemplo consultado: “ICS LOGISTICS” está com channels vazio.
+### Problema Identificado
+A visualização da arte está forçando formato quadrado (`aspect-square`) com `object-cover`, o que corta imagens verticais ou horizontais que não sejam 1:1.
 
-Comportamento esperado após correção
-- Se o cliente selecionado tiver canais configurados (length > 0): mostrar apenas esses canais.
-- Se o cliente selecionado não tiver canais configurados (length === 0) ou channels for null: mostrar allChannels (fallback), para o usuário conseguir criar posts normalmente.
-- Além disso, mostrar uma mensagem discreta avisando que o cliente não tem canais configurados (opcional, mas recomendado para evitar confusão).
+### Solução Proposta
+Alterar o container da imagem principal para preservar a proporção original da arte, permitindo visualização completa.
 
-Mudanças propostas (código)
-1) Ajustar a lógica de availableChannels (PostForm.tsx)
-- Trocar a atribuição atual por uma versão que faz fallback quando o array está vazio.
-- Exemplo de lógica:
-  - const clientChannels = (selectedClient?.channels as SocialChannel[] | null) ?? null;
-  - const availableChannels = clientChannels && clientChannels.length > 0 ? clientChannels : allChannels;
+### Mudanças em `src/components/schedule/PostDetails.tsx`
 
-2) Adicionar “estado vazio / aviso” dentro do popover (PostForm.tsx)
-- Caso, por qualquer motivo, availableChannels ainda seja vazio (defensivo), renderizar um texto “Nenhum canal disponível” em vez de ficar em branco.
-- Caso clientChannels esteja vazio, renderizar um pequeno helper text abaixo do campo (ou no topo do popover), por exemplo:
-  - “Este cliente não tem canais configurados. Mostrando todos os canais.”
+1. **Remover `aspect-square`**: Substituir por um container flexível com altura máxima
+2. **Trocar `object-cover` por `object-contain`**: Isso garante que a imagem inteira seja visível
+3. **Adicionar altura máxima**: Limitar para não ocupar a tela toda, mas permitir scroll se necessário
+4. **Manter fundo para imagens com transparência**: Manter `bg-muted` para dar contraste
 
-3) (Opcional, não bloqueante) Melhorar UX do bloqueio por cliente não selecionado
-- Hoje o botão fica disabled quando !selectedClientId.
-- Isso pode parecer “não abre” para quem esquece de selecionar o cliente.
-- Ajuste opcional:
-  - manter disabled, mas incluir helper text abaixo: “Selecione um cliente para escolher os canais.”
-  - Alternativa: permitir abrir e mostrar a mensagem “Selecione um cliente primeiro” (sem itens), mas isso exige cuidado com acessibilidade/UX. Recomendo manter disabled + helper text.
+```text
+Antes:
+┌─────────────────────┐
+│  ┌───────────────┐  │
+│  │   IMAGEM      │  │ ← aspect-square + object-cover
+│  │   (cortada)   │  │   corta partes da imagem
+│  └───────────────┘  │
+└─────────────────────┘
 
-Arquivos envolvidos
-- src/components/schedule/PostForm.tsx
-  - Ajustar a regra de availableChannels (fallback quando channels estiver vazio)
-  - Adicionar mensagens de orientação/empty state no popover
+Depois:
+┌─────────────────────┐
+│  ┌───────────────┐  │
+│  │               │  │
+│  │   IMAGEM      │  │ ← max-h-[500px] + object-contain
+│  │   COMPLETA    │  │   mostra imagem inteira
+│  │               │  │
+│  └───────────────┘  │
+└─────────────────────┘
+```
 
-Plano de teste (manual)
-1) Ir em /cronogramas → “Novo Post”
-2) Sem selecionar cliente:
-   - Verificar que o campo Canais indica que precisa selecionar cliente (helper text) e/ou está desabilitado de forma clara.
-3) Selecionar um cliente que tem channels vazio:
-   - Clicar em “Selecione os canais”
-   - Verificar que aparece lista com todos os canais (Instagram, LinkedIn, WordPress etc.)
-   - Selecionar 2+ canais e confirmar que badges aparecem no campo.
-4) Selecionar um cliente com channels preenchido:
-   - Verificar que a lista mostra apenas os canais configurados para aquele cliente.
-5) Regressão:
-   - Editar post (modo edição) e confirmar que o select “Canal” também não fica vazio indevidamente quando cliente não tem canais.
+### Detalhes Tecnicos
 
-Notas técnicas / riscos
-- A mudança é segura e local: não altera banco nem modelos, apenas UI/derivação de array.
-- Mantém o comportamento “filtrar por canais do cliente” quando o cliente está corretamente configurado, mas evita UX quebrada quando não está.
+Linha 58-63 atual:
+```tsx
+<div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+  <img
+    src={images[currentImageIndex]?.image_url}
+    alt=""
+    className="h-full w-full object-cover"
+  />
+```
 
-Resultado final esperado
-- O select/popover de “Canais” no “Novo Post” sempre exibirá opções e permitirá selecionar canais, mesmo quando o cliente estiver sem canais configurados.
+Nova versao:
+```tsx
+<div className="relative flex items-center justify-center overflow-hidden rounded-lg bg-muted" style={{ maxHeight: '500px' }}>
+  <img
+    src={images[currentImageIndex]?.image_url}
+    alt=""
+    className="max-h-[500px] w-full object-contain"
+  />
+```
+
+### Arquivos a Modificar
+- `src/components/schedule/PostDetails.tsx` (linhas 58-63)
+
+### Resultado Esperado
+- A arte sera exibida integralmente, sem cortes
+- Imagens verticais e horizontais serao visualizadas completamente
+- O container se adapta a proporcao da imagem ate um maximo de 500px de altura
+- Thumbnails continuam funcionando normalmente para navegacao entre imagens
