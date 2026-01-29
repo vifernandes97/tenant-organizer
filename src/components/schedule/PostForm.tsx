@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Checkbox } from '@/components/ui/checkbox';
+// Removed Radix Checkbox import - using native checkbox to avoid ref composition issues
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronDown, X } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
@@ -316,18 +316,19 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                             <p className="text-sm text-muted-foreground p-2">Nenhum canal disponível</p>
                           ) : (
                             availableChannels.map((channel) => (
-                              <div
+                              <label
                                 key={channel}
                                 className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                                onClick={() => toggleChannel(channel)}
                               >
-                                <Checkbox
+                                <input
+                                  type="checkbox"
                                   checked={selectedChannels.includes(channel)}
-                                  onCheckedChange={() => toggleChannel(channel)}
+                                  onChange={() => toggleChannel(channel)}
+                                  className="h-4 w-4 rounded border-input bg-background text-primary accent-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                 />
                                 <ChannelBadges channels={[channel]} iconOnly />
                                 <span className="text-sm">{channelLabels[channel]}</span>
-                              </div>
+                              </label>
                             ))
                           )}
                         </div>
