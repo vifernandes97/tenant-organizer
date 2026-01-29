@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useInvitations } from '@/hooks/useInvitations';
+import { ClientAccessSelector } from './ClientAccessSelector';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,6 +31,8 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'owner'>('member');
+  const [accessMode, setAccessMode] = useState<'all' | 'selected'>('selected');
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const { createInvitation, isCreating } = useInvitations();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,16 +49,37 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
       return;
     }
 
+    // Para membros com acesso selecionado, verificar se selecionou algum cliente
+    if (role === 'member' && accessMode === 'selected' && selectedClientIds.length === 0) {
+      toast.error('Selecione pelo menos um cliente para o membro acessar');
+      return;
+    }
+
+    // Determinar client_ids: null para owners ou membros com acesso total
+    const clientIds = role === 'owner' || accessMode === 'all' 
+      ? null 
+      : selectedClientIds;
+
     createInvitation(
-      { email, role },
+      { email, role, clientIds },
       {
         onSuccess: () => {
           setOpen(false);
           setEmail('');
           setRole('member');
+          setAccessMode('selected');
+          setSelectedClientIds([]);
         },
       }
     );
+  };
+
+  const handleRoleChange = (newRole: 'member' | 'owner') => {
+    setRole(newRole);
+    // Owners sempre têm acesso total
+    if (newRole === 'owner') {
+      setAccessMode('all');
+    }
   };
 
   return (
@@ -93,7 +117,7 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
               <Label htmlFor="role">Papel</Label>
               <Select
                 value={role}
-                onValueChange={(value: 'member' | 'owner') => setRole(value)}
+                onValueChange={handleRoleChange}
                 disabled={isCreating}
               >
                 <SelectTrigger id="role">
@@ -105,9 +129,24 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Proprietários podem gerenciar a equipe e convites.
+                {role === 'owner' 
+                  ? 'Proprietários têm acesso total a todos os clientes.'
+                  : 'Membros podem ter acesso restrito a clientes específicos.'}
               </p>
             </div>
+
+            {role === 'member' && (
+              <div className="space-y-2">
+                <Label>Acesso a clientes</Label>
+                <ClientAccessSelector
+                  selectedClientIds={selectedClientIds}
+                  onSelectionChange={setSelectedClientIds}
+                  accessMode={accessMode}
+                  onAccessModeChange={setAccessMode}
+                  showModeSelector={false}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
