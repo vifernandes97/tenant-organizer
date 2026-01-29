@@ -55,11 +55,11 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           {/* Image Gallery */}
           {images.length > 0 && (
             <div className="space-y-2">
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+              <div className="relative flex items-center justify-center overflow-hidden rounded-lg bg-muted max-h-[500px]">
                 <img
                   src={images[currentImageIndex]?.image_url}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="max-h-[500px] w-full object-contain"
                 />
                 {images.length > 1 && (
                   <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
