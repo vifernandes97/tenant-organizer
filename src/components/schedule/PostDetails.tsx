@@ -11,6 +11,7 @@ import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { FullscreenViewer } from './FullscreenViewer';
 import { InlineEditable } from '@/components/ui/inline-editable';
 import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -346,18 +347,20 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
         </DialogContent>
       </Dialog>
 
-      {/* Caption Expanded Dialog */}
+      {/* Caption Expanded Dialog with Rich Text Editor */}
       <Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
           <DialogHeader>
             <DialogTitle>Legenda</DialogTitle>
           </DialogHeader>
-          <div 
-            className="prose prose-sm dark:prose-invert max-h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4"
-            dangerouslySetInnerHTML={{ __html: post.caption || '' }}
-          />
-          <div className="text-right text-sm text-muted-foreground">
-            {captionLength} caracteres
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <RichTextEditor
+              value={post.caption || ''}
+              onChange={(value) => handleFieldUpdate('caption', value)}
+              placeholder="Digite a legenda..."
+              maxLength={2200}
+              className="h-full"
+            />
           </div>
         </DialogContent>
       </Dialog>
