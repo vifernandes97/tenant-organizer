@@ -1,167 +1,122 @@
 
 
-## Modal de Visualizacao de Publicacao Expandido
+## Correções no Modal de Detalhes da Publicação
 
-### Visao Geral
-Transformar o modal de detalhes da publicacao em um layout amplo e profissional, ocupando 90% da largura do viewport. O novo design utiliza um layout de duas colunas para exibir imagens e informacoes lado a lado, eliminando a necessidade de scroll e proporcionando uma experiencia ideal para apresentacao e aprovacao de conteudo.
+### Problemas Identificados
 
-### Layout Proposto
+**1. Botão de Editar não visível**
+O botão de editar está presente no código (linha 223-226), mas o footer onde ele está pode estar sendo cortado em algumas resoluções de tela. Isso acontece porque:
+- O painel direito usa `flex-1 overflow-y-auto` na área de conteúdo
+- O footer está fixo na parte inferior, mas pode não estar acessível se o conteúdo central for muito grande
+
+**2. Legenda não expansível**
+Atualmente a legenda é exibida apenas como texto estático. Para uma experiência de apresentação, o usuário deveria poder clicar para ver a legenda formatada em tela cheia.
+
+### Soluções Propostas
+
+**1. Garantir visibilidade do footer com botões de ação**
+- Mover o footer para uma posição mais proeminente ou garantir que ele sempre fique visível
+- Adicionar uma sombra sutil para indicar que há conteúdo abaixo quando há scroll
+- Reorganizar para que os botões de ação fiquem sempre acessíveis
+
+**2. Adicionar visualizador de legenda expansível**
+- Adicionar um botão de expandir ao lado do título "Legenda"
+- Abrir um dialog de visualização apenas leitura com a legenda formatada
+- Usar o RichTextEditor em modo somente leitura ou criar um componente de visualização
+
+### Mudanças no Layout
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│  [X]                                                                                     │
-│  ┌────────────────────────────────────────────┬─────────────────────────────────────────┐│
-│  │                                            │  📱 Instagram Feed                      ││
-│  │                                            │  Cliente: Marca ABC                     ││
-│  │                                            │  ┌─────────────────────────────────────┐││
-│  │                                            │  │ 🟢 Aprovado                         │││
-│  │           IMAGEM PRINCIPAL                 │  └─────────────────────────────────────┘││
-│  │              (grande)                      │                                         ││
-│  │                                            │  📅 Segunda-feira, 3 de fevereiro 2026  ││
-│  │                                            │  🕐 14:30                               ││
-│  │                                            │  ─────────────────────────────────────  ││
-│  │                                            │                                         ││
-│  │                                            │  Legenda                                ││
-│  │                                            │  ┌─────────────────────────────────────┐││
-│  │                                            │  │ Texto da legenda completo           │││
-│  │  [⬅]                              [➡]      │  │ com multiplas linhas e              │││
-│  │                                            │  │ formatacao preservada...            │││
-│  ├────────────────────────────────────────────┤  └─────────────────────────────────────┘││
-│  │ [img1] [img2] [img3] [img4]                │                                         ││
-│  └────────────────────────────────────────────┤  Alterar Status                         ││
-│                                               │  [ Aprovado ▼ ]                         ││
-│                                               │                                         ││
-│                                               │  ─────────────────────────────────────  ││
-│                                               │                                         ││
-│                                               │  [ ✏️ Editar ]  [ 📋 ]  [ 🗑️ ]          ││
-│                                               │                                         ││
-│                                               │  Criado: 28/01/2026 10:30              ││
-│                                               │  Atualizado: 29/01/2026 14:15          ││
-│                                               └─────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Legenda                                           [ Expandir ] │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Texto da legenda...                                         ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+
+Dialog expandido (somente leitura):
+┌─────────────────────────────────────────────────────────────────┐
+│  Legenda                                                   [X]  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Texto da legenda com **formatação** preservada                 │
+│  e múltiplas linhas visíveis...                                 │
+│                                                                 │
+│  - Item de lista                                                │
+│  - Outro item                                                   │
+│                                                                 │
+│                                                    245 caracteres│
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-### Mudancas Principais
-
-**1. Componente Dialog em vez de Sheet**
-- Substituir o `Sheet` (painel lateral) por `Dialog` (modal centralizado)
-- Largura de 90vw para ocupar quase toda a tela horizontal
-- Altura de 90vh para aproveitar o espaco vertical
-
-**2. Layout de Duas Colunas**
-- **Coluna Esquerda (60%)**: Area de imagem grande com navegacao e thumbnails
-- **Coluna Direita (40%)**: Informacoes do post, status, legenda e acoes
-
-**3. Galeria de Imagens Melhorada**
-- Imagem principal em tamanho grande
-- Botoes de navegacao sobrepostos (setas esquerda/direita)
-- Thumbnails na parte inferior para navegacao rapida
-- Contador de imagens (1/4)
-
-**4. Painel de Informacoes**
-- Header com icone do canal e badge de status
-- Data e hora formatados com icones
-- Legenda em area com scroll proprio se necessario
-- Seletor de status destacado para aprovacao rapida
-- Acoes agrupadas no rodape
-
-### Beneficios para Apresentacao
-
-| Antes | Depois |
-|-------|--------|
-| Modal lateral estreito (max 500px) | Modal centralizado amplo (90vw) |
-| Precisa scroll para ver tudo | Tudo visivel em uma unica tela |
-| Imagem pequena | Imagem grande e destacada |
-| Informacoes espremidas | Layout espacado e organizado |
 
 ### Arquivo a Modificar
 
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `src/components/schedule/PostDetails.tsx` | Refatorar para Dialog com layout de duas colunas |
+| `src/components/schedule/PostDetails.tsx` | Ajustar layout do footer e adicionar visualizador de legenda expansível |
 
-### Estrutura do Componente Atualizado
+### Implementação
 
+**1. Ajuste do layout do footer**
 ```tsx
-<Dialog open={open} onOpenChange={onOpenChange}>
-  <DialogContent className="h-[90vh] w-[90vw] max-w-[90vw] p-0">
-    <div className="flex h-full">
-      {/* Coluna da Imagem - 60% */}
-      <div className="relative flex w-3/5 flex-col bg-muted/50">
-        {/* Imagem Principal */}
-        <div className="relative flex-1">
-          <img src={...} className="object-contain" />
-          {/* Navegacao */}
-          <Button className="absolute left-4">←</Button>
-          <Button className="absolute right-4">→</Button>
-          <div className="absolute bottom-4">1/4</div>
-        </div>
-        {/* Thumbnails */}
-        <div className="flex gap-2 p-4">
-          {images.map(...)}
-        </div>
-      </div>
+{/* Right Column - agora com grid para garantir footer fixo */}
+<div className="flex w-full flex-col lg:w-2/5 lg:border-l lg:border-t-0">
+  {/* Header - fixo no topo */}
+  <div className="border-b p-6">...</div>
+  
+  {/* Content - área com scroll */}
+  <div className="flex-1 overflow-y-auto p-6">
+    {/* Data, legenda, status */}
+  </div>
+  
+  {/* Footer - fixo no fundo, com shadow para destacar */}
+  <div className="border-t bg-background p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+    {/* Botões de ação */}
+  </div>
+</div>
+```
 
-      {/* Coluna de Informacoes - 40% */}
-      <div className="flex w-2/5 flex-col border-l">
-        {/* Header */}
-        <div className="border-b p-6">
-          <ChannelBadges />
-          <h2>{client.name}</h2>
-          <PostStatusBadge />
-        </div>
+**2. Seção de legenda com botão expandir**
+```tsx
+<div>
+  <div className="mb-3 flex items-center justify-between">
+    <h4 className="text-sm font-medium text-muted-foreground">Legenda</h4>
+    {post.caption && (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setCaptionDialogOpen(true)}
+      >
+        <Maximize2 className="mr-1 h-3 w-3" />
+        Expandir
+      </Button>
+    )}
+  </div>
+  {/* Preview da legenda */}
+</div>
 
-        {/* Conteudo com scroll */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Data/Hora */}
-          <div className="flex items-center gap-4">
-            <Calendar /> {date}
-            <Clock /> {time}
-          </div>
-
-          {/* Legenda */}
-          <div className="mt-6">
-            <h4>Legenda</h4>
-            <p>{caption}</p>
-          </div>
-
-          {/* Status */}
-          <div className="mt-6">
-            <h4>Alterar Status</h4>
-            <Select value={status}>...</Select>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t p-6">
-          <Button>Editar</Button>
-          <Button>Copiar</Button>
-          <Button>Excluir</Button>
-        </div>
-      </div>
+{/* Dialog de legenda em tela cheia */}
+<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
+  <DialogContent className="max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Legenda</DialogTitle>
+    </DialogHeader>
+    <div 
+      className="prose prose-sm max-h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4"
+      dangerouslySetInnerHTML={{ __html: post.caption || '' }}
+    />
+    <div className="text-right text-sm text-muted-foreground">
+      {displayCaption?.length || 0} caracteres
     </div>
   </DialogContent>
 </Dialog>
 ```
 
-### Detalhes de UX para Aprovacao
+### Ordem de Implementação
 
-1. **Badge de status grande e colorido** para facil identificacao
-2. **Botao de aprovar rapido** disponivel no seletor de status
-3. **Legenda completa visivel** sem precisar clicar em "ver mais"
-4. **Navegacao por teclado**: setas para trocar imagem, Esc para fechar
-5. **Botao de tela cheia** mantido para visualizacao ainda mais imersiva
-
-### Responsividade
-
-Em telas menores (tablet), o layout pode mudar para:
-- Coluna unica com imagem em cima e informacoes embaixo
-- Ou manter o Sheet lateral como fallback
-
-```tsx
-// Exemplo de classes responsivas
-className="flex h-full flex-col lg:flex-row"
-className="w-full lg:w-3/5"
-className="w-full lg:w-2/5"
-```
+1. Adicionar estado para controlar dialog de legenda
+2. Criar a seção de legenda com botão de expandir
+3. Adicionar dialog de visualização da legenda formatada
+4. Ajustar layout do footer para garantir visibilidade
+5. Adicionar sombra sutil no footer para indicar separação
 
