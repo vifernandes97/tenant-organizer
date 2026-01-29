@@ -1,121 +1,84 @@
 
 
-## Edição Inline Estilo ClickUp no Modal de Detalhes
+## Edição Inline no Dialog de Legenda Expandida
 
-### Conceito
-Transformar o modal de detalhes do post em uma experiência de edição inline, onde cada campo pode ser editado diretamente ao clicar nele. Ao clicar fora (blur) ou pressionar Enter, as mudanças são salvas automaticamente.
+### Problema Identificado
+Ao clicar em "Expandir" na legenda, abre um dialog que mostra apenas o texto formatado em modo readonly (via `dangerouslySetInnerHTML`). O usuário quer poder editar diretamente nessa visualização expandida, com acesso à toolbar de formatação.
 
-### Campos Editáveis
+### Solução
+Substituir o bloco de visualização readonly no dialog expandido pelo componente `RichTextEditor` completo, permitindo edição inline com:
+- Toolbar de formatação (negrito, itálico, sublinhado, listas)
+- Contador de caracteres
+- Salvamento automático ao fechar o dialog
 
-| Campo | Comportamento Atual | Comportamento Novo |
-|-------|--------------------|--------------------|
-| Cliente | Texto estático | Select ao clicar |
-| Data/Hora | Texto estático | Input datetime ao clicar |
-| Legenda | HTML readonly | Editor rico inline ao clicar |
-| Status | Select sempre visível | Mantém (já funciona assim) |
-| Canal | Badge estático | Select ao clicar |
+### Mudanças no Arquivo
 
-### UX Proposta
+**`src/components/schedule/PostDetails.tsx`**
 
-```text
-Modo Visualizacao (padrao):
-┌────────────────────────────────────────┐
-│  Cliente                               │
-│  Empresa ABC  ← texto normal, cursor   │
-│               pointer indica clicavel  │
-└────────────────────────────────────────┘
-
-Modo Edicao (ao clicar):
-┌────────────────────────────────────────┐
-│  Cliente                               │
-│  ┌──────────────────────────────────┐  │
-│  │ Empresa ABC            ▼         │  │
-│  └──────────────────────────────────┘  │
-└────────────────────────────────────────┘
-```
-
-### Componente Reutilizavel: InlineEditable
-
-Criar um componente generico que:
-- Renderiza conteudo como texto normal
-- Ao clicar, troca para o componente de edicao (Input, Select, RichTextEditor)
-- Ao blur ou Enter, salva automaticamente e volta ao modo visualizacao
-- Mostra indicador sutil de "editavel" no hover
-
-### Arquivos a Modificar/Criar
-
-| Arquivo | Acao | Descricao |
-|---------|------|-----------|
-| `src/components/ui/inline-editable.tsx` | Criar | Componente base para edicao inline |
-| `src/components/schedule/PostDetails.tsx` | Modificar | Integrar campos editaveis |
-| `src/hooks/usePosts.ts` | Manter | Ja tem useUpdatePost |
-
-### Detalhes Tecnicos
-
-**1. InlineEditable Component**
-
-Props principais:
-- `value`: valor atual
-- `onSave`: callback quando salvar (recebe novo valor)
-- `type`: "text" | "select" | "datetime" | "richtext"
-- `options`: opcoes para select
-- `isLoading`: mostrar loading durante save
-
-**2. Integracao no PostDetails**
-
-Para cada campo:
+**1. Adicionar import do RichTextEditor:**
 ```tsx
-<InlineEditable
-  type="select"
-  value={post.client_id}
-  displayValue={post.clients?.name}
-  options={clients.map(c => ({ value: c.id, label: c.name }))}
-  onSave={(value) => handleFieldUpdate('client_id', value)}
-/>
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 ```
 
-**3. Handler de Update por Campo**
+**2. Substituir o dialog de legenda expandida (linhas 350-363):**
 
+De:
 ```tsx
-const handleFieldUpdate = async (field: string, value: any) => {
-  await updatePost.mutateAsync({
-    id: post.id,
-    post: { [field]: value }
-  });
-};
+<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
+  <DialogContent className="max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Legenda</DialogTitle>
+    </DialogHeader>
+    <div 
+      className="prose prose-sm dark:prose-invert max-h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4"
+      dangerouslySetInnerHTML={{ __html: post.caption || '' }}
+    />
+    <div className="text-right text-sm text-muted-foreground">
+      {captionLength} caracteres
+    </div>
+  </DialogContent>
+</Dialog>
 ```
 
-**4. Legenda com Editor Rico Inline**
+Para:
+```tsx
+<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
+  <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
+    <DialogHeader>
+      <DialogTitle>Legenda</DialogTitle>
+    </DialogHeader>
+    <div className="min-h-0 flex-1 overflow-hidden">
+      <RichTextEditor
+        value={post.caption || ''}
+        onChange={(value) => handleFieldUpdate('caption', value)}
+        placeholder="Digite a legenda..."
+        maxLength={2200}
+        className="h-full"
+      />
+    </div>
+  </DialogContent>
+</Dialog>
+```
 
-A legenda usara uma versao compacta do RichTextEditor que:
-- Mostra HTML formatado quando nao esta editando
-- Ao clicar, ativa o editor Tiptap no local
-- Toolbar aparece acima quando em modo edicao
-- Salva no blur
+### UX Resultante
 
-### Indicadores Visuais
+| Antes | Depois |
+|-------|--------|
+| Texto formatado readonly | Editor rico completo |
+| Sem toolbar | Toolbar com negrito, itálico, listas, etc |
+| Apenas visualização | Edição inline com auto-save |
+| Contador estático | Contador dinâmico integrado |
 
-- Cursor `pointer` em campos editaveis
-- Borda sutil no hover para indicar clicavel
-- Icone de lapis pequeno no canto (opcional)
-- Toast de confirmacao ao salvar
+### Comportamento Esperado
+1. Usuário clica em "Expandir"
+2. Dialog abre com o RichTextEditor já preenchido
+3. Usuário pode formatar e editar o texto
+4. Ao digitar, as mudanças são refletidas (o componente chama `onChange`)
+5. O `handleFieldUpdate` salva automaticamente no banco
 
-### Sequencia de Implementacao
+### Arquivo a Modificar
 
-1. Criar componente `InlineEditable` com suporte a text/select/datetime
-2. Implementar handler `handleFieldUpdate` no PostDetails
-3. Substituir campos estaticos por InlineEditable:
-   - Cliente (select)
-   - Data/Hora (datetime-local)
-   - Canal (select)
-4. Criar versao inline do RichTextEditor para legenda
-5. Testar fluxo completo de edicao
-6. Ajustar loading states e feedback visual
-
-### Comportamento de Save
-
-- Debounce de 500ms para evitar saves excessivos
-- Mostrar loading sutil no campo sendo salvo
-- Toast de sucesso/erro apos save
-- Reverter valor se save falhar
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/schedule/PostDetails.tsx` | Trocar div readonly por RichTextEditor no dialog expandido |
 
