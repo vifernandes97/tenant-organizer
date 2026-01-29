@@ -35,6 +35,7 @@ export interface RichTextEditorProps {
   placeholder?: string;
   maxLength?: number;
   className?: string;
+  maxHeight?: string;
 }
 
 export function RichTextEditor({
@@ -43,6 +44,7 @@ export function RichTextEditor({
   placeholder = "Escreva sua legenda...",
   maxLength = 2200,
   className,
+  maxHeight,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -92,7 +94,12 @@ export function RichTextEditor({
   return (
     <div className={cn("flex flex-col", className)}>
       <EditorToolbar editor={editor} />
-      <EditorContent editor={editor} />
+      <div 
+        className="overflow-y-auto"
+        style={maxHeight ? { maxHeight } : undefined}
+      >
+        <EditorContent editor={editor} />
+      </div>
       <div className="mt-2 text-right text-sm text-muted-foreground">
         {characterCount}/{maxLength} caracteres
       </div>
