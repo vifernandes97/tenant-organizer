@@ -1,460 +1,260 @@
 
-
-## Sistema de Permissoes por Cliente
+## Editor de Texto Rico com Formatacao
 
 ### Visao Geral
-Implementar controle de acesso granular onde, ao convidar um usuario ou gerenciar membros, o owner pode definir quais clientes o membro tera acesso. Os posts herdam automaticamente a permissao do cliente associado.
+Adicionar suporte a formatacao de texto no editor de legenda (ExpandableTextarea) usando a biblioteca **Tiptap** - um editor headless baseado em ProseMirror que oferece excelente suporte para React e TypeScript, alem de ser altamente customizavel.
 
-### Arquitetura do Sistema
+### Por que Tiptap?
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    MODELO DE PERMISSOES                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   OWNER                                                         │
-│   └── Acesso total a todos os clientes e posts                 │
-│                                                                 │
-│   MEMBER                                                        │
-│   └── Acesso apenas aos clientes atribuidos                    │
-│       └── Ve posts dos clientes que tem acesso                 │
-│                                                                 │
-│  ┌─────────────┐      ┌────────────────────┐      ┌──────────┐ │
-│  │   user_id   │──────│ user_client_access │──────│ client_id│ │
-│  └─────────────┘      └────────────────────┘      └──────────┘ │
-│                              │                                  │
-│                        tenant_id                                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Criterio | Tiptap | Lexical | Slate |
+|----------|--------|---------|-------|
+| Facilidade de integracao | Alta | Media | Media |
+| TypeScript nativo | Sim | Sim | Sim |
+| Peso do bundle | Leve (tree-shakable) | Medio | Pesado |
+| Extensoes prontas | Muitas | Poucas | Manual |
+| Curva de aprendizado | Baixa | Alta | Media |
 
-### Banco de Dados
+### Consideracao Importante: Redes Sociais
 
-**Nova tabela: `user_client_access`**
+As redes sociais (Instagram, TikTok, etc.) **nao suportam HTML nativo** nas legendas. No entanto, a formatacao no editor e util para:
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | UUID | Chave primaria |
-| user_id | UUID | FK para auth.users |
-| client_id | UUID | FK para clients |
-| tenant_id | UUID | FK para tenants |
-| created_at | TIMESTAMPTZ | Data de criacao |
+1. **Visualizacao e organizacao** durante a escrita
+2. **Exportacao futura** com conversao para unicode (caracteres especiais como 𝗻𝗲𝗴𝗿𝗶𝘁𝗼)
+3. **Posts em plataformas que suportam** (LinkedIn, Twitter com limitacoes, WordPress)
 
-**Modificacao na tabela `invitations`:**
+O sistema armazenara o conteudo em formato HTML internamente, com opcao de converter para texto plano ao publicar.
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| client_ids | UUID[] | Array de IDs de clientes permitidos (null = todos) |
-
-**Funcao SQL auxiliar:**
-
-```sql
--- Verifica se usuario tem acesso ao cliente
-CREATE OR REPLACE FUNCTION has_client_access(_user_id UUID, _client_id UUID)
-RETURNS BOOLEAN
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT 
-    -- Owner tem acesso a tudo
-    EXISTS (
-      SELECT 1 FROM user_roles 
-      WHERE user_id = _user_id AND role = 'owner'
-    )
-    OR
-    -- Membro com acesso especifico ao cliente
-    EXISTS (
-      SELECT 1 FROM user_client_access 
-      WHERE user_id = _user_id AND client_id = _client_id
-    )
-$$;
-```
-
-### Atualizacao das Policies RLS
-
-**Tabela `clients`:**
-```sql
--- Substituir policy atual
-CREATE POLICY "Users can view clients with access"
-ON public.clients FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR EXISTS (
-      SELECT 1 FROM user_client_access 
-      WHERE user_id = auth.uid() AND client_id = clients.id
-    )
-  )
-);
-```
-
-**Tabela `posts`:**
-```sql
--- Substituir policy atual
-CREATE POLICY "Users can view posts with client access"
-ON public.posts FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-);
-```
-
-### Fluxo de Convite com Permissoes
+### Interface da Barra de Ferramentas
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                 TELA DE CONVITE ATUALIZADA                      │
+│  Editor de Legenda                                         [X]  │
 ├─────────────────────────────────────────────────────────────────┤
-│  Email:  [ email@exemplo.com                               ]    │
-│                                                                 │
-│  Papel:  [ Membro ▼ ]                                          │
-│                                                                 │
-│  Acesso a clientes:                                            │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  ( ) Todos os clientes                                   │   │
-│  │  (●) Clientes selecionados:                              │   │
-│  │      [✓] Cliente A                                       │   │
-│  │      [ ] Cliente B                                       │   │
-│  │      [✓] Cliente C                                       │   │
-│  │      [ ] Cliente D                                       │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│                              [Cancelar] [Criar convite]         │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ [B] [I] [U] [S] │ [≡] [•] │ [T▾]  │ [↩] [↪]               │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                                                           │  │
+│  │  Texto formatado aqui...                                  │  │
+│  │  Com **negrito** e _italico_                              │  │
+│  │                                                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  245/2200 caracteres                                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                       [Cancelar] [Aplicar]      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Componentes a Criar/Modificar
+**Legenda dos botoes:**
+- `[B]` Negrito (Bold)
+- `[I]` Italico
+- `[U]` Sublinhado (Underline)
+- `[S]` Tachado (Strikethrough)
+- `[≡]` Lista ordenada
+- `[•]` Lista com marcadores
+- `[T▾]` Tamanho do texto (dropdown)
+- `[↩][↪]` Desfazer/Refazer
 
-**1. Novo Componente: `ClientAccessSelector`**
-- Checkbox list de clientes
-- Toggle entre "todos" e "selecionados"
-- Usado no InviteDialog e na edicao de permissoes de membro
+### Arquitetura do Componente
 
-**2. Modificar: `InviteDialog`**
-- Adicionar secao de selecao de clientes quando role = 'member'
-- Armazenar client_ids no convite
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     RichTextEditor                              │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                 EditorToolbar                             │  │
+│  │  - Botoes de formatacao                                   │  │
+│  │  - Toggle states (negrito ativo, etc)                     │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                 EditorContent (Tiptap)                    │  │
+│  │  - Area de edicao                                         │  │
+│  │  - Extensoes: Bold, Italic, Underline, etc               │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 
-**3. Novo Componente: `MemberPermissionsDialog`**
-- Acessivel na TeamList
-- Permite owner editar permissoes de um membro existente
-- Lista clientes com checkboxes
+┌─────────────────────────────────────────────────────────────────┐
+│             ExpandableTextarea (atualizado)                     │
+│  - Modo compacto: preview do HTML como texto                    │
+│  - Modo fullscreen: RichTextEditor completo                     │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**4. Modificar: `useInvitations`**
-- Aceitar client_ids ao criar convite
-- Ao aceitar convite, criar registros em user_client_access
+### Dependencias a Adicionar
 
-**5. Novo Hook: `useUserClientAccess`**
-- CRUD para permissoes de acesso a clientes
-- Listar clientes que usuario tem acesso
-- Atualizar permissoes de um membro
+```json
+{
+  "@tiptap/react": "^2.x",
+  "@tiptap/starter-kit": "^2.x",
+  "@tiptap/extension-underline": "^2.x",
+  "@tiptap/extension-text-style": "^2.x",
+  "@tiptap/extension-font-size": "^2.x",
+  "@tiptap/extension-placeholder": "^2.x",
+  "@tiptap/extension-character-count": "^2.x"
+}
+```
 
 ### Arquivos a Criar
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/components/settings/ClientAccessSelector.tsx` | Componente de selecao de clientes |
-| `src/components/settings/MemberPermissionsDialog.tsx` | Dialog para editar permissoes de membro |
-| `src/hooks/useUserClientAccess.ts` | Hook para gerenciar permissoes |
+| `src/components/ui/rich-text-editor.tsx` | Componente principal do editor rico |
+| `src/components/ui/editor-toolbar.tsx` | Barra de ferramentas de formatacao |
 
 ### Arquivos a Modificar
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/settings/InviteDialog.tsx` | Adicionar selecao de clientes |
-| `src/components/settings/TeamList.tsx` | Botao de editar permissoes |
-| `src/hooks/useInvitations.ts` | Suporte a client_ids |
-| `src/hooks/useClients.ts` | Filtrar por acesso do usuario |
-| `src/hooks/usePosts.ts` | Filtrar por clientes com acesso |
+| `src/components/ui/expandable-textarea.tsx` | Substituir Textarea por RichTextEditor no modo fullscreen |
+| `package.json` | Adicionar dependencias do Tiptap |
 
-### Migracao SQL
+### Componente RichTextEditor
 
-```sql
--- Tabela de acesso usuario-cliente
-CREATE TABLE public.user_client_access (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(user_id, client_id)
-);
+```tsx
+interface RichTextEditorProps {
+  value?: string;           // HTML content
+  onChange?: (html: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  className?: string;
+}
 
-ALTER TABLE public.user_client_access ENABLE ROW LEVEL SECURITY;
-
--- Indexes
-CREATE INDEX idx_user_client_access_user_id ON public.user_client_access(user_id);
-CREATE INDEX idx_user_client_access_client_id ON public.user_client_access(client_id);
-CREATE INDEX idx_user_client_access_tenant_id ON public.user_client_access(tenant_id);
-
--- Adicionar coluna client_ids na tabela invitations
-ALTER TABLE public.invitations ADD COLUMN client_ids UUID[] DEFAULT NULL;
-
--- Funcao para verificar acesso ao cliente
-CREATE OR REPLACE FUNCTION public.has_client_access(_user_id UUID, _client_id UUID)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT 
-    EXISTS (
-      SELECT 1 FROM user_roles 
-      WHERE user_id = _user_id AND role = 'owner'
-    )
-    OR
-    EXISTS (
-      SELECT 1 FROM user_client_access 
-      WHERE user_id = _user_id AND client_id = _client_id
-    )
-$$;
-
--- RLS Policies para user_client_access
-
--- Owners podem ver acessos do seu tenant
-CREATE POLICY "Owners can view client access"
-ON public.user_client_access FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid()) 
-  AND has_role(auth.uid(), 'owner')
-);
-
--- Owners podem criar acessos
-CREATE POLICY "Owners can create client access"
-ON public.user_client_access FOR INSERT TO authenticated
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid()) 
-  AND has_role(auth.uid(), 'owner')
-);
-
--- Owners podem deletar acessos
-CREATE POLICY "Owners can delete client access"
-ON public.user_client_access FOR DELETE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid()) 
-  AND has_role(auth.uid(), 'owner')
-);
-
--- Usuario pode ver seus proprios acessos
-CREATE POLICY "Users can view own client access"
-ON public.user_client_access FOR SELECT TO authenticated
-USING (user_id = auth.uid());
-
--- Atualizar policies de clients para considerar acesso granular
-DROP POLICY IF EXISTS "Users can view clients in own tenant" ON public.clients;
-
-CREATE POLICY "Users can view clients with access"
-ON public.clients FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), id)
-  )
-);
-
--- Apenas owners podem criar/editar/deletar clientes
-DROP POLICY IF EXISTS "Users can create clients in own tenant" ON public.clients;
-DROP POLICY IF EXISTS "Users can update clients in own tenant" ON public.clients;
-DROP POLICY IF EXISTS "Users can delete clients in own tenant" ON public.clients;
-
-CREATE POLICY "Owners can create clients"
-ON public.clients FOR INSERT TO authenticated
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid()) 
-  AND has_role(auth.uid(), 'owner')
-);
-
-CREATE POLICY "Users with access can update clients"
-ON public.clients FOR UPDATE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), id)
-  )
-)
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), id)
-  )
-);
-
-CREATE POLICY "Owners can delete clients"
-ON public.clients FOR DELETE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid()) 
-  AND has_role(auth.uid(), 'owner')
-);
-
--- Atualizar policies de posts
-DROP POLICY IF EXISTS "Users can view posts in own tenant" ON public.posts;
-DROP POLICY IF EXISTS "Users can create posts in own tenant" ON public.posts;
-DROP POLICY IF EXISTS "Users can update posts in own tenant" ON public.posts;
-DROP POLICY IF EXISTS "Users can delete posts in own tenant" ON public.posts;
-
-CREATE POLICY "Users can view posts with client access"
-ON public.posts FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-);
-
-CREATE POLICY "Users can create posts with client access"
-ON public.posts FOR INSERT TO authenticated
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-);
-
-CREATE POLICY "Users can update posts with client access"
-ON public.posts FOR UPDATE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-)
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-);
-
-CREATE POLICY "Users can delete posts with client access"
-ON public.posts FOR DELETE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR has_client_access(auth.uid(), client_id)
-  )
-);
-
--- Atualizar policies de post_images (herda do post/client)
-DROP POLICY IF EXISTS "Users can view post images in own tenant" ON public.post_images;
-DROP POLICY IF EXISTS "Users can create post images in own tenant" ON public.post_images;
-DROP POLICY IF EXISTS "Users can update post images in own tenant" ON public.post_images;
-DROP POLICY IF EXISTS "Users can delete post images in own tenant" ON public.post_images;
-
-CREATE POLICY "Users can view post images with access"
-ON public.post_images FOR SELECT TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR EXISTS (
-      SELECT 1 FROM posts 
-      WHERE posts.id = post_images.post_id 
-      AND has_client_access(auth.uid(), posts.client_id)
-    )
-  )
-);
-
-CREATE POLICY "Users can create post images with access"
-ON public.post_images FOR INSERT TO authenticated
-WITH CHECK (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR EXISTS (
-      SELECT 1 FROM posts 
-      WHERE posts.id = post_images.post_id 
-      AND has_client_access(auth.uid(), posts.client_id)
-    )
-  )
-);
-
-CREATE POLICY "Users can update post images with access"
-ON public.post_images FOR UPDATE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR EXISTS (
-      SELECT 1 FROM posts 
-      WHERE posts.id = post_images.post_id 
-      AND has_client_access(auth.uid(), posts.client_id)
-    )
-  )
-);
-
-CREATE POLICY "Users can delete post images with access"
-ON public.post_images FOR DELETE TO authenticated
-USING (
-  tenant_id = get_user_tenant_id(auth.uid())
-  AND (
-    has_role(auth.uid(), 'owner')
-    OR EXISTS (
-      SELECT 1 FROM posts 
-      WHERE posts.id = post_images.post_id 
-      AND has_client_access(auth.uid(), posts.client_id)
-    )
-  )
-);
+// Extensoes utilizadas
+const extensions = [
+  StarterKit.configure({
+    // Desabilita funcionalidades desnecessarias
+    heading: false,
+    codeBlock: false,
+  }),
+  Underline,
+  TextStyle,
+  FontSize.configure({
+    types: ['textStyle'],
+  }),
+  Placeholder.configure({
+    placeholder: 'Escreva sua legenda...',
+  }),
+  CharacterCount.configure({
+    limit: 2200,
+  }),
+];
 ```
 
-### Interface de Usuario
+### Componente EditorToolbar
 
-**No TeamList - Indicador de permissoes:**
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Maria Silva                                                    │
-│  maria@email.com                                               │
-│  Membro • 3 clientes                          [Editar] [Remover]│
-└─────────────────────────────────────────────────────────────────┘
+```tsx
+interface EditorToolbarProps {
+  editor: Editor | null;
+}
+
+// Formatacoes disponiveis
+const formatButtons = [
+  { icon: Bold, action: 'toggleBold', active: 'bold' },
+  { icon: Italic, action: 'toggleItalic', active: 'italic' },
+  { icon: Underline, action: 'toggleUnderline', active: 'underline' },
+  { icon: Strikethrough, action: 'toggleStrike', active: 'strike' },
+];
+
+const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px'];
 ```
 
-**Dialog de edicao de permissoes:**
+### Fluxo de Dados
+
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Permissoes de Maria Silva                              [X]     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Selecione os clientes que este membro pode acessar:           │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  [✓] Cliente A                                          │   │
-│  │  [ ] Cliente B                                          │   │
-│  │  [✓] Cliente C                                          │   │
-│  │  [✓] Cliente D                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  O membro podera ver e editar posts dos clientes              │
-│  selecionados acima.                                           │
-│                                                                 │
-│                                       [Cancelar] [Salvar]       │
-└─────────────────────────────────────────────────────────────────┘
+   PostForm
+      │
+      ▼
+ExpandableTextarea ◄──── value (HTML string)
+      │
+      ├── Modo compacto: exibe texto sem tags
+      │
+      └── Modo fullscreen:
+            │
+            ▼
+      RichTextEditor
+            │
+            ├── EditorToolbar (controles)
+            │
+            └── EditorContent (Tiptap)
+                    │
+                    ▼
+              onChange(html)
+```
+
+### Estilos do Editor
+
+O editor tera estilos consistentes com o design system atual:
+
+```tsx
+// Estilos da area de edicao
+const editorStyles = `
+  .ProseMirror {
+    min-height: 200px;
+    padding: 12px;
+    border: 1px solid hsl(var(--input));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    outline: none;
+    
+    &:focus {
+      ring: 2px;
+      ring-color: hsl(var(--ring));
+    }
+  }
+  
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+`;
 ```
 
 ### Detalhes Tecnicos
 
-1. **Owners tem acesso total**: A funcao `has_client_access` verifica primeiro se o usuario e owner
-2. **Heranca de permissoes**: Posts herdam permissao do cliente associado
-3. **Convites com permissoes**: Os client_ids sao salvos no convite e aplicados ao aceitar
-4. **Edicao posterior**: Owner pode modificar permissoes de membros existentes a qualquer momento
-5. **Novos clientes**: Novos clientes criados nao sao automaticamente atribuidos aos membros
+1. **Armazenamento**: O conteudo sera armazenado como HTML no campo `caption` do banco
+2. **Contador de caracteres**: Usa `CharacterCount` extension que conta texto sem tags
+3. **Atalhos de teclado**: Tiptap inclui nativamente (Ctrl+B, Ctrl+I, etc)
+4. **Undo/Redo**: Gerenciado automaticamente pelo StarterKit
+5. **Modo compacto**: Extrai texto plano do HTML para preview
+
+### Funcao de Extracao de Texto
+
+Para o modo compacto e para publicacao em redes sociais:
+
+```tsx
+const extractPlainText = (html: string): string => {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || '';
+};
+```
+
+### Conversao para Unicode (futuro)
+
+Para redes sociais, e possivel converter formatacao para caracteres unicode:
+
+```text
+Texto normal  →  Texto normal
+**Negrito**   →  𝗧𝗲𝘅𝘁𝗼 𝗻𝗲𝗴𝗿𝗶𝘁𝗼
+_Italico_     →  𝘛𝘦𝘹𝘵𝘰 𝘪𝘵𝘢𝘭𝘪𝘤𝘰
+```
+
+Esta funcionalidade pode ser adicionada futuramente como opcao de exportacao.
 
 ### Ordem de Implementacao
 
-1. Migracao SQL (tabela user_client_access, funcao, policies atualizadas)
-2. Hook useUserClientAccess
-3. Componente ClientAccessSelector
-4. Modificar InviteDialog para incluir selecao de clientes
-5. Modificar useInvitations para criar acessos ao aceitar convite
-6. Componente MemberPermissionsDialog
-7. Modificar TeamList para exibir/editar permissoes
+1. Instalar dependencias do Tiptap
+2. Criar componente EditorToolbar
+3. Criar componente RichTextEditor
+4. Atualizar ExpandableTextarea para usar RichTextEditor no fullscreen
+5. Adicionar estilos CSS do editor
+6. Testar integracao com PostForm
+
+### Beneficios
+
+- Editor profissional similar ao ClickUp/Notion
+- Atalhos de teclado nativos
+- Facil extensao para novas formatacoes
+- Leve e performatico (tree-shakable)
+- TypeScript completo
+- Reutilizavel em outros campos de texto
 
