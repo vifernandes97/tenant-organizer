@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { ExpandableTextarea } from '@/components/ui/expandable-textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -400,10 +400,13 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                         </span>
                       </FormLabel>
                       <FormControl>
-                        <Textarea
+                        <ExpandableTextarea
+                          value={field.value}
+                          onChange={field.onChange}
                           placeholder="Escreva a legenda do post..."
                           className="min-h-[120px] resize-none"
-                          {...field}
+                          maxLength={2200}
+                          dialogTitle="Editor de Legenda"
                         />
                       </FormControl>
                       <FormMessage />
