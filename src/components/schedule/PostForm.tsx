@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Popover, PopoverContentNoPortal, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronDown, X } from 'lucide-react';
@@ -67,7 +67,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const [images, setImages] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
-  const [channelPopoverOpen, setChannelPopoverOpen] = useState(false);
+  const [channelSectionOpen, setChannelSectionOpen] = useState(false);
 
   const isEditing = !!post;
   const isLoading = createPost.isPending || updatePost.isPending;
@@ -259,13 +259,11 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                     <Label className={form.formState.errors.channels ? "text-destructive" : ""}>
                       Canais *
                     </Label>
-                    <Popover open={channelPopoverOpen} onOpenChange={setChannelPopoverOpen}>
-                      <PopoverTrigger asChild>
+                    <Collapsible open={channelSectionOpen} onOpenChange={setChannelSectionOpen}>
+                      <CollapsibleTrigger asChild>
                         <Button
                           type="button"
                           variant="outline"
-                          role="combobox"
-                          aria-expanded={channelPopoverOpen}
                           className={`w-full justify-between h-auto min-h-10 ${form.formState.errors.channels ? "border-destructive" : ""}`}
                           disabled={!selectedClientId}
                         >
@@ -297,17 +295,17 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                               )}
                             </div>
                           )}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <ChevronDown className={`ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform ${channelSectionOpen ? 'rotate-180' : ''}`} />
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContentNoPortal className="w-full min-w-[300px] p-2" align="start">
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 rounded-md border bg-popover p-2">
                         {/* Helper message when client has no channels configured */}
                         {selectedClientId && !hasClientChannels && (
                           <p className="text-xs text-muted-foreground mb-2 px-2">
                             Este cliente não tem canais configurados. Mostrando todos os canais.
                           </p>
                         )}
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        <div className="space-y-1 max-h-[200px] overflow-y-auto">
                           {availableChannels.length === 0 ? (
                             <p className="text-sm text-muted-foreground p-2">Nenhum canal disponível</p>
                           ) : (
@@ -327,8 +325,8 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                             ))
                           )}
                         </div>
-                      </PopoverContentNoPortal>
-                    </Popover>
+                      </CollapsibleContent>
+                    </Collapsible>
                     {!selectedClientId && (
                       <p className="text-xs text-muted-foreground">
                         Selecione um cliente para escolher os canais.
