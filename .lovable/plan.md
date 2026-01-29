@@ -1,84 +1,99 @@
 
 
-## Edição Inline no Dialog de Legenda Expandida
+## Correção: Scroll no Editor de Texto Modal
 
 ### Problema Identificado
-Ao clicar em "Expandir" na legenda, abre um dialog que mostra apenas o texto formatado em modo readonly (via `dangerouslySetInnerHTML`). O usuário quer poder editar diretamente nessa visualização expandida, com acesso à toolbar de formatação.
+O dialog de legenda expandida usa `overflow-hidden` no container, mas o `RichTextEditor` interno não possui:
+1. Uma altura máxima definida para a área de edição
+2. A propriedade `overflow-y: auto` no conteúdo do editor
+
+Na screenshot, o texto é cortado na parte inferior sem possibilidade de rolar para ver o restante.
+
+### Causa Raiz
+No componente `RichTextEditor`:
+- A classe `min-h-[200px]` define apenas altura mínima
+- Não há `overflow-y-auto` aplicado ao `EditorContent`
+- O container pai tem `overflow-hidden` que corta o conteúdo excedente
 
 ### Solução
-Substituir o bloco de visualização readonly no dialog expandido pelo componente `RichTextEditor` completo, permitindo edição inline com:
-- Toolbar de formatação (negrito, itálico, sublinhado, listas)
-- Contador de caracteres
-- Salvamento automático ao fechar o dialog
 
-### Mudanças no Arquivo
+Modificar o `RichTextEditor` para aceitar uma altura máxima e aplicar scroll quando necessário.
 
-**`src/components/schedule/PostDetails.tsx`**
+**Mudanças em `src/components/ui/rich-text-editor.tsx`:**
 
-**1. Adicionar import do RichTextEditor:**
+1. Adicionar prop `maxHeight` para controlar a altura máxima
+2. Aplicar `overflow-y-auto` e `max-h` ao `EditorContent`
+3. Criar wrapper com scroll para o conteúdo do editor
+
+**Mudanças em `src/components/schedule/PostDetails.tsx`:**
+
+1. Passar `maxHeight` ao RichTextEditor no dialog expandido
+
+### Código Proposto
+
+**RichTextEditor (atualizado):**
+
 ```tsx
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
-```
+export interface RichTextEditorProps {
+  value?: string;
+  onChange?: (html: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  className?: string;
+  maxHeight?: string; // Nova prop
+}
 
-**2. Substituir o dialog de legenda expandida (linhas 350-363):**
-
-De:
-```tsx
-<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
-  <DialogContent className="max-w-3xl">
-    <DialogHeader>
-      <DialogTitle>Legenda</DialogTitle>
-    </DialogHeader>
-    <div 
-      className="prose prose-sm dark:prose-invert max-h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4"
-      dangerouslySetInnerHTML={{ __html: post.caption || '' }}
-    />
-    <div className="text-right text-sm text-muted-foreground">
-      {captionLength} caracteres
+export function RichTextEditor({
+  // ...
+  maxHeight = "none",
+}: RichTextEditorProps) {
+  // ...
+  
+  return (
+    <div className={cn("flex flex-col", className)}>
+      <EditorToolbar editor={editor} />
+      <div 
+        className={cn(
+          "overflow-y-auto",
+          maxHeight !== "none" && `max-h-[${maxHeight}]`
+        )}
+        style={maxHeight !== "none" ? { maxHeight } : undefined}
+      >
+        <EditorContent editor={editor} />
+      </div>
+      <div className="mt-2 text-right text-sm text-muted-foreground">
+        {characterCount}/{maxLength} caracteres
+      </div>
     </div>
-  </DialogContent>
-</Dialog>
+  );
+}
 ```
 
-Para:
+**PostDetails.tsx (dialog):**
+
 ```tsx
-<Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
-  <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
-    <DialogHeader>
-      <DialogTitle>Legenda</DialogTitle>
-    </DialogHeader>
-    <div className="min-h-0 flex-1 overflow-hidden">
-      <RichTextEditor
-        value={post.caption || ''}
-        onChange={(value) => handleFieldUpdate('caption', value)}
-        placeholder="Digite a legenda..."
-        maxLength={2200}
-        className="h-full"
-      />
-    </div>
-  </DialogContent>
-</Dialog>
+<RichTextEditor
+  value={post.caption || ''}
+  onChange={(value) => handleFieldUpdate('caption', value)}
+  placeholder="Digite a legenda..."
+  maxLength={2200}
+  className="h-full"
+  maxHeight="calc(85vh - 180px)"
+/>
 ```
 
-### UX Resultante
+### Detalhes Técnicos
 
-| Antes | Depois |
-|-------|--------|
-| Texto formatado readonly | Editor rico completo |
-| Sem toolbar | Toolbar com negrito, itálico, listas, etc |
-| Apenas visualização | Edição inline com auto-save |
-| Contador estático | Contador dinâmico integrado |
+| Propriedade | Valor | Propósito |
+|-------------|-------|-----------|
+| `maxHeight` | `calc(85vh - 180px)` | Altura máxima considerando header, toolbar e contador |
+| `overflow-y-auto` | - | Permite scroll vertical quando necessário |
+| Inline style | Para calc() | Tailwind não suporta calc() dinâmico em classes |
 
-### Comportamento Esperado
-1. Usuário clica em "Expandir"
-2. Dialog abre com o RichTextEditor já preenchido
-3. Usuário pode formatar e editar o texto
-4. Ao digitar, as mudanças são refletidas (o componente chama `onChange`)
-5. O `handleFieldUpdate` salva automaticamente no banco
-
-### Arquivo a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/schedule/PostDetails.tsx` | Trocar div readonly por RichTextEditor no dialog expandido |
+| `src/components/ui/rich-text-editor.tsx` | Adicionar prop `maxHeight` e wrapper com scroll |
+| `src/components/schedule/PostDetails.tsx` | Passar `maxHeight` ao RichTextEditor do dialog |
 
