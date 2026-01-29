@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -8,7 +8,7 @@ import { PostWithImages, useDeletePost, useUpdatePostStatus } from '@/hooks/useP
 import { PostStatusBadge } from './PostStatusBadge';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { FullscreenViewer } from './FullscreenViewer';
-import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2 } from 'lucide-react';
+import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -40,162 +40,216 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
     await updateStatus.mutateAsync({ id: post.id, status });
   };
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <div className="flex items-center justify-between pr-8">
-            <SheetTitle className="flex items-center gap-2">
-              <ChannelBadges channels={[post.channel]} />
-              {post.clients?.name}
-            </SheetTitle>
-            <PostStatusBadge status={post.status} />
-          </div>
-        </SheetHeader>
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
 
-        <div className="mt-6 space-y-6">
-          {/* Image Gallery */}
-          {images.length > 0 && (
-            <div className="space-y-2">
-              <div className="relative flex items-center justify-center overflow-hidden rounded-lg bg-muted max-h-[500px]">
-                <img
-                  src={images[currentImageIndex]?.image_url}
-                  alt=""
-                  className="max-h-[500px] w-full object-contain"
-                />
-                {/* Fullscreen Button */}
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  onClick={() => setFullscreenOpen(true)}
-                  className="absolute right-2 top-2 h-8 w-8 bg-black/50 text-white hover:bg-black/70"
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  // Extract plain text from HTML for display
+  const extractPlainText = (html: string): string => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
+  };
+
+  const displayCaption = post.caption ? extractPlainText(post.caption) : null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="h-[90vh] w-[90vw] max-w-[90vw] gap-0 overflow-hidden p-0">
+        <div className="flex h-full flex-col lg:flex-row">
+          {/* Left Column - Image Gallery (60%) */}
+          <div className="relative flex w-full flex-col bg-muted/30 lg:w-3/5">
+            {/* Main Image */}
+            {images.length > 0 ? (
+              <>
+                <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+                  <img
+                    src={images[currentImageIndex]?.image_url}
+                    alt=""
+                    className="max-h-full max-w-full rounded-lg object-contain"
+                  />
+                  
+                  {/* Navigation Arrows */}
+                  {images.length > 1 && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={handlePrevImage}
+                        className="absolute left-6 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg hover:bg-background"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={handleNextImage}
+                        className="absolute right-6 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-background/80 shadow-lg hover:bg-background"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Fullscreen Button */}
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => setFullscreenOpen(true)}
+                    className="absolute right-6 top-6 h-9 w-9 rounded-full bg-background/80 shadow-lg hover:bg-background"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+
+                  {/* Image Counter */}
+                  {images.length > 1 && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-background/80 px-3 py-1 text-sm font-medium shadow-lg">
+                      {currentImageIndex + 1} / {images.length}
+                    </div>
+                  )}
+                </div>
+
+                {/* Thumbnails */}
                 {images.length > 1 && (
-                  <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                    {images.map((_, idx) => (
+                  <div className="flex gap-2 overflow-x-auto border-t bg-background/50 p-4">
+                    {images.map((img, idx) => (
                       <button
-                        key={idx}
+                        key={img.id}
                         onClick={() => setCurrentImageIndex(idx)}
-                        className={`h-2 w-2 rounded-full transition-colors ${
-                          idx === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                        className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all ${
+                          idx === currentImageIndex 
+                            ? 'ring-2 ring-primary ring-offset-2' 
+                            : 'opacity-60 hover:opacity-100'
                         }`}
-                      />
+                      >
+                        <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                      </button>
                     ))}
                   </div>
                 )}
-              </div>
-              <div className="flex gap-1 overflow-x-auto">
-                {images.map((img, idx) => (
-                  <button
-                    key={img.id}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded ${
-                      idx === currentImageIndex ? 'ring-2 ring-primary' : ''
-                    }`}
-                  >
-                    <img src={img.image_url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {images.length === 0 && (
-            <div className="flex aspect-video items-center justify-center rounded-lg bg-muted">
-              <div className="text-center text-muted-foreground">
-                <Image className="mx-auto h-12 w-12" />
-                <p className="mt-2 text-sm">Sem imagens</p>
-              </div>
-            </div>
-          )}
-
-          {/* Schedule Info */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              {scheduledDate.toLocaleDateString('pt-BR', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Caption */}
-          <div>
-            <h4 className="mb-2 text-sm font-medium">Legenda</h4>
-            {post.caption ? (
-              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{post.caption}</p>
+              </>
             ) : (
-              <p className="text-sm italic text-muted-foreground">Sem legenda</p>
+              <div className="flex flex-1 items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <Image className="mx-auto h-16 w-16 opacity-50" />
+                  <p className="mt-3 text-sm">Sem imagens</p>
+                </div>
+              </div>
             )}
           </div>
 
-          <Separator />
+          {/* Right Column - Info Panel (40%) */}
+          <div className="flex w-full flex-col border-t lg:w-2/5 lg:border-l lg:border-t-0">
+            {/* Header */}
+            <div className="border-b p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <ChannelBadges channels={[post.channel]} />
+                  <h2 className="text-xl font-semibold">{post.clients?.name}</h2>
+                </div>
+                <PostStatusBadge status={post.status} />
+              </div>
+            </div>
 
-          {/* Quick Status Change */}
-          <div>
-            <h4 className="mb-2 text-sm font-medium">Alterar Status</h4>
-            <Select value={post.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Rascunho</SelectItem>
-                <SelectItem value="approved">Aprovado</SelectItem>
-                <SelectItem value="scheduled">Agendado</SelectItem>
-                <SelectItem value="published">Publicado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Content with scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Schedule Info */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-sm">
+                    {scheduledDate.toLocaleDateString('pt-BR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-sm">
+                    {scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
 
-          <Separator />
+              <Separator className="my-6" />
 
-          {/* Metadata */}
-          <div className="text-xs text-muted-foreground">
-            <p>Criado em: {new Date(post.created_at).toLocaleString('pt-BR')}</p>
-            <p>Atualizado em: {new Date(post.updated_at).toLocaleString('pt-BR')}</p>
-          </div>
+              {/* Caption */}
+              <div>
+                <h4 className="mb-3 text-sm font-medium text-muted-foreground">Legenda</h4>
+                {displayCaption ? (
+                  <div className="max-h-[200px] overflow-y-auto rounded-lg bg-muted/50 p-4">
+                    <p className="whitespace-pre-wrap text-sm">{displayCaption}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">Sem legenda</p>
+                )}
+              </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button onClick={onEdit} className="flex-1">
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </Button>
-            <Button variant="outline" size="icon">
-              <Copy className="h-4 w-4" />
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="icon">
-                  <Trash2 className="h-4 w-4" />
+              <Separator className="my-6" />
+
+              {/* Quick Status Change */}
+              <div>
+                <h4 className="mb-3 text-sm font-medium text-muted-foreground">Alterar Status</h4>
+                <Select value={post.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Rascunho</SelectItem>
+                    <SelectItem value="approved">Aprovado</SelectItem>
+                    <SelectItem value="scheduled">Agendado</SelectItem>
+                    <SelectItem value="published">Publicado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t p-6">
+              {/* Metadata */}
+              <div className="mb-4 text-xs text-muted-foreground">
+                <p>Criado em: {new Date(post.created_at).toLocaleString('pt-BR')}</p>
+                <p>Atualizado em: {new Date(post.updated_at).toLocaleString('pt-BR')}</p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button onClick={onEdit} className="flex-1">
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir Post?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. O post e todas as imagens serão excluídos permanentemente.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                <Button variant="outline" size="icon" title="Copiar">
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="icon" title="Excluir">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir Post?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. O post e todas as imagens serão excluídos permanentemente.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -205,7 +259,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           open={fullscreenOpen}
           onOpenChange={setFullscreenOpen}
         />
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
