@@ -4,14 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PostWithImages, useDeletePost, useUpdatePostStatus } from '@/hooks/usePosts';
+import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus } from '@/hooks/usePosts';
+import { useClients } from '@/hooks/useClients';
 import { PostStatusBadge } from './PostStatusBadge';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { FullscreenViewer } from './FullscreenViewer';
+import { InlineEditable } from '@/components/ui/inline-editable';
+import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
 import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
+type SocialChannel = Database['public']['Enums']['social_channel'];
+
+const CHANNEL_OPTIONS = [
+  { value: 'instagram_feed', label: 'Instagram Feed' },
+  { value: 'instagram_story', label: 'Instagram Story' },
+  { value: 'instagram_reels', label: 'Instagram Reels' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'twitter', label: 'Twitter' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'wordpress', label: 'WordPress' },
+];
 
 interface PostDetailsProps {
   post: PostWithImages | null;
@@ -22,10 +39,13 @@ interface PostDetailsProps {
 
 export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsProps) {
   const deletePost = useDeletePost();
+  const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
+  const { data: clients = [] } = useClients();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
+  const [savingField, setSavingField] = useState<string | null>(null);
 
   if (!post) return null;
 
@@ -41,12 +61,34 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
     await updateStatus.mutateAsync({ id: post.id, status });
   };
 
+  const handleFieldUpdate = async (field: string, value: string) => {
+    setSavingField(field);
+    try {
+      await updatePost.mutateAsync({
+        id: post.id,
+        post: { [field]: value },
+      });
+    } finally {
+      setSavingField(null);
+    }
+  };
+
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
   };
 
   const handleNextImage = () => {
     setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  // Format datetime for input
+  const formatDateTimeForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   // Extract plain text from HTML for display
@@ -57,6 +99,14 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
 
   const displayCaption = post.caption ? extractPlainText(post.caption) : null;
   const captionLength = displayCaption?.length || 0;
+
+  // Get client options for select
+  const clientOptions = clients.map((c) => ({ value: c.id, label: c.name }));
+
+  // Get channel label for display
+  const getChannelLabel = (channel: SocialChannel): string => {
+    return CHANNEL_OPTIONS.find((c) => c.value === channel)?.label || channel;
+  };
 
   return (
     <>
@@ -146,49 +196,62 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
 
             {/* Right Column - Info Panel (40%) */}
             <div className="flex min-h-0 flex-1 w-full flex-col border-t lg:w-2/5 lg:flex-none lg:border-l lg:border-t-0">
-              {/* Header with Edit button */}
+              {/* Header */}
               <div className="shrink-0 border-b p-6">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <ChannelBadges channels={[post.channel]} />
-                    <h2 className="text-xl font-semibold">{post.clients?.name}</h2>
+                  <div className="flex-1 space-y-3">
+                    {/* Channel - Inline Editable */}
+                    <div>
+                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">Canal</h4>
+                      <InlineEditable
+                        type="select"
+                        value={post.channel}
+                        displayValue={getChannelLabel(post.channel)}
+                        options={CHANNEL_OPTIONS}
+                        onSave={(value) => handleFieldUpdate('channel', value)}
+                        isLoading={savingField === 'channel'}
+                      />
+                    </div>
+                    
+                    {/* Client - Inline Editable */}
+                    <div>
+                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">Cliente</h4>
+                      <InlineEditable
+                        type="select"
+                        value={post.client_id}
+                        displayValue={post.clients?.name || 'Selecione'}
+                        options={clientOptions}
+                        onSave={(value) => handleFieldUpdate('client_id', value)}
+                        isLoading={savingField === 'client_id'}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button onClick={onEdit} size="sm" variant="outline">
-                      <Edit className="mr-1 h-3.5 w-3.5" />
-                      Editar
-                    </Button>
-                    <PostStatusBadge status={post.status} />
-                  </div>
+                  <PostStatusBadge status={post.status} />
                 </div>
               </div>
 
               {/* Content with scroll */}
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                {/* Schedule Info */}
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm">
-                      {scheduledDate.toLocaleDateString('pt-BR', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">
-                      {scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                {/* Schedule Info - Inline Editable */}
+                <div>
+                  <h4 className="mb-1 text-xs font-medium text-muted-foreground">Data e Hora</h4>
+                  <InlineEditable
+                    type="datetime"
+                    value={formatDateTimeForInput(scheduledDate)}
+                    displayValue={`${scheduledDate.toLocaleDateString('pt-BR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })} às ${scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                    onSave={(value) => handleFieldUpdate('scheduled_at', value)}
+                    isLoading={savingField === 'scheduled_at'}
+                  />
                 </div>
 
                 <Separator className="my-6" />
 
-                {/* Caption */}
+                {/* Caption - Inline Rich Text Editor */}
                 <div>
                   <div className="mb-3 flex items-center justify-between">
                     <h4 className="text-sm font-medium text-muted-foreground">Legenda</h4>
@@ -204,14 +267,12 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       </Button>
                     )}
                   </div>
-                  {post.caption ? (
-                    <div 
-                      className="prose prose-sm dark:prose-invert max-h-[200px] max-w-none overflow-y-auto rounded-lg bg-muted/50 p-4"
-                      dangerouslySetInnerHTML={{ __html: post.caption }}
-                    />
-                  ) : (
-                    <p className="text-sm italic text-muted-foreground">Sem legenda</p>
-                  )}
+                  <InlineRichTextEditor
+                    value={post.caption || ''}
+                    onSave={(value) => handleFieldUpdate('caption', value)}
+                    isLoading={savingField === 'caption'}
+                    placeholder="Clique para adicionar legenda..."
+                  />
                 </div>
 
                 <Separator className="my-6" />
@@ -245,7 +306,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                 <div className="flex gap-2">
                   <Button onClick={onEdit} className="flex-1">
                     <Edit className="mr-2 h-4 w-4" />
-                    Editar
+                    Editar Completo
                   </Button>
                   <Button variant="outline" size="icon" title="Copiar">
                     <Copy className="h-4 w-4" />
