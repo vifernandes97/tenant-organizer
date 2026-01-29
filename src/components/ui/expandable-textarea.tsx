@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "./textarea";
@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./dialog";
+import { RichTextEditor, extractPlainText } from "./rich-text-editor";
 
 export interface ExpandableTextareaProps
   extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> {
@@ -42,19 +43,28 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
       setIsFullscreen(false);
     };
 
+    // Extract plain text for the compact view
+    const displayText = useMemo(() => {
+      if (!value) return "";
+      // Check if value contains HTML tags
+      if (/<[^>]+>/.test(value)) {
+        return extractPlainText(value);
+      }
+      return value;
+    }, [value]);
+
     const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       onChange?.(e.target.value);
     };
 
-    const currentLength = (value || "").length;
-    const tempLength = tempValue.length;
+    const currentLength = displayText.length;
 
     return (
       <div className="relative">
-        {/* Textarea with expand icon */}
+        {/* Textarea with expand icon - shows plain text preview */}
         <Textarea
           ref={ref}
-          value={value}
+          value={displayText}
           onChange={handleTextareaChange}
           placeholder={placeholder}
           maxLength={maxLength}
@@ -69,29 +79,26 @@ const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTexta
           size="icon"
           onClick={() => setIsFullscreen(true)}
           className="absolute right-2 top-2 h-7 w-7 opacity-50 hover:opacity-100 transition-opacity"
-          title="Expandir para tela cheia"
+          title="Expandir para editor rico"
         >
           <Maximize2 className="h-4 w-4" />
         </Button>
 
-        {/* Fullscreen Dialog */}
+        {/* Fullscreen Dialog with Rich Text Editor */}
         <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
           <DialogContent className="flex h-[90vh] max-w-4xl flex-col">
             <DialogHeader>
               <DialogTitle>{dialogTitle}</DialogTitle>
             </DialogHeader>
 
-            <div className="flex flex-1 flex-col min-h-0">
-              <Textarea
+            <div className="flex flex-1 flex-col min-h-0 overflow-auto">
+              <RichTextEditor
                 value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
+                onChange={setTempValue}
                 placeholder={placeholder}
                 maxLength={maxLength}
-                className="flex-1 resize-none text-base"
+                className="flex-1"
               />
-              <div className="mt-2 text-right text-sm text-muted-foreground">
-                {tempLength}/{maxLength} caracteres
-              </div>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
