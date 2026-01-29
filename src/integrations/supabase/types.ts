@@ -82,6 +82,53 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          tenant_id: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          tenant_id: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          tenant_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_images: {
         Row: {
           created_at: string
@@ -287,6 +334,7 @@ export type Database = {
     Enums: {
       app_role: "owner" | "member"
       client_status: "active" | "paused"
+      invitation_status: "pending" | "accepted" | "expired" | "revoked"
       post_status: "draft" | "approved" | "scheduled" | "published"
       social_channel:
         | "instagram_feed"
@@ -427,6 +475,7 @@ export const Constants = {
     Enums: {
       app_role: ["owner", "member"],
       client_status: ["active", "paused"],
+      invitation_status: ["pending", "accepted", "expired", "revoked"],
       post_status: ["draft", "approved", "scheduled", "published"],
       social_channel: [
         "instagram_feed",

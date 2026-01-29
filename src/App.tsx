@@ -12,6 +12,8 @@ import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Schedule from "./pages/Schedule";
+import Settings from "./pages/Settings";
+import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,14 +65,12 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout>
-                    <div className="text-center py-12">
-                      <h2 className="text-2xl font-bold mb-2">Configurações</h2>
-                      <p className="text-muted-foreground">Em breve...</p>
-                    </div>
+                    <Settings />
                   </AppLayout>
                 </ProtectedRoute>
               }
             />
+            <Route path="/convite/:token" element={<AcceptInvite />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
