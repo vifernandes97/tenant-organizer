@@ -100,15 +100,17 @@ export function FullscreenViewer({ post, open, onOpenChange, onSaved }: Fullscre
           {viewMode === 'image' ? (
             /* Image Mode - Full Screen */
             <div className="relative flex flex-1 flex-col bg-black/95">
-              {/* Main Image */}
-              <div className="relative flex flex-1 items-center justify-center">
-                {images.length > 0 ? (
-                  <>
+            {/* Main Image */}
+            <div className="relative flex-1 overflow-hidden">
+              {images.length > 0 ? (
+                <>
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
                     <img
                       src={images[currentImageIndex]?.image_url}
                       alt=""
                       className="max-h-full max-w-full object-contain"
                     />
+                  </div>
 
                     {/* Navigation Arrows */}
                     {images.length > 1 && (
