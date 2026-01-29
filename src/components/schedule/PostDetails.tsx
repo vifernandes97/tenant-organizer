@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PostWithImages, useDeletePost, useUpdatePostStatus } from '@/hooks/usePosts';
 import { PostStatusBadge } from './PostStatusBadge';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Calendar, Clock, Edit, Trash2, Copy, Image } from 'lucide-react';
+import { FullscreenViewer } from './FullscreenViewer';
+import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -23,6 +24,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const deletePost = useDeletePost();
   const updateStatus = useUpdatePostStatus();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
   if (!post) return null;
 
@@ -61,6 +63,15 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                   alt=""
                   className="max-h-[500px] w-full object-contain"
                 />
+                {/* Fullscreen Button */}
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() => setFullscreenOpen(true)}
+                  className="absolute right-2 top-2 h-8 w-8 bg-black/50 text-white hover:bg-black/70"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
                 {images.length > 1 && (
                   <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
                     {images.map((_, idx) => (
@@ -187,6 +198,13 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
             </AlertDialog>
           </div>
         </div>
+
+        {/* Fullscreen Viewer */}
+        <FullscreenViewer
+          post={post}
+          open={fullscreenOpen}
+          onOpenChange={setFullscreenOpen}
+        />
       </SheetContent>
     </Sheet>
   );
