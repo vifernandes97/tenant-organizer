@@ -113,6 +113,10 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const activeForm = (isEditing ? editForm : form) as any;
 
   useEffect(() => {
+    // Avoid running resets while the dialog is closed.
+    // This prevents accidental render loops caused by nested Radix components updating refs.
+    if (!open) return;
+
     if (post) {
       editForm.reset({
         client_id: post.client_id,
@@ -122,7 +126,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
         status: post.status,
       });
       setExistingImages(
-        post.post_images?.map((img) => ({ id: img.id, image_url: img.image_url })) || []
+        post.post_images?.map((img) => ({ id: img.id, image_url: img.image_url })) || [],
       );
     } else {
       form.reset({
@@ -136,10 +140,12 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
       });
       setExistingImages([]);
     }
+
     setImages([]);
     setRemovedImageIds([]);
+    setChannelSectionOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [post, defaultDate]);
+  }, [open, post, defaultDate]);
 
   const onSubmit = async (data: PostFormData | PostEditFormData) => {
     if (isEditing && post) {
