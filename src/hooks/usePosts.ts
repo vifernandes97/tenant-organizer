@@ -18,6 +18,58 @@ export type PostWithImages = Post & {
   clients?: { name: string } | null;
 };
 
+// Extract storage path from URL or return as-is if it's already a path
+function extractStoragePath(imageUrl: string): string {
+  // If it's a full Supabase storage URL, extract the path
+  const storageUrlMatch = imageUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/post-images\/(.+)/);
+  if (storageUrlMatch) {
+    return storageUrlMatch[1];
+  }
+  // If it's already a path (new format), return as-is
+  if (!imageUrl.startsWith('http')) {
+    return imageUrl;
+  }
+  // Legacy URL format - try to extract path
+  const urlParts = imageUrl.split('/post-images/');
+  if (urlParts.length > 1) {
+    return urlParts[1].split('?')[0]; // Remove query params if any
+  }
+  return imageUrl;
+}
+
+// Generate signed URL for an image (valid for 1 hour)
+async function getSignedImageUrl(imageUrl: string): Promise<string> {
+  const path = extractStoragePath(imageUrl);
+  const { data, error } = await supabase.storage
+    .from('post-images')
+    .createSignedUrl(path, 3600); // 1 hour expiry
+  
+  if (error || !data?.signedUrl) {
+    console.error('Error creating signed URL:', error);
+    return imageUrl; // Fallback to original URL
+  }
+  return data.signedUrl;
+}
+
+// Transform post images to use signed URLs
+async function transformPostImagesWithSignedUrls(posts: PostWithImages[]): Promise<PostWithImages[]> {
+  const transformedPosts = await Promise.all(
+    posts.map(async (post) => {
+      if (!post.post_images || post.post_images.length === 0) {
+        return post;
+      }
+      const signedImages = await Promise.all(
+        post.post_images.map(async (img) => ({
+          ...img,
+          image_url: await getSignedImageUrl(img.image_url),
+        }))
+      );
+      return { ...post, post_images: signedImages };
+    })
+  );
+  return transformedPosts;
+}
+
 const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 'tiktok', 'linkedin', 'youtube', 'facebook', 'twitter', 'wordpress'] as const;
 
 export const postSchema = z.object({
@@ -90,7 +142,9 @@ export function usePosts(filters?: PostFilters) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as PostWithImages[];
+      
+      // Transform image URLs to signed URLs for private bucket access
+      return transformPostImagesWithSignedUrls(data as PostWithImages[]);
     },
     enabled: !!profile?.tenant_id,
   });
@@ -115,7 +169,10 @@ export function usePost(id: string | null) {
         .single();
 
       if (error) throw error;
-      return data as PostWithImages;
+      
+      // Transform image URLs to signed URLs for private bucket access
+      const transformed = await transformPostImagesWithSignedUrls([data as PostWithImages]);
+      return transformed[0];
     },
     enabled: !!id && !!profile?.tenant_id,
   });
@@ -132,7 +189,7 @@ export function useCreatePost() {
       const createdPosts: Post[] = [];
 
       // Upload images first (will be shared across all posts)
-      const uploadedImageUrls: string[] = [];
+      const uploadedImagePaths: string[] = [];
       if (images.length > 0) {
         for (let i = 0; i < images.length; i++) {
           const file = images[i];
@@ -145,11 +202,8 @@ export function useCreatePost() {
 
           if (uploadError) throw uploadError;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('post-images')
-            .getPublicUrl(fileName);
-
-          uploadedImageUrls.push(publicUrl);
+          // Store just the path - signed URLs will be generated when fetching
+          uploadedImagePaths.push(fileName);
         }
       }
 
@@ -191,13 +245,13 @@ export function useCreatePost() {
         if (postError) throw postError;
 
         // Link uploaded images to this post
-        for (let i = 0; i < uploadedImageUrls.length; i++) {
+        for (let i = 0; i < uploadedImagePaths.length; i++) {
           const { error: imageError } = await supabase
             .from('post_images')
             .insert({
               post_id: newPost.id,
               tenant_id: profile.tenant_id,
-              image_url: uploadedImageUrls[i],
+              image_url: uploadedImagePaths[i],
               display_order: i,
             });
 
@@ -305,16 +359,13 @@ export function useUpdatePost() {
 
           if (uploadError) throw uploadError;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('post-images')
-            .getPublicUrl(fileName);
-
+          // Store just the path - signed URLs will be generated when fetching
           const { error: imageError } = await supabase
             .from('post_images')
             .insert({
               post_id: id,
               tenant_id: profile.tenant_id,
-              image_url: publicUrl,
+              image_url: fileName,
               display_order: startOrder + i,
             });
 

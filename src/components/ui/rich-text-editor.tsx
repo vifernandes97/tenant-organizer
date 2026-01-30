@@ -108,8 +108,5 @@ export function RichTextEditor({
 }
 
 // Utility function to extract plain text from HTML
-export function extractPlainText(html: string): string {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.textContent || "";
-}
+// Re-exported from textUtils for backwards compatibility
+export { extractPlainText } from '@/lib/textUtils';
