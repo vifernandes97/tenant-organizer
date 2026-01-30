@@ -6,9 +6,21 @@ import Underline from "@tiptap/extension-underline";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
+import DOMPurify from "dompurify";
 import { EditorToolbar } from "./editor-toolbar";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil } from "lucide-react";
+
+// Configure DOMPurify to only allow safe TipTap formatting tags
+const ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'span'];
+const ALLOWED_ATTR = ['style'];
+const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, { 
+    ALLOWED_TAGS, 
+    ALLOWED_ATTR,
+    ALLOW_DATA_ATTR: false,
+  });
+};
 
 // Custom extension for font size
 const FontSize = TextStyle.extend({
@@ -178,7 +190,7 @@ export function InlineRichTextEditor({
         {value ? (
           <div 
             className="prose prose-sm dark:prose-invert max-h-[200px] max-w-none overflow-y-auto rounded-lg bg-muted/50 p-4"
-            dangerouslySetInnerHTML={{ __html: value }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(value) }}
           />
         ) : (
           <div className="rounded-lg bg-muted/50 p-4">
