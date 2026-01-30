@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -68,6 +69,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
   const [channelSectionOpen, setChannelSectionOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('content');
 
   const isEditing = !!post;
   const isLoading = createPost.isPending || updatePost.isPending;
@@ -144,6 +146,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     setImages([]);
     setRemovedImageIds([]);
     setChannelSectionOpen(false);
+    setActiveTab('content');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, post, defaultDate]);
 
@@ -162,6 +165,11 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
       });
     }
     onOpenChange(false);
+  };
+
+  const handleValidationError = () => {
+    setActiveTab('content');
+    toast.error('Preencha todos os campos obrigatórios');
   };
 
   const handleExistingImageRemove = (id: string) => {
@@ -193,8 +201,8 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
         </DialogHeader>
 
         <Form {...activeForm}>
-          <form onSubmit={activeForm.handleSubmit(onSubmit)} className="space-y-4">
-            <Tabs defaultValue="content" className="w-full">
+          <form onSubmit={activeForm.handleSubmit(onSubmit, handleValidationError)} className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="content">Conteúdo</TabsTrigger>
                 <TabsTrigger value="images">Imagens</TabsTrigger>
