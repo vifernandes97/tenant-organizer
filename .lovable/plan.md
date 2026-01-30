@@ -1,163 +1,140 @@
 
 
-## Geração de Título com IA para Posts
+## Alterar Status pelo Badge no Modal
 
 ### Visao Geral
 
-Implementar geracao automatica de titulo para posts usando IA (Lovable AI Gateway). Quando um post for criado ou atualizado, a IA analisara o conteudo da legenda e gerara um titulo curto e descritivo que sera exibido no card do calendario.
+Transformar o `PostStatusBadge` no header do modal em um componente clicavel que abre um dropdown/popover para alterar o status diretamente, proporcionando uma experiencia mais intuitiva e rapida.
 
-### Problema Atual
+### UX Proposta
 
-Conforme a imagem enviada, os cards estao mostrando:
-- `<p></p><p><str...` - HTML bruto do editor rico
-
-Isso acontece porque o campo `caption` contem HTML e esta sendo exibido diretamente sem processamento.
-
-### Solucao em Duas Partes
-
-**Parte 1 - Correcao Imediata:**
-Usar a funcao `extractPlainText()` ja existente para exibir texto puro no card enquanto nao ha titulo gerado.
-
-**Parte 2 - Geracao de Titulo com IA:**
-Adicionar campo `title` na tabela e criar edge function que usa Lovable AI para gerar titulos automaticamente.
-
-### Arquitetura
-
+**Antes:**
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                         FLUXO DE GERACAO                               │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  Usuario salva post                                                    │
-│         │                                                              │
-│         ▼                                                              │
-│  ┌─────────────────┐                                                   │
-│  │ Frontend chama  │                                                   │
-│  │ Edge Function   │                                                   │
-│  └────────┬────────┘                                                   │
-│           │                                                            │
-│           ▼                                                            │
-│  ┌─────────────────┐     ┌──────────────────────┐                      │
-│  │ generate-title  │────▶│  Lovable AI Gateway  │                      │
-│  │ Edge Function   │     │ (gemini-3-flash)     │                      │
-│  └────────┬────────┘     └──────────────────────┘                      │
-│           │                                                            │
-│           ▼                                                            │
-│  ┌─────────────────┐                                                   │
-│  │ Retorna titulo  │                                                   │
-│  │ (max 40 chars)  │                                                   │
-│  └────────┬────────┘                                                   │
-│           │                                                            │
-│           ▼                                                            │
-│  ┌─────────────────┐                                                   │
-│  │ Salva no DB     │                                                   │
-│  │ campo: title    │                                                   │
-│  └─────────────────┘                                                   │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  [Rascunho]           Cliente XYZ  │  ← Badge estatico
+└─────────────────────────────────────┘
 ```
 
-### Mudancas no Banco de Dados
-
-**Nova coluna na tabela `posts`:**
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| title | text (nullable) | Titulo gerado pela IA |
-
-### Edge Function: `generate-title`
-
-Recebe o texto da legenda e retorna um titulo curto gerado pela IA.
-
-**Entrada:**
-```json
-{ "caption": "Texto plano extraido do HTML" }
-```
-
-**Saida:**
-```json
-{ "title": "Lancamento da Nova Colecao" }
-```
-
-**Prompt da IA:**
+**Depois:**
 ```text
-Voce e um assistente de marketing. Crie um titulo curto (maximo 40 caracteres) 
-para este post de rede social. Seja direto e capture a essencia do conteudo.
-Nao use aspas, emojis ou pontuacao final.
-
-Conteudo: {caption}
+┌─────────────────────────────────────┐
+│  [Rascunho ▼]         Cliente XYZ  │  ← Badge clicavel
+└─────────────────────────────────────┘
+         │
+         ▼
+    ┌──────────────┐
+    │ ○ Rascunho   │  ← Opcoes de status
+    │ ○ Aprovado   │
+    │ ○ Agendado   │
+    │ ○ Publicado  │
+    └──────────────┘
 ```
 
-### Componentes a Modificar
+### Arquitetura da Solucao
+
+Criar um novo componente `PostStatusDropdown` que:
+1. Renderiza o badge atual com indicador de clicavel (cursor pointer + seta ou hover effect)
+2. Ao clicar, abre um `DropdownMenu` com todas as opcoes de status
+3. Ao selecionar, chama o callback de mudanca de status
+4. Mostra feedback visual durante a atualizacao
+
+### Novo Componente: `PostStatusDropdown.tsx`
+
+| Prop | Tipo | Descricao |
+|------|------|-----------|
+| status | PostStatus | Status atual |
+| onStatusChange | (status: PostStatus) => void | Callback ao mudar |
+| isLoading | boolean | Indicador de loading |
+
+### Mudancas
 
 | Componente | Mudanca |
 |------------|---------|
-| `PostCard.tsx` | Exibir `post.title` se existir, senao `extractPlainText(caption)` |
-| `usePosts.ts` | Chamar edge function apos criar/atualizar post |
+| `PostStatusDropdown.tsx` | **Criar** - Dropdown com badge clicavel |
+| `PostDetails.tsx` | Substituir `PostStatusBadge` por `PostStatusDropdown` no header |
 
-### Componentes/Arquivos a Criar
-
-| Arquivo | Proposito |
-|---------|-----------|
-| `supabase/functions/generate-title/index.ts` | Edge function que chama Lovable AI |
-
-### Fluxo de Exibicao no Card
+### Implementacao do Dropdown
 
 ```tsx
-// PostCard.tsx
-const displayTitle = post.title || extractPlainText(post.caption || '').substring(0, 40);
+// PostStatusDropdown.tsx
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
-{displayTitle && (
-  <p className="mt-0.5 truncate text-xs text-foreground">
-    {displayTitle}
-    {!post.title && displayTitle.length >= 40 ? '...' : ''}
-  </p>
-)}
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Rascunho', icon: FileText },
+  { value: 'approved', label: 'Aprovado', icon: Check },
+  { value: 'scheduled', label: 'Agendado', icon: Clock },
+  { value: 'published', label: 'Publicado', icon: CheckCircle },
+];
+
+export function PostStatusDropdown({ status, onStatusChange, isLoading }: Props) {
+  const config = statusConfig[status];
+  const Icon = config.icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="group inline-flex cursor-pointer items-center">
+          <Badge variant={config.variant} className={cn(config.className, 'pr-1.5')}>
+            {isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Icon className="mr-1 h-3 w-3" />}
+            {config.label}
+            <ChevronDown className="ml-1 h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+          </Badge>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {STATUS_OPTIONS.map((option) => (
+          <DropdownMenuItem
+            key={option.value}
+            onClick={() => onStatusChange(option.value)}
+            className={status === option.value ? 'bg-accent' : ''}
+          >
+            <option.icon className="mr-2 h-4 w-4" />
+            {option.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 ```
 
-### Fluxo de Geracao no Hook
+### Mudanca no PostDetails
 
 ```tsx
-// usePosts.ts - apos criar/atualizar post
-const generateTitle = async (caption: string) => {
-  if (!caption) return null;
-  
-  const plainText = extractPlainText(caption);
-  if (!plainText.trim()) return null;
-  
-  const { data } = await supabase.functions.invoke('generate-title', {
-    body: { caption: plainText }
-  });
-  
-  return data?.title || null;
-};
+// Antes (linha 221)
+<PostStatusBadge status={post.status} />
+
+// Depois
+<PostStatusDropdown 
+  status={post.status} 
+  onStatusChange={handleStatusChange}
+  isLoading={updateStatus.isPending}
+/>
 ```
 
-### Sequencia de Implementacao
+### Comportamento
 
-1. Adicionar coluna `title` na tabela `posts` (migracao SQL)
-2. Criar edge function `generate-title` com Lovable AI
-3. Atualizar config.toml para incluir a funcao
-4. Modificar `PostCard.tsx` para exibir titulo ou texto extraido
-5. Modificar `useCreatePost` para gerar titulo apos criacao
-6. Modificar `useUpdatePost` para regenerar titulo se caption mudar
+| Acao | Resultado |
+|------|-----------|
+| Click no badge | Abre dropdown com opcoes |
+| Seleciona opcao | Atualiza status + fecha dropdown |
+| Durante loading | Badge mostra spinner |
+| Opcao atual | Destacada com background accent |
 
-### Consideracoes
+### Consideracoes de UX
 
-- **Fallback**: Se a IA falhar, usa `extractPlainText()` truncado
-- **Cache**: Titulo e gerado apenas na criacao/edicao, nao a cada renderizacao
-- **Custo**: Usa gemini-3-flash-preview (rapido e economico)
-- **Limite**: Titulo maximo de 40 caracteres para caber no card
+- Manter o badge com a mesma aparencia visual (cores, icones)
+- Adicionar seta sutil (ChevronDown) para indicar que e clicavel
+- Hover effect suave para reforcar interatividade
+- Loading state no proprio badge durante atualizacao
+- Remover o select "Alterar Status" redundante da aba Detalhes (opcional, pode manter como alternativa)
 
-### Exemplo de Resultado
+### Arquivos a Criar/Modificar
 
-**Antes (HTML bruto):**
-```
-<p></p><p><str...
-```
-
-**Depois (titulo IA):**
-```
-Lancamento Nova Colecao Verao
-```
+| Arquivo | Acao |
+|---------|------|
+| `src/components/schedule/PostStatusDropdown.tsx` | Criar |
+| `src/components/schedule/PostDetails.tsx` | Modificar header |
 
