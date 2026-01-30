@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus } from '@/hooks/usePosts';
 import { useClients } from '@/hooks/useClients';
 import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
-import { PostStatusBadge } from './PostStatusBadge';
+import { PostStatusDropdown } from './PostStatusDropdown';
 import { FullscreenViewer } from './FullscreenViewer';
 import { InlineEditable } from '@/components/ui/inline-editable';
 import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
@@ -218,7 +218,11 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
               {/* Header with Status */}
               <div className="shrink-0 border-b p-4">
                 <div className="flex items-center justify-between">
-                  <PostStatusBadge status={post.status} />
+                  <PostStatusDropdown 
+                    status={post.status} 
+                    onStatusChange={handleStatusChange}
+                    isLoading={updateStatus.isPending}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {post.clients?.name}
                   </span>
