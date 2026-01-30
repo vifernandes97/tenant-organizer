@@ -2,6 +2,7 @@ import { PostWithImages } from '@/hooks/usePosts';
 import { PostStatusBadge } from './PostStatusBadge';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { Image } from 'lucide-react';
+import { extractPlainText } from '@/lib/textUtils';
 
 interface PostCardProps {
   post: PostWithImages;
@@ -11,6 +12,9 @@ interface PostCardProps {
 export function PostCard({ post, onClick }: PostCardProps) {
   const hasImages = post.post_images && post.post_images.length > 0;
   const firstImage = hasImages ? post.post_images[0].image_url : null;
+
+  // Use AI-generated title if available, otherwise extract plain text from caption
+  const displayTitle = post.title || extractPlainText(post.caption || '').substring(0, 40);
 
   return (
     <div
@@ -34,10 +38,10 @@ export function PostCard({ post, onClick }: PostCardProps) {
               {post.clients?.name}
             </span>
           </div>
-          {post.caption && (
+          {displayTitle && (
             <p className="mt-0.5 truncate text-xs text-foreground">
-              {post.caption.substring(0, 30)}
-              {post.caption.length > 30 ? '...' : ''}
+              {displayTitle}
+              {!post.title && displayTitle.length >= 40 ? '...' : ''}
             </p>
           )}
         </div>

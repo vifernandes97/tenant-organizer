@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { extractPlainText } from '@/lib/textUtils';
 
 type Post = Database['public']['Tables']['posts']['Row'];
 type PostInsert = Database['public']['Tables']['posts']['Insert'];
@@ -152,6 +153,23 @@ export function useCreatePost() {
         }
       }
 
+      // Generate AI title if caption exists
+      let generatedTitle: string | null = null;
+      if (post.caption) {
+        const plainText = extractPlainText(post.caption);
+        if (plainText.trim()) {
+          try {
+            const { data: titleData } = await supabase.functions.invoke('generate-title', {
+              body: { caption: plainText }
+            });
+            generatedTitle = titleData?.title || null;
+          } catch (e) {
+            console.error('Error generating title:', e);
+            // Continue without title - will use fallback in UI
+          }
+        }
+      }
+
       // Create a post for each selected channel
       for (const channel of post.channels) {
         const postData: PostInsert = {
@@ -161,6 +179,7 @@ export function useCreatePost() {
           scheduled_at: post.scheduled_at,
           caption: post.caption || null,
           status: post.status,
+          title: generatedTitle,
         };
 
         const { data: newPost, error: postError } = await supabase
@@ -226,6 +245,24 @@ export function useUpdatePost() {
       if (post.scheduled_at) postUpdate.scheduled_at = post.scheduled_at;
       if (post.caption !== undefined) postUpdate.caption = post.caption || null;
       if (post.status) postUpdate.status = post.status;
+
+      // Regenerate AI title if caption changed
+      if (post.caption !== undefined) {
+        const plainText = extractPlainText(post.caption || '');
+        if (plainText.trim()) {
+          try {
+            const { data: titleData } = await supabase.functions.invoke('generate-title', {
+              body: { caption: plainText }
+            });
+            postUpdate.title = titleData?.title || null;
+          } catch (e) {
+            console.error('Error generating title:', e);
+            // Keep existing title on error
+          }
+        } else {
+          postUpdate.title = null;
+        }
+      }
 
       const { data: updatedPost, error: postError } = await supabase
         .from('posts')
