@@ -188,6 +188,9 @@ export function useCreatePost() {
 
       const createdPosts: Post[] = [];
 
+      // Generate group_id if multiple channels selected
+      const groupId = post.channels.length > 1 ? crypto.randomUUID() : null;
+
       // Upload images first (will be shared across all posts)
       const uploadedImagePaths: string[] = [];
       if (images.length > 0) {
@@ -234,6 +237,7 @@ export function useCreatePost() {
           caption: post.caption || null,
           status: post.status,
           title: generatedTitle,
+          group_id: groupId,
         };
 
         const { data: newPost, error: postError } = await supabase

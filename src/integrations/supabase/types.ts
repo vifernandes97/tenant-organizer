@@ -260,6 +260,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at: string
+          group_id: string | null
           id: string
           scheduled_at: string
           status: Database["public"]["Enums"]["post_status"]
@@ -272,6 +273,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at?: string
+          group_id?: string | null
           id?: string
           scheduled_at: string
           status?: Database["public"]["Enums"]["post_status"]
@@ -284,6 +286,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["social_channel"]
           client_id?: string
           created_at?: string
+          group_id?: string | null
           id?: string
           scheduled_at?: string
           status?: Database["public"]["Enums"]["post_status"]
