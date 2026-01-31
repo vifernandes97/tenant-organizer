@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { PostWithImages } from '@/hooks/usePosts';
-import { PostCard } from './PostCard';
+import { PostGroup, groupPosts } from '@/hooks/useGroupedPosts';
+import { GroupedPostCard } from './GroupedPostCard';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 interface ScheduleCalendarProps {
   month: Date;
   posts: PostWithImages[];
-  onPostClick: (post: PostWithImages) => void;
+  onPostClick: (group: PostGroup) => void;
   onDayClick: (date: Date) => void;
 }
 
@@ -47,21 +48,25 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
     return days;
   }, [month]);
 
-  const postsByDay = useMemo(() => {
-    const map = new Map<string, PostWithImages[]>();
+  // Group posts by group_id
+  const groupedPosts = useMemo(() => groupPosts(posts), [posts]);
+
+  // Create a map of groups by day
+  const groupsByDay = useMemo(() => {
+    const map = new Map<string, PostGroup[]>();
     
-    posts.forEach((post) => {
-      const date = new Date(post.scheduled_at);
+    groupedPosts.forEach((group) => {
+      const date = new Date(group.scheduledAt);
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
       
       if (!map.has(key)) {
         map.set(key, []);
       }
-      map.get(key)!.push(post);
+      map.get(key)!.push(group);
     });
     
     return map;
-  }, [posts]);
+  }, [groupedPosts]);
 
   const today = new Date();
   const isToday = (date: Date) =>
@@ -69,9 +74,9 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
 
-  const getPostsForDay = (date: Date) => {
+  const getGroupsForDay = (date: Date) => {
     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    return postsByDay.get(key) || [];
+    return groupsByDay.get(key) || [];
   };
 
   return (
@@ -100,9 +105,9 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
             );
           }
 
-          const dayPosts = getPostsForDay(date);
+          const dayGroups = getGroupsForDay(date);
           const maxVisible = 2;
-          const hiddenCount = dayPosts.length - maxVisible;
+          const hiddenCount = dayGroups.length - maxVisible;
 
           return (
             <div
@@ -132,10 +137,14 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
                 </Button>
               </div>
 
-              {/* Posts */}
+              {/* Post Groups */}
               <div className="space-y-1">
-                {dayPosts.slice(0, maxVisible).map((post) => (
-                  <PostCard key={post.id} post={post} onClick={() => onPostClick(post)} />
+                {dayGroups.slice(0, maxVisible).map((group) => (
+                  <GroupedPostCard 
+                    key={group.groupId} 
+                    group={group} 
+                    onClick={() => onPostClick(group)} 
+                  />
                 ))}
                 {hiddenCount > 0 && (
                   <button

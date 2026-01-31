@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
-import { usePosts, PostWithImages } from '@/hooks/usePosts';
+import { usePosts } from '@/hooks/usePosts';
+import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
 import { PostForm } from '@/components/schedule/PostForm';
-import { PostDetails } from '@/components/schedule/PostDetails';
+import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -18,7 +19,7 @@ export default function Schedule() {
   const [channelFilter, setChannelFilter] = useState<SocialChannel[]>([]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<PostWithImages | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<PostGroup | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
@@ -51,25 +52,26 @@ export default function Schedule() {
     setCurrentMonth(new Date());
   };
 
-  const handlePostClick = (post: PostWithImages) => {
-    setSelectedPost(post);
+  const handlePostClick = (group: PostGroup) => {
+    setSelectedGroup(group);
     setIsDetailsOpen(true);
   };
 
   const handleDayClick = (date: Date) => {
     setDefaultDate(date);
-    setSelectedPost(null);
+    setSelectedGroup(null);
     setIsFormOpen(true);
   };
 
   const handleNewPost = () => {
     setDefaultDate(new Date());
-    setSelectedPost(null);
+    setSelectedGroup(null);
     setIsFormOpen(true);
   };
 
   const handleEditPost = () => {
     setIsDetailsOpen(false);
+    // For editing, pass the primary post to the form
     setIsFormOpen(true);
   };
 
@@ -170,13 +172,13 @@ export default function Schedule() {
       <PostForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        post={selectedPost}
+        post={selectedGroup?.posts[0] || null}
         defaultDate={defaultDate}
       />
 
-      {/* Post Details Sheet */}
-      <PostDetails
-        post={selectedPost}
+      {/* Group Post Details Modal */}
+      <GroupPostDetails
+        group={selectedGroup}
         open={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
         onEdit={handleEditPost}
