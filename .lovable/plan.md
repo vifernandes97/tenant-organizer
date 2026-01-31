@@ -1,140 +1,220 @@
 
 
-## Alterar Status pelo Badge no Modal
+## Agrupamento de Posts Multi-Canal
 
 ### Visao Geral
 
-Transformar o `PostStatusBadge` no header do modal em um componente clicavel que abre um dropdown/popover para alterar o status diretamente, proporcionando uma experiencia mais intuitiva e rapida.
+Mudar a regra de negocio para que posts criados para multiplos canais sejam agrupados em uma unica entrada no calendario. Cada canal mantem seu proprio registro no banco (permitindo legendas, comentarios e status independentes), mas a visualizacao e unificada.
 
-### UX Proposta
+### Arquitetura Proposta
 
-**Antes:**
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                    ESTRUTURA DE DADOS                                  │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  Antes (atual):                                                        │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐                                │
+│  │ Post 1  │  │ Post 2  │  │ Post 3  │    3 posts separados           │
+│  │ Insta   │  │ TikTok  │  │ LinkedIn│    no calendario               │
+│  └─────────┘  └─────────┘  └─────────┘                                │
+│                                                                        │
+│  Depois (novo):                                                        │
+│  ┌─────────────────────────────────┐                                   │
+│  │         Post Agrupado          │      1 card no calendario          │
+│  │   group_id: abc-123            │      mostrando multiplos canais    │
+│  ├─────────┬─────────┬────────────┤                                    │
+│  │ Insta   │ TikTok  │ LinkedIn   │      3 registros no banco          │
+│  │ (post1) │ (post2) │ (post3)    │      com mesmo group_id            │
+│  └─────────┴─────────┴────────────┘                                    │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mudancas no Banco de Dados
+
+**Nova coluna na tabela `posts`:**
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| group_id | uuid (nullable) | Identifica posts do mesmo agrupamento |
+
+Posts com o mesmo `group_id` pertencem ao mesmo "bloco" de publicacao. Posts individuais (apenas 1 canal) terao `group_id = null`.
+
+### Fluxo de Criacao
+
+```text
+Usuario cria post com 3 canais selecionados
+                │
+                ▼
+┌───────────────────────────────┐
+│  Gerar UUID para group_id     │
+│  (ex: abc-123-def-456)        │
+└───────────────┬───────────────┘
+                │
+                ▼
+┌───────────────────────────────┐
+│  Inserir 3 registros:         │
+│  - Post Insta (group_id: abc) │
+│  - Post TikTok (group_id: abc)│
+│  - Post LinkedIn (group_id: abc)│
+└───────────────────────────────┘
+```
+
+### Fluxo de Exibicao no Calendario
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                     AGRUPAMENTO NO FRONTEND                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Query retorna todos os posts do mes                             │
+│                                                                     │
+│  2. Frontend agrupa por group_id (ou id se null)                    │
+│     ┌──────────────────────────────────────────┐                    │
+│     │ Map<group_key, PostWithImages[]>          │                    │
+│     │ "abc-123" → [post1, post2, post3]        │                    │
+│     │ "def-456" → [post4]                      │                    │
+│     └──────────────────────────────────────────┘                    │
+│                                                                     │
+│  3. Para cada grupo, renderiza 1 PostCard                           │
+│     exibindo icones de todos os canais                              │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Novo Card Agrupado
+
+**PostCard atualizado:**
+
 ```text
 ┌─────────────────────────────────────┐
-│  [Rascunho]           Cliente XYZ  │  ← Badge estatico
+│  [img]  📸 📱 💼  Cliente XYZ       │  ← Multiplos icones de canal
+│         Titulo gerado pela IA       │
+├─────────────────────────────────────┤
+│  [Rascunho]              10:30      │  ← Status do post "principal"
 └─────────────────────────────────────┘
 ```
 
-**Depois:**
+### Modal de Detalhes com Abas de Canal
+
 ```text
-┌─────────────────────────────────────┐
-│  [Rascunho ▼]         Cliente XYZ  │  ← Badge clicavel
-└─────────────────────────────────────┘
-         │
-         ▼
-    ┌──────────────┐
-    │ ○ Rascunho   │  ← Opcoes de status
-    │ ○ Aprovado   │
-    │ ○ Agendado   │
-    │ ○ Publicado  │
-    └──────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         MODAL                                 │
+├────────────────────────────┬─────────────────────────────────┤
+│                            │  [Rascunho ▼]  Cliente XYZ      │
+│                            ├─────────────────────────────────┤
+│                            │  Canais:                         │
+│                            │  ┌───────┬────────┬──────────┐  │
+│        IMAGEM              │  │📸Insta│📱TikTok│💼LinkedIn│  │ ← Tabs
+│                            │  └───────┴────────┴──────────┘  │
+│                            ├─────────────────────────────────┤
+│                            │                                 │
+│                            │  Legenda: ...                   │
+│                            │  (conteudo do canal selecionado)│
+│                            │                                 │
+│                            │  Status: [Rascunho ▼]           │
+│                            │  (status do canal selecionado)  │
+│                            │                                 │
+└────────────────────────────┴─────────────────────────────────┘
 ```
 
-### Arquitetura da Solucao
-
-Criar um novo componente `PostStatusDropdown` que:
-1. Renderiza o badge atual com indicador de clicavel (cursor pointer + seta ou hover effect)
-2. Ao clicar, abre um `DropdownMenu` com todas as opcoes de status
-3. Ao selecionar, chama o callback de mudanca de status
-4. Mostra feedback visual durante a atualizacao
-
-### Novo Componente: `PostStatusDropdown.tsx`
-
-| Prop | Tipo | Descricao |
-|------|------|-----------|
-| status | PostStatus | Status atual |
-| onStatusChange | (status: PostStatus) => void | Callback ao mudar |
-| isLoading | boolean | Indicador de loading |
-
-### Mudancas
+### Componentes a Modificar
 
 | Componente | Mudanca |
 |------------|---------|
-| `PostStatusDropdown.tsx` | **Criar** - Dropdown com badge clicavel |
-| `PostDetails.tsx` | Substituir `PostStatusBadge` por `PostStatusDropdown` no header |
+| `usePosts.ts` | Adicionar `group_id` na criacao de posts |
+| `ScheduleCalendar.tsx` | Agrupar posts por `group_id` antes de renderizar |
+| `PostCard.tsx` | Aceitar array de posts, exibir multiplos canais |
+| `PostDetails.tsx` | Receber grupo de posts, adicionar tabs de canais |
+| `Schedule.tsx` | Ajustar handlers para trabalhar com grupos |
 
-### Implementacao do Dropdown
+### Novos Tipos
 
-```tsx
-// PostStatusDropdown.tsx
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Loader2 } from 'lucide-react';
+```typescript
+// Grupo de posts (mesmo group_id)
+type PostGroup = {
+  groupId: string;
+  posts: PostWithImages[];
+  // Dados compartilhados (do primeiro post do grupo)
+  clientId: string;
+  clientName: string;
+  scheduledAt: string;
+  title: string | null;
+  firstImage: string | null;
+};
+```
 
-const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Rascunho', icon: FileText },
-  { value: 'approved', label: 'Aprovado', icon: Check },
-  { value: 'scheduled', label: 'Agendado', icon: Clock },
-  { value: 'published', label: 'Publicado', icon: CheckCircle },
-];
+### Hook Auxiliar para Agrupamento
 
-export function PostStatusDropdown({ status, onStatusChange, isLoading }: Props) {
-  const config = statusConfig[status];
-  const Icon = config.icon;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="group inline-flex cursor-pointer items-center">
-          <Badge variant={config.variant} className={cn(config.className, 'pr-1.5')}>
-            {isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Icon className="mr-1 h-3 w-3" />}
-            {config.label}
-            <ChevronDown className="ml-1 h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
-          </Badge>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {STATUS_OPTIONS.map((option) => (
-          <DropdownMenuItem
-            key={option.value}
-            onClick={() => onStatusChange(option.value)}
-            className={status === option.value ? 'bg-accent' : ''}
-          >
-            <option.icon className="mr-2 h-4 w-4" />
-            {option.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+```typescript
+// usePosts.ts
+export function useGroupedPosts(posts: PostWithImages[]): PostGroup[] {
+  return useMemo(() => {
+    const groups = new Map<string, PostWithImages[]>();
+    
+    posts.forEach(post => {
+      const key = post.group_id || post.id; // Posts sem grupo usam proprio ID
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(post);
+    });
+    
+    return Array.from(groups.entries()).map(([groupId, groupPosts]) => ({
+      groupId,
+      posts: groupPosts,
+      clientId: groupPosts[0].client_id,
+      clientName: groupPosts[0].clients?.name || '',
+      scheduledAt: groupPosts[0].scheduled_at,
+      title: groupPosts[0].title,
+      firstImage: groupPosts[0].post_images?.[0]?.image_url || null,
+    }));
+  }, [posts]);
 }
 ```
 
-### Mudanca no PostDetails
+### Comportamento dos Canais no Modal
 
-```tsx
-// Antes (linha 221)
-<PostStatusBadge status={post.status} />
+| Campo | Comportamento |
+|-------|---------------|
+| Cliente | Compartilhado (editar afeta todos) |
+| Data/Hora | Compartilhada (editar afeta todos) |
+| Imagens | Compartilhadas (mesmas para todos os canais) |
+| Legenda | Individual por canal |
+| Status | Individual por canal |
+| Comentarios | Individual por canal/imagem |
 
-// Depois
-<PostStatusDropdown 
-  status={post.status} 
-  onStatusChange={handleStatusChange}
-  isLoading={updateStatus.isPending}
-/>
+### Edicao em Lote (Campos Compartilhados)
+
+Ao editar cliente ou data/hora no modal, o sistema atualiza todos os posts do grupo:
+
+```typescript
+const handleSharedFieldUpdate = async (field: 'client_id' | 'scheduled_at', value: string) => {
+  // Atualiza todos os posts do grupo
+  for (const p of postGroup.posts) {
+    await updatePost.mutateAsync({ id: p.id, post: { [field]: value } });
+  }
+};
 ```
 
-### Comportamento
+### Migracao de Dados Existentes
 
-| Acao | Resultado |
-|------|-----------|
-| Click no badge | Abre dropdown com opcoes |
-| Seleciona opcao | Atualiza status + fecha dropdown |
-| Durante loading | Badge mostra spinner |
-| Opcao atual | Destacada com background accent |
+Posts ja criados nao terao `group_id`, o que e tratado como post individual. Nenhuma migracao de dados e necessaria - apenas novos posts criados com multiplos canais terao o agrupamento.
 
-### Consideracoes de UX
+### Sequencia de Implementacao
 
-- Manter o badge com a mesma aparencia visual (cores, icones)
-- Adicionar seta sutil (ChevronDown) para indicar que e clicavel
-- Hover effect suave para reforcar interatividade
-- Loading state no proprio badge durante atualizacao
-- Remover o select "Alterar Status" redundante da aba Detalhes (opcional, pode manter como alternativa)
+1. Adicionar coluna `group_id` na tabela `posts` (migracao SQL)
+2. Atualizar `useCreatePost` para gerar e usar `group_id`
+3. Criar helper `useGroupedPosts` para agrupar no frontend
+4. Atualizar `ScheduleCalendar` para usar grupos
+5. Atualizar `PostCard` para exibir multiplos canais
+6. Atualizar `PostDetails` com tabs de canal
+7. Atualizar `Schedule.tsx` para passar grupos ao modal
 
-### Arquivos a Criar/Modificar
+### Consideracoes
 
-| Arquivo | Acao |
-|---------|------|
-| `src/components/schedule/PostStatusDropdown.tsx` | Criar |
-| `src/components/schedule/PostDetails.tsx` | Modificar header |
+- **Retrocompatibilidade**: Posts existentes sem `group_id` funcionam como individuais
+- **Performance**: Agrupamento feito no frontend (dados ja carregados)
+- **UX**: Usuario ve um bloco unificado, mas pode gerenciar cada canal separadamente
+- **Exclusao**: Excluir um canal remove apenas aquele post do grupo
+- **Adicionar Canal**: Pode-se criar novo post com mesmo `group_id` no futuro
 
