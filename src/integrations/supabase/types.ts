@@ -464,6 +464,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: { _token: string; _user_id: string }
+        Returns: Json
+      }
       get_tenant_name_for_invitation: {
         Args: { invitation_token: string }
         Returns: string

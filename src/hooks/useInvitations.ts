@@ -178,90 +178,22 @@ export function useAcceptInvitation() {
 
   const acceptInvitationMutation = useMutation({
     mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
-      // 1. Buscar convite válido
-      const { data: invitation, error: findError } = await supabase
-        .from('invitations')
-        .select('*')
-        .eq('token', token)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
-        .single();
+      // Usar função SECURITY DEFINER para aceitar convite atomicamente
+      const { data, error } = await supabase
+        .rpc('accept_invitation', { 
+          _token: token, 
+          _user_id: userId 
+        });
 
-      if (findError || !invitation) {
-        throw new Error('Convite inválido ou expirado');
+      if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; tenant_id?: string; role?: string } | null;
+      
+      if (!result?.success) {
+        throw new Error(result?.error || 'Erro ao aceitar convite');
       }
 
-      // 2. Verificar se profile já existe
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .single();
-
-      if (existingProfile) {
-        // Atualizar profile existente
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ tenant_id: invitation.tenant_id })
-          .eq('id', userId);
-
-        if (profileError) throw profileError;
-      } else {
-        // Criar novo profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            tenant_id: invitation.tenant_id,
-          });
-
-        if (profileError) throw profileError;
-      }
-
-      // 3. Criar user_role (upsert para evitar erro de chave duplicada)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .upsert(
-          {
-            user_id: userId,
-            tenant_id: invitation.tenant_id,
-            role: invitation.role,
-          },
-          { onConflict: 'user_id,tenant_id' }
-        );
-
-      if (roleError) throw roleError;
-
-      // 4. Criar acessos aos clientes (se especificados no convite)
-      if (invitation.client_ids && invitation.client_ids.length > 0) {
-        const accessInserts = invitation.client_ids.map((clientId: string) => ({
-          user_id: userId,
-          client_id: clientId,
-          tenant_id: invitation.tenant_id,
-        }));
-
-        const { error: accessError } = await supabase
-          .from('user_client_access')
-          .upsert(accessInserts, { onConflict: 'user_id,client_id' });
-
-        if (accessError) {
-          console.error('Error creating client access:', accessError);
-          // Não falhar o aceite do convite por causa disso
-        }
-      }
-
-      // 5. Marcar convite como aceito
-      const { error: updateError } = await supabase
-        .from('invitations')
-        .update({
-          status: 'accepted' as InvitationStatus,
-          accepted_at: new Date().toISOString(),
-        })
-        .eq('id', invitation.id);
-
-      if (updateError) throw updateError;
-
-      return invitation;
+      return result;
     },
     onSuccess: async () => {
       await refreshProfile();
