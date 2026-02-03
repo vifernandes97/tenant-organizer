@@ -16,6 +16,7 @@ type PostStatus = Database['public']['Enums']['post_status'];
 export type PostWithImages = Post & {
   post_images: (PostImage & { media_type?: string; alt_text?: string | null })[];
   clients?: { name: string } | null;
+  open_comments_count?: number;
 };
 
 // Project types for WordPress
@@ -156,7 +157,32 @@ export function usePosts(filters?: PostFilters) {
       if (error) throw error;
       
       // Transform image URLs to signed URLs for private bucket access
-      return transformPostImagesWithSignedUrls(data as PostWithImages[]);
+      const postsWithSignedUrls = await transformPostImagesWithSignedUrls(data as PostWithImages[]);
+      
+      // Fetch open comments count for all posts
+      const postIds = postsWithSignedUrls.map(p => p.id);
+      if (postIds.length > 0) {
+        const { data: commentCounts } = await supabase
+          .from('post_comments')
+          .select('post_id')
+          .in('post_id', postIds)
+          .eq('status', 'open')
+          .is('parent_id', null);
+
+        // Count comments per post
+        const countByPost = new Map<string, number>();
+        for (const c of commentCounts || []) {
+          countByPost.set(c.post_id, (countByPost.get(c.post_id) || 0) + 1);
+        }
+
+        // Merge with posts
+        return postsWithSignedUrls.map(p => ({
+          ...p,
+          open_comments_count: countByPost.get(p.id) || 0
+        }));
+      }
+      
+      return postsWithSignedUrls;
     },
     enabled: !!profile?.tenant_id,
   });

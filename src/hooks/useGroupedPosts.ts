@@ -15,6 +15,7 @@ export type PostGroup = {
   title: string | null;
   firstImage: string | null;
   channels: SocialChannel[];
+  totalOpenComments: number;
 };
 
 /**
@@ -41,6 +42,12 @@ export function groupPosts(posts: PostWithImages[]): PostGroup[] {
     
     const primaryPost = sortedPosts[0];
     
+    // Sum open comments across all posts in the group
+    const totalOpenComments = sortedPosts.reduce(
+      (sum, post) => sum + (post.open_comments_count || 0),
+      0
+    );
+    
     return {
       groupId,
       posts: sortedPosts,
@@ -50,6 +57,7 @@ export function groupPosts(posts: PostWithImages[]): PostGroup[] {
       title: primaryPost.title,
       firstImage: primaryPost.post_images?.[0]?.image_url || null,
       channels: sortedPosts.map((p) => p.channel),
+      totalOpenComments,
     };
   });
 }
