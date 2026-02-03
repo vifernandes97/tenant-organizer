@@ -196,20 +196,20 @@ export default function AcceptInvite() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Para aceitar o convite, faça login ou crie uma conta com o email{' '}
+                Para aceitar o convite, crie uma conta ou faça login com o email{' '}
                 <strong>{inviteEmail}</strong>
               </p>
               <div className="flex flex-col gap-2">
                 <Button asChild>
-                  <Link to={`/login?invite=${token}`}>
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Fazer Login
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild>
                   <Link to={`/registro?invite=${token}`}>
                     <UserPlus className="h-4 w-4 mr-2" />
                     Criar Conta
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to={`/login?invite=${token}`}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Já tenho uma conta
                   </Link>
                 </Button>
               </div>
