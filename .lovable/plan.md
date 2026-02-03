@@ -1,138 +1,179 @@
 
-## Corrigir Políticas RLS para Aceite de Convite
 
-### Análise do Problema
+## Ajustes para Usuários Convidados (Members)
 
-Os logs de erro mostram falhas em **três tabelas diferentes** durante o aceite de convite:
+### Análise do Estado Atual
 
-| Tabela | Erro | Causa |
-|--------|------|-------|
-| `user_roles` | `new row violates row-level security policy (USING expression)` | Upsert precisa de política UPDATE, mas não existe |
-| `user_client_access` | `new row violates row-level security policy` | Só owners podem inserir, usuário convidado é member |
-| `invitations` | `new row violates row-level security policy` | Mesmo com política permissiva, o fluxo falha antes |
+#### ✅ Métricas do Dashboard - JÁ FUNCIONAM CORRETAMENTE
 
-O fluxo atual em `acceptInvitation`:
-1. Busca convite (SELECT) - OK
-2. Atualiza profile com tenant_id (UPDATE) - OK
-3. Upsert em user_roles - **FALHA** (sem política UPDATE)
-4. Insert em user_client_access - **FALHA** (só owner pode)
-5. Update em invitations - Nunca chega aqui
+As políticas RLS nas tabelas `posts` e `clients` já restringem os dados automaticamente:
 
-### Solução
+| Tabela | Política RLS |
+|--------|--------------|
+| `posts` | `has_role('owner') OR has_client_access(auth.uid(), client_id)` |
+| `clients` | `has_role('owner') OR has_client_access(auth.uid(), id)` |
 
-Criar políticas que permitam ao **próprio usuário** configurar seu acesso durante o aceite do convite.
+O Dashboard faz queries simples sem filtro explícito (linhas 32-49 do Dashboard.tsx), mas o RLS no banco já:
+- Filtra clientes automaticamente para mostrar apenas os que o member tem acesso
+- Filtra posts automaticamente, mostrando apenas posts de clientes permitidos
 
-**Abordagem**: Usar `SECURITY DEFINER` functions para fazer as operações privilegiadas, bypassando RLS de forma segura e controlada.
+**Nenhuma mudança necessária no Dashboard** - as métricas já respeitam os acessos.
 
-### Migrações Necessárias
+---
 
-**1. Função para aceitar convite (SECURITY DEFINER)**
+#### ❌ Acesso à Aba de Clientes - PRECISA SER RESTRITO
 
-Esta função fará todas as operações necessárias em uma única transação com privilégios elevados:
+Atualmente, o menu lateral (AppLayout.tsx, linhas 30-35) mostra a mesma navegação para todos:
 
-```sql
-CREATE OR REPLACE FUNCTION public.accept_invitation(
-  _token uuid,
-  _user_id uuid
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _invitation record;
-  _result jsonb;
-BEGIN
-  -- 1. Buscar e validar convite
-  SELECT * INTO _invitation
-  FROM invitations
-  WHERE token = _token
-    AND status = 'pending'
-    AND expires_at > now();
-  
-  IF _invitation IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Convite inválido ou expirado');
-  END IF;
-  
-  -- 2. Verificar se email do usuário corresponde ao convite
-  IF (SELECT email FROM auth.users WHERE id = _user_id) != _invitation.email THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Email não corresponde ao convite');
-  END IF;
-  
-  -- 3. Atualizar profile com tenant_id
-  UPDATE profiles 
-  SET tenant_id = _invitation.tenant_id
-  WHERE id = _user_id;
-  
-  -- Se profile não existe, criar
-  IF NOT FOUND THEN
-    INSERT INTO profiles (id, tenant_id)
-    VALUES (_user_id, _invitation.tenant_id);
-  END IF;
-  
-  -- 4. Upsert user_role
-  INSERT INTO user_roles (user_id, tenant_id, role)
-  VALUES (_user_id, _invitation.tenant_id, _invitation.role)
-  ON CONFLICT (user_id, tenant_id) 
-  DO UPDATE SET role = EXCLUDED.role;
-  
-  -- 5. Criar acessos aos clientes (se houver)
-  IF _invitation.client_ids IS NOT NULL AND array_length(_invitation.client_ids, 1) > 0 THEN
-    INSERT INTO user_client_access (user_id, client_id, tenant_id)
-    SELECT _user_id, unnest(_invitation.client_ids), _invitation.tenant_id
-    ON CONFLICT (user_id, client_id) DO NOTHING;
-  END IF;
-  
-  -- 6. Marcar convite como aceito
-  UPDATE invitations
-  SET status = 'accepted', accepted_at = now()
-  WHERE id = _invitation.id;
-  
-  RETURN jsonb_build_object(
-    'success', true,
-    'tenant_id', _invitation.tenant_id,
-    'role', _invitation.role
-  );
-END;
-$$;
+```text
+┌─────────────────┐
+│ Dashboard       │
+│ Clientes        │  ← Deve ser ocultado para members
+│ Cronogramas     │
+│ Configurações   │
+└─────────────────┘
 ```
 
-**2. Atualizar código para usar a nova função**
+---
 
-Em `useInvitations.ts`, substituir toda a lógica de `acceptInvitationMutation` por uma única chamada RPC:
+### Mudanças Necessárias
+
+#### 1. Ocultar Menu "Clientes" para Members
+
+**Arquivo:** `src/components/layout/AppLayout.tsx`
+
+Alterar a lista de navegação para considerar o role do usuário:
 
 ```tsx
-const acceptInvitationMutation = useMutation({
-  mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
-    const { data, error } = await supabase
-      .rpc('accept_invitation', { 
-        _token: token, 
-        _user_id: userId 
-      });
+// Antes (estático)
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/clientes', label: 'Clientes', icon: Users },
+  ...
+];
 
-    if (error) throw error;
-    
-    if (!data?.success) {
-      throw new Error(data?.error || 'Erro ao aceitar convite');
-    }
+// Depois (dinâmico)
+const { userRole } = useAuth();
+const isOwner = userRole?.role === 'owner';
 
-    return data;
-  },
-  // ... callbacks permanecem iguais
-});
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  ...(isOwner ? [{ href: '/clientes', label: 'Clientes', icon: Users }] : []),
+  { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings },
+];
 ```
 
-### Arquivos Afetados
+#### 2. Ocultar Links de Clientes no Dashboard para Members
 
-| Item | Mudança |
-|------|---------|
-| Nova migração SQL | Criar função `accept_invitation` |
-| `src/hooks/useInvitations.ts` | Substituir lógica por chamada RPC |
+**Arquivo:** `src/pages/Dashboard.tsx`
 
-### Benefícios da Solução
+Remover o botão "Ver Clientes" e o link "Gerenciar Clientes" do acesso rápido para members:
 
-1. **Transação atômica**: Tudo acontece em uma única transação - se algo falhar, tudo é revertido
-2. **Segurança**: A função valida o email antes de aceitar, impedindo aceite por email errado
-3. **Sem políticas extras**: Não precisa criar múltiplas políticas complexas
-4. **Manutenibilidade**: Lógica centralizada no banco, mais fácil de auditar
+```tsx
+const { userRole } = useAuth();
+const isOwner = userRole?.role === 'owner';
+
+// No cabeçalho
+<div className="flex gap-3">
+  {isOwner && (
+    <Button asChild variant="outline">
+      <Link to="/clientes">
+        <Users className="mr-2 h-4 w-4" />
+        Ver Clientes
+      </Link>
+    </Button>
+  )}
+  <Button asChild>
+    <Link to="/cronogramas">
+      <Plus className="mr-2 h-4 w-4" />
+      Nova Postagem
+    </Link>
+  </Button>
+</div>
+
+// Na seção de acesso rápido
+{isOwner && (
+  <Button variant="ghost" className="justify-between" asChild>
+    <Link to="/clientes">
+      <span className="flex items-center gap-2">
+        <Users className="h-4 w-4" />
+        Gerenciar Clientes
+      </span>
+      <ArrowRight className="h-4 w-4" />
+    </Link>
+  </Button>
+)}
+```
+
+#### 3. Proteger Rota /clientes para Owners
+
+**Arquivo:** `src/App.tsx`
+
+Criar proteção de rota para owners:
+
+```tsx
+<Route
+  path="/clientes"
+  element={
+    <ProtectedRoute requireOwner>
+      <AppLayout>
+        <Clients />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+```
+
+**Arquivo:** `src/components/auth/ProtectedRoute.tsx`
+
+Adicionar prop `requireOwner`:
+
+```tsx
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requireOwner?: boolean;
+}
+
+export function ProtectedRoute({ children, requireOwner = false }: ProtectedRouteProps) {
+  const { user, isLoading, profile, profileNotFound, userRole } = useAuth();
+  
+  // ... loading checks ...
+
+  // Check owner requirement
+  if (requireOwner && userRole?.role !== 'owner') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+```
+
+---
+
+### Resumo das Mudanças
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/layout/AppLayout.tsx` | Filtrar menu baseado no role |
+| `src/pages/Dashboard.tsx` | Ocultar links para clientes se não for owner |
+| `src/components/auth/ProtectedRoute.tsx` | Adicionar suporte a `requireOwner` |
+| `src/App.tsx` | Usar `requireOwner` na rota `/clientes` |
+
+---
+
+### Experiência do Member Após Ajustes
+
+```text
+┌─────────────────┐
+│ Dashboard       │  ✓ Métricas filtradas por RLS
+│ Cronogramas     │  ✓ Apenas posts de clientes permitidos
+│ Configurações   │  ✓ Acesso normal
+└─────────────────┘
+    (sem Clientes)
+```
+
+- Members não veem e não acessam a página de gerenciamento de clientes
+- Members continuam vendo as métricas corretas baseadas em seus acessos
+- A segurança é garantida tanto no frontend (UX) quanto no backend (RLS)
+
