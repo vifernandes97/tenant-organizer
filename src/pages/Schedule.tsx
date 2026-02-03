@@ -1,9 +1,13 @@
 import { useState, useMemo } from 'react';
+import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { usePosts } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
+import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
 import { PostForm } from '@/components/schedule/PostForm';
 import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
@@ -11,9 +15,12 @@ import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
 type SocialChannel = Database['public']['Enums']['social_channel'];
+type ViewMode = 'month' | 'week';
 
 export default function Schedule() {
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(new Date());
   const [clientFilter, setClientFilter] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<PostStatus[]>([]);
   const [channelFilter, setChannelFilter] = useState<SocialChannel[]>([]);
@@ -22,6 +29,22 @@ export default function Schedule() {
   const [selectedGroup, setSelectedGroup] = useState<PostGroup | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
+
+  // Calculate date range based on view mode
+  const dateRange = useMemo(() => {
+    if (viewMode === 'month') {
+      return {
+        start: startOfMonth(currentMonth),
+        end: endOfMonth(currentMonth),
+      };
+    } else {
+      const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+      return {
+        start: weekStart,
+        end: endOfWeek(currentWeek, { weekStartsOn: 0 }),
+      };
+    }
+  }, [viewMode, currentMonth, currentWeek]);
 
   const { data: posts = [], isLoading } = usePosts({
     month: currentMonth,
@@ -40,16 +63,26 @@ export default function Schedule() {
     };
   }, [posts]);
 
-  const goToPreviousMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  const goToPrevious = () => {
+    if (viewMode === 'month') {
+      setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    } else {
+      setCurrentWeek((prev) => addDays(prev, -7));
+    }
   };
 
-  const goToNextMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  const goToNext = () => {
+    if (viewMode === 'month') {
+      setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    } else {
+      setCurrentWeek((prev) => addDays(prev, 7));
+    }
   };
 
   const goToToday = () => {
-    setCurrentMonth(new Date());
+    const today = new Date();
+    setCurrentMonth(today);
+    setCurrentWeek(today);
   };
 
   const handlePostClick = (group: PostGroup) => {
@@ -81,10 +114,22 @@ export default function Schedule() {
     setChannelFilter([]);
   };
 
-  const monthName = currentMonth.toLocaleDateString('pt-BR', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const handleViewModeChange = (value: string) => {
+    if (value === 'month' || value === 'week') {
+      setViewMode(value);
+    }
+  };
+
+  // Display label based on view mode
+  const dateLabel = useMemo(() => {
+    if (viewMode === 'month') {
+      return format(currentMonth, 'MMMM yyyy', { locale: ptBR });
+    } else {
+      const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
+      return `${format(weekStart, 'd MMM', { locale: ptBR })} - ${format(weekEnd, 'd MMM yyyy', { locale: ptBR })}`;
+    }
+  }, [viewMode, currentMonth, currentWeek]);
 
   return (
     <div className="space-y-6">
@@ -128,18 +173,28 @@ export default function Schedule() {
 
       {/* Filters and Navigation */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        {/* Month Navigation */}
+        {/* Navigation */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
+          <Button variant="outline" size="icon" onClick={goToPrevious}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={goToToday} className="min-w-[180px]">
+          <Button variant="outline" onClick={goToToday} className="min-w-[200px]">
             <CalendarDays className="mr-2 h-4 w-4" />
-            <span className="capitalize">{monthName}</span>
+            <span className="capitalize">{dateLabel}</span>
           </Button>
-          <Button variant="outline" size="icon" onClick={goToNextMonth}>
+          <Button variant="outline" size="icon" onClick={goToNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+
+          {/* View Mode Toggle */}
+          <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange} className="ml-2">
+            <ToggleGroupItem value="week" aria-label="Visualização semanal" className="text-xs">
+              Semana
+            </ToggleGroupItem>
+            <ToggleGroupItem value="month" aria-label="Visualização mensal" className="text-xs">
+              Mês
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
         {/* Filters */}
@@ -159,9 +214,16 @@ export default function Schedule() {
         <div className="flex h-[400px] items-center justify-center">
           <div className="text-muted-foreground">Carregando...</div>
         </div>
-      ) : (
+      ) : viewMode === 'month' ? (
         <ScheduleCalendar
           month={currentMonth}
+          posts={posts}
+          onPostClick={handlePostClick}
+          onDayClick={handleDayClick}
+        />
+      ) : (
+        <ScheduleWeekView
+          week={currentWeek}
           posts={posts}
           onPostClick={handlePostClick}
           onDayClick={handleDayClick}

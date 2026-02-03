@@ -3,6 +3,8 @@ import { PostWithImages } from '@/hooks/usePosts';
 import { PostGroup, groupPosts } from '@/hooks/useGroupedPosts';
 import { GroupedPostCard } from './GroupedPostCard';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus } from 'lucide-react';
 
 interface ScheduleCalendarProps {
@@ -147,12 +149,31 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
                   />
                 ))}
                 {hiddenCount > 0 && (
-                  <button
-                    onClick={() => onDayClick(date)}
-                    className="w-full rounded bg-muted px-2 py-1 text-center text-xs text-muted-foreground hover:bg-muted/80"
-                  >
-                    +{hiddenCount} mais
-                  </button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="w-full rounded bg-muted px-2 py-1 text-center text-xs text-muted-foreground hover:bg-muted/80"
+                      >
+                        +{hiddenCount} mais
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-3" align="start">
+                      <p className="mb-2 text-sm font-medium">
+                        Posts de {date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
+                      </p>
+                      <ScrollArea className="max-h-[300px]">
+                        <div className="space-y-2 pr-2">
+                          {dayGroups.map((group) => (
+                            <GroupedPostCard 
+                              key={group.groupId} 
+                              group={group} 
+                              onClick={() => onPostClick(group)} 
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                 )}
               </div>
             </div>
