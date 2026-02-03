@@ -1,72 +1,63 @@
 
 
-## Corrigir Erro de Chave Duplicada ao Aceitar Convite
+## Corrigir Erro RLS ao Aceitar Convite
 
 ### Problema Identificado
 
-O erro `duplicate key value violates unique constraint "user_roles_user_id_tenant_id_key"` ocorre porque a função `acceptInvitation` sempre tenta fazer um `INSERT` na tabela `user_roles`, sem verificar se o registro já existe.
+O erro `new row violates row-level security policy for table "invitations"` ocorre porque as políticas de UPDATE na tabela `invitations` são **RESTRICTIVE**.
 
-**Cenários que causam o erro:**
-1. Usuário tenta aceitar o convite, falha em algum passo posterior, e tenta novamente
-2. Usuário já faz parte do tenant (por algum motivo) e recebe novo convite
-3. Race condition onde a mutation é executada mais de uma vez
+**Políticas atuais de UPDATE:**
+
+| Política | Tipo | Expressão USING |
+|----------|------|-----------------|
+| `Owners can update invitations` | RESTRICTIVE | `tenant_id = get_user_tenant_id(auth.uid()) AND has_role(auth.uid(), 'owner')` |
+| `User can accept own invitation` | RESTRICTIVE | `email = auth.email() AND status = 'pending'` |
+
+**Como RLS funciona com políticas RESTRICTIVE:**
+- Quando há múltiplas políticas RESTRICTIVE, **TODAS** devem passar para a operação ser permitida
+- O usuário convidado é `member`, não `owner`
+- Portanto, a política "Owners can update invitations" **falha**
+- Mesmo com a política "User can accept own invitation" passando, o UPDATE é negado
 
 ### Solução
 
-Usar `upsert` em vez de `insert` para a criação do `user_role`. O upsert vai:
-- Inserir o registro se não existir
-- Atualizar o registro se já existir (no caso, apenas atualizar o role)
+Alterar a política `User can accept own invitation` para ser **PERMISSIVE** em vez de RESTRICTIVE.
 
-### Mudanças no Código
+**Como RLS funciona com políticas PERMISSIVE vs RESTRICTIVE:**
+- Políticas PERMISSIVE: Se **qualquer uma** passar, a operação é permitida
+- Políticas RESTRICTIVE: **Todas** precisam passar
 
-**Arquivo:** `src/hooks/useInvitations.ts`
+Com a mudança, o usuário poderá aceitar o convite se:
+- For owner do tenant (política existente), **OU**
+- For o dono do email do convite (política permissiva)
 
-```tsx
-// De (atual - linha 221-230):
-const { error: roleError } = await supabase
-  .from('user_roles')
-  .insert({
-    user_id: userId,
-    tenant_id: invitation.tenant_id,
-    role: invitation.role,
-  });
+### SQL da Migração
 
-// Para (novo):
-const { error: roleError } = await supabase
-  .from('user_roles')
-  .upsert(
-    {
-      user_id: userId,
-      tenant_id: invitation.tenant_id,
-      role: invitation.role,
-    },
-    {
-      onConflict: 'user_id,tenant_id',
-    }
-  );
-```
+```sql
+-- Recriar a política "User can accept own invitation" como PERMISSIVE
+DROP POLICY IF EXISTS "User can accept own invitation" ON invitations;
 
-### Benefícios
-
-- Aceitar convite funciona mesmo se o usuário tentar novamente após um erro
-- Se o usuário já tinha um role no tenant, o convite atualiza o role (ex: de member para owner)
-- Elimina possíveis race conditions
-
-### Impacto Adicional
-
-Aplicar a mesma lógica ao `user_client_access` (linha 240-242) para evitar erros similares:
-
-```tsx
-// De:
-.insert(accessInserts);
-
-// Para:
-.upsert(accessInserts, { onConflict: 'user_id,client_id' });
+CREATE POLICY "User can accept own invitation"
+ON invitations
+FOR UPDATE
+USING (
+  (email = auth.email()) 
+  AND (status = 'pending'::invitation_status)
+)
+WITH CHECK (email = auth.email());
+-- PERMISSIVE é o padrão, então não precisa especificar
 ```
 
 ### Arquivos Afetados
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/hooks/useInvitations.ts` | Alterar `insert` para `upsert` em user_roles e user_client_access |
+| Item | Mudança |
+|------|---------|
+| Nova migração SQL | Recriar política como PERMISSIVE |
+
+### Resultado Esperado
+
+Após a migração:
+1. Owners podem atualizar qualquer convite do seu tenant
+2. Usuários convidados podem aceitar seu próprio convite (mesmo sendo member)
+3. As duas condições funcionam de forma **OU** em vez de **E**
 
