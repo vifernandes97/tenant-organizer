@@ -1,259 +1,242 @@
 
 
-## Adicionar Videos e Campos WordPress
+## Corrigir Overflow de Posts e Adicionar Visualizacao Semanal
 
-### Visao Geral
+### Problemas Identificados
 
-Permitir upload de videos alem de imagens nas postagens, e adicionar campos especificos para o canal WordPress (titulo do artigo, palavra-chave SEO, texto do artigo, tipo de projeto e alt text das imagens).
+1. **Botao "+N mais" abre formulario de nova postagem** - Atualmente o clique no botao de posts ocultos chama `onDayClick` que abre o modal de criacao em vez de exibir os posts ocultos
+2. **Falta visualizacao semanal** - O calendario so possui visao mensal
 
-### Arquitetura da Solucao
+### Solucao 1: Popover para Posts Ocultos
+
+Quando clicar no "+N mais", exibir um popover com todos os posts do dia em vez de abrir o formulario de nova postagem.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                     MUDANCAS NECESSARIAS                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. BANCO DE DADOS                                                  │
-│     ├─ Renomear/Estender post_images para post_media               │
-│     │   └─ Adicionar: media_type (image/video), alt_text           │
-│     └─ Adicionar colunas na tabela posts:                          │
-│         ├─ article_title (text) - Titulo do artigo WordPress       │
-│         ├─ seo_keyword (text) - Palavra-chave SEO                  │
-│         ├─ article_content (text) - Texto do artigo (longo)        │
-│         └─ project_type (enum) - Tipo de projeto                   │
-│                                                                     │
-│  2. STORAGE                                                         │
-│     └─ Aceitar videos no bucket post-images (ou criar novo bucket) │
-│                                                                     │
-│  3. COMPONENTES                                                     │
-│     ├─ ImageUploader → MediaUploader (aceitar videos)              │
-│     ├─ GroupPostDetails - mostrar campos WordPress na aba          │
-│     ├─ PostForm - permitir upload de videos                        │
-│     └─ Novo: MediaViewer (player de video/imagem)                  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  15       [+]                       │
+│  ┌─────────────────┐                │
+│  │ Post 1 - Insta  │                │
+│  └─────────────────┘                │
+│  ┌─────────────────┐                │
+│  │ Post 2 - TikTok │                │
+│  └─────────────────┘                │
+│  +2 mais  ←── Clique aqui          │
+│     │                               │
+│     ▼                               │
+│  ┌───────────────────────────────┐  │
+│  │  Posts do dia 15              │  │ ← Popover
+│  │  ┌─────────────────────────┐  │  │
+│  │  │ Post 3 - LinkedIn       │  │  │
+│  │  └─────────────────────────┘  │  │
+│  │  ┌─────────────────────────┐  │  │
+│  │  │ Post 4 - Facebook       │  │  │
+│  │  └─────────────────────────┘  │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
 ```
 
-### 1. Mudancas no Banco de Dados
+### Solucao 2: Adicionar Visualizacao Semanal
 
-**Novas colunas na tabela `posts` (campos WordPress):**
+Adicionar toggle entre visao mensal e semanal com navegacao por semana.
 
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| article_title | text (nullable) | Titulo do artigo para WordPress |
-| seo_keyword | text (nullable) | Palavra-chave principal para SEO |
-| article_content | text (nullable) | Corpo do artigo (texto longo) |
-| project_type | enum (nullable) | Tipo de projeto |
-
-**Novo enum `project_type`:**
-
-| Valor | Label |
-|-------|-------|
-| ete | ETE |
-| eta | ETA |
-| osmose_reversa | Osmose Reversa |
-| ultrafiltracao | Ultrafiltracao |
-| fisico_quimico | Fisico Quimico |
-| mbr | MBR |
-
-**Novas colunas na tabela `post_images`:**
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| media_type | text | 'image' ou 'video' (default: 'image') |
-| alt_text | text (nullable) | Texto alternativo da imagem |
-
-### 2. Migracao SQL
-
-```sql
--- Criar enum para tipo de projeto
-CREATE TYPE project_type AS ENUM (
-  'ete', 
-  'eta', 
-  'osmose_reversa', 
-  'ultrafiltracao', 
-  'fisico_quimico', 
-  'mbr'
-);
-
--- Adicionar colunas WordPress na tabela posts
-ALTER TABLE posts
-ADD COLUMN article_title text,
-ADD COLUMN seo_keyword text,
-ADD COLUMN article_content text,
-ADD COLUMN project_type project_type;
-
--- Adicionar colunas de midia na tabela post_images
-ALTER TABLE post_images
-ADD COLUMN media_type text NOT NULL DEFAULT 'image',
-ADD COLUMN alt_text text;
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  [◀] Fevereiro 2026 [▶]          [ Semana | Mes ]  ← Toggle     │
+├──────────────────────────────────────────────────────────────────┤
+│  Dom  │  Seg  │  Ter  │  Qua  │  Qui  │  Sex  │  Sab  │         │
+│───────┼───────┼───────┼───────┼───────┼───────┼───────┤         │
+│       │       │       │       │       │       │       │         │
+│       │       │       │       │       │       │       │         │
+│  2    │  3    │  4    │  5    │  6    │  7    │  8    │ ← Semana│
+│       │       │       │       │       │       │       │   atual │
+│ Post1 │ Post2 │       │ Post3 │       │ Post4 │       │         │
+│ Post5 │       │       │       │       │ Post6 │       │         │
+│       │       │       │       │       │ Post7 │       │         │
+│       │       │       │       │       │       │       │         │
+│       │       │       │       │       │       │       │         │
+└───────┴───────┴───────┴───────┴───────┴───────┴───────┘
 ```
 
-### 3. Componente MediaUploader
+Caracteristicas da visao semanal:
+- Mais espaco vertical para exibir posts (mostra todos, sem overflow)
+- Navegacao por semana (anterior/proxima)
+- Botao "Hoje" leva para semana atual
 
-Atualizar `ImageUploader.tsx` para aceitar videos:
+### Arquitetura das Mudancas
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `ScheduleCalendar.tsx` | Adicionar Popover para posts ocultos em vez de chamar onDayClick |
+| `Schedule.tsx` | Adicionar estado de viewMode ('month' \| 'week'), toggle no header |
+| **Novo** `ScheduleWeekView.tsx` | Componente de visualizacao semanal |
+
+### Detalhes Tecnicos
+
+**1. Popover para Posts Ocultos**
+
+Modificar o botao "+N mais" no `ScheduleCalendar.tsx`:
 
 ```tsx
-// Mudancas principais:
-// - accept="image/*,video/*"
-// - Validacao de tipo (image ou video)
-// - Preview diferente para videos (thumbnail ou icone)
-// - Limite de tamanho maior para videos (50MB)
+// Antes
+<button onClick={() => onDayClick(date)}>
+  +{hiddenCount} mais
+</button>
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+// Depois
+<Popover>
+  <PopoverTrigger asChild>
+    <button className="...">+{hiddenCount} mais</button>
+  </PopoverTrigger>
+  <PopoverContent>
+    <div className="space-y-2">
+      <p className="font-medium text-sm">
+        Posts de {date.toLocaleDateString('pt-BR')}
+      </p>
+      {dayGroups.map((group) => (
+        <GroupedPostCard 
+          key={group.groupId}
+          group={group}
+          onClick={() => onPostClick(group)}
+        />
+      ))}
+    </div>
+  </PopoverContent>
+</Popover>
 ```
 
-### 4. Campos WordPress no Modal
-
-Quando o canal ativo for WordPress, mostrar campos adicionais:
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│                   MODAL - ABA WORDPRESS                      │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Titulo do Artigo: [_____________________________]          │
-│                                                              │
-│  Palavra-chave SEO: [___________________________]           │
-│                                                              │
-│  Tipo de Projeto: [▼ Selecione...]                          │
-│    - ETE                                                     │
-│    - ETA                                                     │
-│    - Osmose Reversa                                          │
-│    - Ultrafiltracao                                          │
-│    - Fisico Quimico                                          │
-│    - MBR                                                     │
-│                                                              │
-│  Texto do Artigo:                                            │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                                                         ││
-│  │  (Editor de texto rico grande)                          ││
-│  │                                                         ││
-│  │                                                         ││
-│  │                                                         ││
-│  └─────────────────────────────────────────────────────────┘│
-│                                                              │
-│  ─────────────────────────────────────────                   │
-│                                                              │
-│  Legenda (Caption): [...] (campo ja existente)              │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 5. Alt Text nas Imagens
-
-Adicionar campo de alt text editavel para cada imagem/video:
-
-```text
-┌──────────────────────────────────────┐
-│  [IMG]  ╳                            │
-│                                      │
-│  Alt: [Descricao da imagem...]      │  ← Campo editavel
-└──────────────────────────────────────┘
-```
-
-### 6. Player de Video
-
-Para midias do tipo video, usar elemento `<video>` em vez de `<img>`:
+**2. Toggle de Visualizacao no Schedule.tsx**
 
 ```tsx
-{media.media_type === 'video' ? (
-  <video 
-    src={media.url} 
-    controls 
-    className="h-full w-full object-cover"
-  />
+const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+const [currentWeek, setCurrentWeek] = useState(new Date());
+
+// No header, adicionar toggle
+<ToggleGroup type="single" value={viewMode} onValueChange={setViewMode}>
+  <ToggleGroupItem value="week">Semana</ToggleGroupItem>
+  <ToggleGroupItem value="month">Mes</ToggleGroupItem>
+</ToggleGroup>
+
+// Renderizar calendario apropriado
+{viewMode === 'month' ? (
+  <ScheduleCalendar ... />
 ) : (
-  <img 
-    src={media.url} 
-    alt={media.alt_text || ''} 
-    className="h-full w-full object-cover"
+  <ScheduleWeekView 
+    week={currentWeek}
+    posts={posts}
+    onPostClick={handlePostClick}
+    onDayClick={handleDayClick}
   />
 )}
 ```
 
-### Arquivos a Criar/Modificar
+**3. Componente ScheduleWeekView**
 
-| Arquivo | Acao |
-|---------|------|
-| **Migracao SQL** | Criar - adicionar colunas e enum |
-| `src/components/schedule/ImageUploader.tsx` | Modificar - aceitar videos |
-| `src/components/schedule/GroupPostDetails.tsx` | Modificar - campos WordPress |
-| `src/hooks/usePosts.ts` | Modificar - incluir novos campos |
-| `src/components/schedule/PostForm.tsx` | Modificar - suporte a video |
-| `src/components/schedule/FullscreenViewer.tsx` | Modificar - player de video |
-| `src/components/comments/ImageCommentLayer.tsx` | Verificar compatibilidade |
+Novo componente que exibe 7 dias em colunas com altura maior:
 
-### Fluxo de Upload de Video
+- Cada coluna ocupa 1/7 da largura
+- Altura fixa maior (ex: 400px) para acomodar mais posts
+- Scroll interno se necessario
+- Mesmo GroupedPostCard usado na visao mensal
+- Exibe data completa no header da coluna
 
-```text
-Usuario seleciona arquivo
-        │
-        ▼
-┌───────────────────────────┐
-│ Validar tipo de arquivo   │
-│ - imagem: max 10MB        │
-│ - video: max 50MB         │
-└───────────┬───────────────┘
-            │
-            ▼
-┌───────────────────────────┐
-│ Determinar media_type     │
-│ 'image' ou 'video'        │
-└───────────┬───────────────┘
-            │
-            ▼
-┌───────────────────────────┐
-│ Upload para Storage       │
-└───────────┬───────────────┘
-            │
-            ▼
-┌───────────────────────────┐
-│ Salvar em post_images     │
-│ com media_type correto    │
-└───────────────────────────┘
-```
+```tsx
+// ScheduleWeekView.tsx
+interface ScheduleWeekViewProps {
+  week: Date; // Qualquer dia da semana
+  posts: PostWithImages[];
+  onPostClick: (group: PostGroup) => void;
+  onDayClick: (date: Date) => void;
+}
 
-### Tipos Atualizados
+export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }) {
+  // Calcular domingo a sabado da semana
+  const weekDays = useMemo(() => {
+    const sunday = startOfWeek(week);
+    return Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
+  }, [week]);
 
-```typescript
-// usePosts.ts
-export type PostWithImages = Post & {
-  post_images: (PostImage & {
-    media_type: 'image' | 'video';
-    alt_text: string | null;
-  })[];
-  clients?: { name: string } | null;
-};
-
-// Campos WordPress (apenas para canal wordpress)
-interface WordPressFields {
-  article_title?: string;
-  seo_keyword?: string;
-  article_content?: string;
-  project_type?: 'ete' | 'eta' | 'osmose_reversa' | 'ultrafiltracao' | 'fisico_quimico' | 'mbr';
+  // Agrupar posts e mapear por dia
+  const groupedPosts = useMemo(() => groupPosts(posts), [posts]);
+  
+  return (
+    <div className="grid grid-cols-7 rounded-lg border bg-card">
+      {weekDays.map((day) => (
+        <div key={day.toISOString()} className="min-h-[400px] border-r p-2">
+          {/* Header do dia */}
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground">
+                {format(day, 'EEE', { locale: ptBR })}
+              </span>
+              <span className={isToday(day) ? 'bg-primary text-primary-foreground rounded-full px-2' : ''}>
+                {day.getDate()}
+              </span>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => onDayClick(day)}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Posts do dia - sem limite */}
+          <ScrollArea className="h-[350px]">
+            <div className="space-y-2">
+              {getGroupsForDay(day).map((group) => (
+                <GroupedPostCard 
+                  key={group.groupId}
+                  group={group}
+                  onClick={() => onPostClick(group)}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      ))}
+    </div>
+  );
 }
 ```
 
-### Consideracoes de UX
+### Navegacao por Semana
 
-- Videos terao icone diferente no thumbnail
-- Player de video com controles (play, pause, volume)
-- Campos WordPress so aparecem quando canal WordPress esta ativo
-- Alt text e opcional mas recomendado para SEO/acessibilidade
-- Artigo do WordPress usa editor rico (mesmo do caption)
-- Limite maior para videos (50MB vs 10MB imagens)
+Quando em modo semana, os botoes de navegacao mudam comportamento:
+
+```tsx
+// Schedule.tsx
+const goToPrevious = () => {
+  if (viewMode === 'month') {
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  } else {
+    setCurrentWeek((prev) => addDays(prev, -7));
+  }
+};
+
+const goToNext = () => {
+  if (viewMode === 'month') {
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  } else {
+    setCurrentWeek((prev) => addDays(prev, 7));
+  }
+};
+
+const goToToday = () => {
+  const today = new Date();
+  setCurrentMonth(today);
+  setCurrentWeek(today);
+};
+```
+
+### Dependencias
+
+Utilizar funcoes do `date-fns` ja instalado:
+- `startOfWeek` - Obter domingo da semana
+- `addDays` - Adicionar dias
+- `format` - Formatar datas
+- `isToday` - Verificar se e hoje
 
 ### Sequencia de Implementacao
 
-1. Criar migracao SQL (enum project_type, colunas posts e post_images)
-2. Atualizar tipos TypeScript
-3. Modificar ImageUploader para aceitar videos
-4. Adicionar campos WordPress no GroupPostDetails
-5. Atualizar usePosts para salvar/carregar novos campos
-6. Implementar alt text editavel nas midias
-7. Atualizar viewers para reproduzir videos
+1. Adicionar Popover ao botao "+N mais" no `ScheduleCalendar.tsx`
+2. Criar componente `ScheduleWeekView.tsx` com visualizacao semanal
+3. Atualizar `Schedule.tsx` com toggle de visualizacao e navegacao dual
+4. Ajustar query de posts para buscar dados da semana quando em modo semanal
 
