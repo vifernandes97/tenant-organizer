@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -151,7 +152,7 @@ export function useAcceptInvitation() {
     enabled: false, // Disabled by default, will be called manually
   });
 
-  const validateToken = async (token: string) => {
+  const validateToken = useCallback(async (token: string) => {
     const { data, error } = await supabase
       .from('invitations')
       .select('*')
@@ -164,19 +165,16 @@ export function useAcceptInvitation() {
       return { valid: false, invitation: null };
     }
 
-    // Buscar nome do tenant
-    const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('name')
-      .eq('id', data.tenant_id)
-      .single();
+    // Buscar nome do tenant via RPC (bypassa RLS para usuários anônimos)
+    const { data: tenantName } = await supabase
+      .rpc('get_tenant_name_for_invitation', { invitation_token: token });
 
     return {
       valid: true,
       invitation: data as Invitation,
-      tenantName: tenantData?.name,
+      tenantName: tenantName || 'Organização',
     };
-  };
+  }, []);
 
   const acceptInvitationMutation = useMutation({
     mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
