@@ -218,14 +218,17 @@ export function useAcceptInvitation() {
         if (profileError) throw profileError;
       }
 
-      // 3. Criar user_role
+      // 3. Criar user_role (upsert para evitar erro de chave duplicada)
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({
-          user_id: userId,
-          tenant_id: invitation.tenant_id,
-          role: invitation.role,
-        });
+        .upsert(
+          {
+            user_id: userId,
+            tenant_id: invitation.tenant_id,
+            role: invitation.role,
+          },
+          { onConflict: 'user_id,tenant_id' }
+        );
 
       if (roleError) throw roleError;
 
@@ -239,7 +242,7 @@ export function useAcceptInvitation() {
 
         const { error: accessError } = await supabase
           .from('user_client_access')
-          .insert(accessInserts);
+          .upsert(accessInserts, { onConflict: 'user_id,client_id' });
 
         if (accessError) {
           console.error('Error creating client access:', accessError);
