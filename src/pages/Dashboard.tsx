@@ -14,7 +14,8 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
-  const { profile, tenant } = useAuth();
+  const { profile, tenant, userRole } = useAuth();
+  const isOwner = userRole?.role === 'owner';
   const [stats, setStats] = useState<DashboardStats>({
     totalClients: 0,
     activeClients: 0,
@@ -114,12 +115,14 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button asChild variant="outline">
-            <Link to="/clientes">
-              <Users className="mr-2 h-4 w-4" />
-              Ver Clientes
-            </Link>
-          </Button>
+          {isOwner && (
+            <Button asChild variant="outline">
+              <Link to="/clientes">
+                <Users className="mr-2 h-4 w-4" />
+                Ver Clientes
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link to="/cronogramas">
               <Plus className="mr-2 h-4 w-4" />
@@ -162,15 +165,17 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Button variant="ghost" className="justify-between" asChild>
-              <Link to="/clientes">
-                <span className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Gerenciar Clientes
-                </span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            {isOwner && (
+              <Button variant="ghost" className="justify-between" asChild>
+                <Link to="/clientes">
+                  <span className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Gerenciar Clientes
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" className="justify-between" asChild>
               <Link to="/cronogramas">
                 <span className="flex items-center gap-2">

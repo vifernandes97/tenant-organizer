@@ -4,10 +4,11 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requireOwner?: boolean;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading, profile, profileNotFound } = useAuth();
+export function ProtectedRoute({ children, requireOwner = false }: ProtectedRouteProps) {
+  const { user, isLoading, profile, profileNotFound, userRole } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -40,6 +41,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         </div>
       </div>
     );
+  }
+
+  // Check owner requirement
+  if (requireOwner && userRole?.role !== 'owner') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
