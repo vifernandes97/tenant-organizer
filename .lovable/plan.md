@@ -1,122 +1,72 @@
 
 
-## Corrigir Loop Infinito na Página de Registro com Convite
+## Corrigir Erro de Chave Duplicada ao Aceitar Convite
 
-### Problemas Identificados
+### Problema Identificado
 
-**Problema 1: Loop infinito no useEffect**
+O erro `duplicate key value violates unique constraint "user_roles_user_id_tenant_id_key"` ocorre porque a função `acceptInvitation` sempre tenta fazer um `INSERT` na tabela `user_roles`, sem verificar se o registro já existe.
 
-A função `validateToken` no hook `useAcceptInvitation` é definida diretamente no corpo do hook, sendo recriada a cada render. Como ela está nas dependências do `useEffect` em `Register.tsx`, isso causa um loop infinito.
-
-```tsx
-// Register.tsx
-useEffect(() => {
-  const checkInvite = async () => {
-    // ...
-    const result = await validateToken(inviteToken);
-    // ...
-  };
-  checkInvite();
-}, [inviteToken, validateToken]); // ← validateToken muda toda hora!
-```
-
-**Problema 2: RLS bloqueia nome do tenant**
-
-Quando `validateToken` tenta buscar o nome do tenant do convite, a política RLS só permite que usuários vejam seu próprio tenant:
-
-```sql
--- Política atual
-USING (id = get_user_tenant_id(auth.uid())) -- Só próprio tenant!
-```
-
-Usuários anônimos ou de outro tenant não conseguem ver o nome, resultando em "Carregando..." eterno se a query falhar silenciosamente.
+**Cenários que causam o erro:**
+1. Usuário tenta aceitar o convite, falha em algum passo posterior, e tenta novamente
+2. Usuário já faz parte do tenant (por algum motivo) e recebe novo convite
+3. Race condition onde a mutation é executada mais de uma vez
 
 ### Solução
 
-**Parte 1: Envolver validateToken com useCallback**
+Usar `upsert` em vez de `insert` para a criação do `user_role`. O upsert vai:
+- Inserir o registro se não existir
+- Atualizar o registro se já existir (no caso, apenas atualizar o role)
 
-Memoizar a função `validateToken` para que não seja recriada a cada render:
+### Mudanças no Código
+
+**Arquivo:** `src/hooks/useInvitations.ts`
 
 ```tsx
-// useInvitations.ts
-const validateToken = useCallback(async (token: string) => {
-  // ... código atual
-}, []); // Sem dependências = função estável
+// De (atual - linha 221-230):
+const { error: roleError } = await supabase
+  .from('user_roles')
+  .insert({
+    user_id: userId,
+    tenant_id: invitation.tenant_id,
+    role: invitation.role,
+  });
+
+// Para (novo):
+const { error: roleError } = await supabase
+  .from('user_roles')
+  .upsert(
+    {
+      user_id: userId,
+      tenant_id: invitation.tenant_id,
+      role: invitation.role,
+    },
+    {
+      onConflict: 'user_id,tenant_id',
+    }
+  );
 ```
 
-**Parte 2: Adicionar política RLS para leitura de tenant por convite**
+### Benefícios
 
-Criar uma função security definer que permita ler o nome do tenant quando o usuário tem um convite válido para ele:
+- Aceitar convite funciona mesmo se o usuário tentar novamente após um erro
+- Se o usuário já tinha um role no tenant, o convite atualiza o role (ex: de member para owner)
+- Elimina possíveis race conditions
 
-```sql
--- Função para validar acesso ao tenant via convite
-CREATE OR REPLACE FUNCTION public.get_tenant_name_for_invitation(invitation_token uuid)
-RETURNS text
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  tenant_name text;
-BEGIN
-  SELECT t.name INTO tenant_name
-  FROM tenants t
-  INNER JOIN invitations i ON i.tenant_id = t.id
-  WHERE i.token = invitation_token
-    AND i.status = 'pending'
-    AND i.expires_at > now();
-  
-  RETURN tenant_name;
-END;
-$$;
+### Impacto Adicional
+
+Aplicar a mesma lógica ao `user_client_access` (linha 240-242) para evitar erros similares:
+
+```tsx
+// De:
+.insert(accessInserts);
+
+// Para:
+.upsert(accessInserts, { onConflict: 'user_id,client_id' });
 ```
 
-E atualizar o hook para usar essa função RPC em vez de query direta.
-
-### Arquivos a Modificar
+### Arquivos Afetados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useInvitations.ts` | Envolver `validateToken` com `useCallback` e usar RPC para buscar tenant name |
-| Nova migração SQL | Criar função `get_tenant_name_for_invitation` |
-
-### Sequência de Implementação
-
-1. Criar migração SQL com a função `get_tenant_name_for_invitation`
-2. Atualizar `useInvitations.ts`:
-   - Importar `useCallback` do React
-   - Envolver `validateToken` com `useCallback`
-   - Substituir query direta ao tenants por chamada RPC
-
-### Código Final
-
-**useInvitations.ts (trecho relevante):**
-
-```tsx
-import { useCallback } from 'react';
-
-const validateToken = useCallback(async (token: string) => {
-  const { data, error } = await supabase
-    .from('invitations')
-    .select('*')
-    .eq('token', token)
-    .eq('status', 'pending')
-    .gt('expires_at', new Date().toISOString())
-    .single();
-
-  if (error || !data) {
-    return { valid: false, invitation: null };
-  }
-
-  // Usar RPC para buscar nome do tenant (bypassa RLS)
-  const { data: tenantName } = await supabase
-    .rpc('get_tenant_name_for_invitation', { invitation_token: token });
-
-  return {
-    valid: true,
-    invitation: data as Invitation,
-    tenantName: tenantName || 'Organização',
-  };
-}, []);
-```
+| `src/hooks/useInvitations.ts` | Alterar `insert` para `upsert` em user_roles e user_client_access |
 
