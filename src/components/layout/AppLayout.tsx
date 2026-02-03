@@ -18,10 +18,9 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
-  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import faviconApprovee from '@/assets/logo-approvee.png';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -74,13 +73,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Sparkles className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
-          <span className="text-lg font-bold text-sidebar-foreground">
-            {tenant?.name || 'Marketing Hub'}
-          </span>
+        <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+          <img src={faviconApprovee} alt="Approvee" className="h-8" />
         </div>
 
         {/* Navigation */}

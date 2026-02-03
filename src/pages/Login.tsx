@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import logoApprovee from '@/assets/logo-approvee.png';
 
 export default function Login() {
   const [searchParams] = useSearchParams();
@@ -91,11 +92,8 @@ export default function Login() {
       {/* Left side - Features */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12 xl:p-16">
         <div className="max-w-lg">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <Sparkles className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">Marketing Hub</span>
+          <div className="mb-8">
+            <img src={logoApprovee} alt="Approvee" className="h-12" />
           </div>
           
           <h1 className="text-3xl xl:text-4xl font-bold text-foreground mb-4">
@@ -160,11 +158,8 @@ export default function Login() {
       
       {/* Right side - Login form */}
       <div className="flex w-full lg:w-1/2 flex-col items-center justify-center p-4">
-        <div className="mb-8 flex items-center gap-2 lg:hidden">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <Sparkles className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold">Marketing Hub</span>
+        <div className="mb-8 lg:hidden">
+          <img src={logoApprovee} alt="Approvee" className="h-10" />
         </div>
 
         <Card className="w-full max-w-md animate-fade-in">
