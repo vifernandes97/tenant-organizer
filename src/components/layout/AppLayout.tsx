@@ -27,15 +27,16 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/clientes', label: 'Clientes', icon: Users },
-  { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
-];
-
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, profile, tenant, signOut } = useAuth();
+  const { user, profile, tenant, userRole, signOut } = useAuth();
+  const isOwner = userRole?.role === 'owner';
+
+  const navItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ...(isOwner ? [{ href: '/clientes', label: 'Clientes', icon: Users }] : []),
+    { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
+    { href: '/configuracoes', label: 'Configurações', icon: Settings },
+  ];
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
