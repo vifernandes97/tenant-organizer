@@ -214,26 +214,32 @@ export type Database = {
       }
       post_images: {
         Row: {
+          alt_text: string | null
           created_at: string
           display_order: number
           id: string
           image_url: string
+          media_type: string
           post_id: string
           tenant_id: string
         }
         Insert: {
+          alt_text?: string | null
           created_at?: string
           display_order?: number
           id?: string
           image_url: string
+          media_type?: string
           post_id: string
           tenant_id: string
         }
         Update: {
+          alt_text?: string | null
           created_at?: string
           display_order?: number
           id?: string
           image_url?: string
+          media_type?: string
           post_id?: string
           tenant_id?: string
         }
@@ -256,39 +262,51 @@ export type Database = {
       }
       posts: {
         Row: {
+          article_content: string | null
+          article_title: string | null
           caption: string | null
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at: string
           group_id: string | null
           id: string
+          project_type: Database["public"]["Enums"]["project_type"] | null
           scheduled_at: string
+          seo_keyword: string | null
           status: Database["public"]["Enums"]["post_status"]
           tenant_id: string
           title: string | null
           updated_at: string
         }
         Insert: {
+          article_content?: string | null
+          article_title?: string | null
           caption?: string | null
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at?: string
           group_id?: string | null
           id?: string
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           scheduled_at: string
+          seo_keyword?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id: string
           title?: string | null
           updated_at?: string
         }
         Update: {
+          article_content?: string | null
+          article_title?: string | null
           caption?: string | null
           channel?: Database["public"]["Enums"]["social_channel"]
           client_id?: string
           created_at?: string
           group_id?: string | null
           id?: string
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           scheduled_at?: string
+          seo_keyword?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id?: string
           title?: string | null
@@ -469,6 +487,13 @@ export type Database = {
       comment_status: "open" | "resolved"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       post_status: "draft" | "approved" | "scheduled" | "published"
+      project_type:
+        | "ete"
+        | "eta"
+        | "osmose_reversa"
+        | "ultrafiltracao"
+        | "fisico_quimico"
+        | "mbr"
       social_channel:
         | "instagram_feed"
         | "instagram_story"
@@ -611,6 +636,14 @@ export const Constants = {
       comment_status: ["open", "resolved"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       post_status: ["draft", "approved", "scheduled", "published"],
+      project_type: [
+        "ete",
+        "eta",
+        "osmose_reversa",
+        "ultrafiltracao",
+        "fisico_quimico",
+        "mbr",
+      ],
       social_channel: [
         "instagram_feed",
         "instagram_story",

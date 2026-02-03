@@ -14,9 +14,21 @@ type SocialChannel = Database['public']['Enums']['social_channel'];
 type PostStatus = Database['public']['Enums']['post_status'];
 
 export type PostWithImages = Post & {
-  post_images: PostImage[];
+  post_images: (PostImage & { media_type?: string; alt_text?: string | null })[];
   clients?: { name: string } | null;
 };
+
+// Project types for WordPress
+export const PROJECT_TYPES = [
+  { value: 'ete', label: 'ETE' },
+  { value: 'eta', label: 'ETA' },
+  { value: 'osmose_reversa', label: 'Osmose Reversa' },
+  { value: 'ultrafiltracao', label: 'Ultrafiltração' },
+  { value: 'fisico_quimico', label: 'Físico Químico' },
+  { value: 'mbr', label: 'MBR' },
+] as const;
+
+export type ProjectType = typeof PROJECT_TYPES[number]['value'];
 
 // Extract storage path from URL or return as-is if it's already a path
 function extractStoragePath(imageUrl: string): string {
@@ -113,7 +125,7 @@ export function usePosts(filters?: PostFilters) {
         .from('posts')
         .select(`
           *,
-          post_images (id, image_url, display_order),
+          post_images (id, image_url, display_order, media_type, alt_text),
           clients (name)
         `)
         .eq('tenant_id', profile.tenant_id)
@@ -162,7 +174,7 @@ export function usePost(id: string | null) {
         .from('posts')
         .select(`
           *,
-          post_images (id, image_url, display_order),
+          post_images (id, image_url, display_order, media_type, alt_text),
           clients (name)
         `)
         .eq('id', id)
@@ -192,12 +204,13 @@ export function useCreatePost() {
       const groupId = post.channels.length > 1 ? crypto.randomUUID() : null;
 
       // Upload images first (will be shared across all posts)
-      const uploadedImagePaths: string[] = [];
+      const uploadedMedia: { path: string; mediaType: 'image' | 'video' }[] = [];
       if (images.length > 0) {
         for (let i = 0; i < images.length; i++) {
           const file = images[i];
           const fileExt = file.name.split('.').pop();
           const fileName = `${profile.tenant_id}/shared/${Date.now()}-${i}.${fileExt}`;
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
 
           const { error: uploadError } = await supabase.storage
             .from('post-images')
@@ -206,7 +219,7 @@ export function useCreatePost() {
           if (uploadError) throw uploadError;
 
           // Store just the path - signed URLs will be generated when fetching
-          uploadedImagePaths.push(fileName);
+          uploadedMedia.push({ path: fileName, mediaType });
         }
       }
 
@@ -248,15 +261,17 @@ export function useCreatePost() {
 
         if (postError) throw postError;
 
-        // Link uploaded images to this post
-        for (let i = 0; i < uploadedImagePaths.length; i++) {
+        // Link uploaded media to this post
+        for (let i = 0; i < uploadedMedia.length; i++) {
+          const media = uploadedMedia[i];
           const { error: imageError } = await supabase
             .from('post_images')
             .insert({
               post_id: newPost.id,
               tenant_id: profile.tenant_id,
-              image_url: uploadedImagePaths[i],
+              image_url: media.path,
               display_order: i,
+              media_type: media.mediaType,
             });
 
           if (imageError) throw imageError;
@@ -341,21 +356,22 @@ export function useUpdatePost() {
         if (deleteError) throw deleteError;
       }
 
-      // Upload new images
+      // Upload new images/videos
       if (newImages && newImages.length > 0) {
-        const { data: existingImages } = await supabase
+        const { data: existingImagesData } = await supabase
           .from('post_images')
           .select('display_order')
           .eq('post_id', id)
           .order('display_order', { ascending: false })
           .limit(1);
 
-        let startOrder = (existingImages?.[0]?.display_order ?? -1) + 1;
+        let startOrder = (existingImagesData?.[0]?.display_order ?? -1) + 1;
 
         for (let i = 0; i < newImages.length; i++) {
           const file = newImages[i];
           const fileExt = file.name.split('.').pop();
           const fileName = `${profile.tenant_id}/${id}/${startOrder + i}-${Date.now()}.${fileExt}`;
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
 
           const { error: uploadError } = await supabase.storage
             .from('post-images')
@@ -371,6 +387,7 @@ export function useUpdatePost() {
               tenant_id: profile.tenant_id,
               image_url: fileName,
               display_order: startOrder + i,
+              media_type: mediaType,
             });
 
           if (imageError) throw imageError;
