@@ -205,7 +205,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="content">Conteúdo</TabsTrigger>
-                <TabsTrigger value="images">Imagens</TabsTrigger>
+                <TabsTrigger value="images">Mídias</TabsTrigger>
               </TabsList>
 
               <TabsContent value="content" className="space-y-4 pt-4">
@@ -424,7 +424,8 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
               </TabsContent>
 
               <TabsContent value="images" className="pt-4">
-                <Label>Imagens do Post</Label>
+                <Label>Mídias do Post</Label>
+                <p className="text-xs text-muted-foreground mb-2">Imagens até 10MB • Vídeos até 50MB</p>
                 <div className="mt-2">
                   <ImageUploader
                     images={images}

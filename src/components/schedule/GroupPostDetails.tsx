@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus } from '@/hooks/usePosts';
+import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, PROJECT_TYPES } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { useClients } from '@/hooks/useClients';
 import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
@@ -17,7 +18,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -80,7 +81,13 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const images = activePost.post_images || [];
   const openCommentsCount = comments.filter(c => c.status === 'open').length;
   const isMultiChannel = group.posts.length > 1;
+  const isWordPress = activePost.channel === 'wordpress';
 
+  const isVideoMedia = (media: { image_url: string; media_type?: string }) => {
+    if (media.media_type === 'video') return true;
+    const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
+    return videoExtensions.some(ext => media.image_url.toLowerCase().includes(ext));
+  };
   const handleDelete = async () => {
     // Delete only the active channel's post
     await deletePost.mutateAsync(activePost.id);
@@ -182,14 +189,24 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
               {images.length > 0 ? (
                 <>
                   <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-                    <ImageCommentLayer
-                      postId={activePost.id}
-                      imageId={images[currentImageIndex]?.id || null}
-                      imageUrl={images[currentImageIndex]?.image_url}
-                      className="h-full w-full"
-                      activeCommentId={activeCommentId}
-                      onCommentClick={(comment) => setActiveCommentId(comment.id)}
-                    />
+                    {isVideoMedia(images[currentImageIndex]) ? (
+                      <div className="relative h-full w-full flex items-center justify-center">
+                        <video
+                          src={images[currentImageIndex]?.image_url}
+                          controls
+                          className="max-h-full max-w-full rounded-lg"
+                        />
+                      </div>
+                    ) : (
+                      <ImageCommentLayer
+                        postId={activePost.id}
+                        imageId={images[currentImageIndex]?.id || null}
+                        imageUrl={images[currentImageIndex]?.image_url}
+                        className="h-full w-full"
+                        activeCommentId={activeCommentId}
+                        onCommentClick={(comment) => setActiveCommentId(comment.id)}
+                      />
+                    )}
                     
                     {images.length > 1 && (
                       <>
@@ -234,13 +251,24 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         <button
                           key={img.id}
                           onClick={() => setCurrentImageIndex(idx)}
-                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all ${
+                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all relative ${
                             idx === currentImageIndex 
                               ? 'ring-2 ring-primary ring-offset-2' 
                               : 'opacity-60 hover:opacity-100'
                           }`}
                         >
-                          <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                          {isVideoMedia(img) ? (
+                            <>
+                              <video src={img.image_url} className="h-full w-full object-cover" />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="rounded-full bg-black/60 p-1">
+                                  <Play className="h-3 w-3 text-white" fill="white" />
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                          )}
                         </button>
                       ))}
                     </div>
@@ -369,6 +397,67 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     </div>
 
                     <Separator className="my-4" />
+
+                    {/* WordPress-specific fields */}
+                    {isWordPress && (
+                      <>
+                        <div className="mb-4">
+                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Título do Artigo</h4>
+                          <InlineEditable
+                            type="text"
+                            value={(activePost as any).article_title || ''}
+                            displayValue={(activePost as any).article_title || 'Clique para adicionar...'}
+                            onSave={(value) => handleFieldUpdate('article_title', value)}
+                            isLoading={savingField === 'article_title'}
+                          />
+                        </div>
+
+                        <div className="mb-4">
+                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Palavra-chave SEO</h4>
+                          <InlineEditable
+                            type="text"
+                            value={(activePost as any).seo_keyword || ''}
+                            displayValue={(activePost as any).seo_keyword || 'Clique para adicionar...'}
+                            onSave={(value) => handleFieldUpdate('seo_keyword', value)}
+                            isLoading={savingField === 'seo_keyword'}
+                          />
+                        </div>
+
+                        <div className="mb-4">
+                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Tipo de Projeto</h4>
+                          <Select 
+                            value={(activePost as any).project_type || ''} 
+                            onValueChange={(v) => handleFieldUpdate('project_type', v)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione o tipo de projeto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PROJECT_TYPES.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="mb-4">
+                          <div className="mb-2 flex items-center justify-between">
+                            <h4 className="text-xs font-medium text-muted-foreground">Texto do Artigo</h4>
+                          </div>
+                          <RichTextEditor
+                            value={(activePost as any).article_content || ''}
+                            onChange={(value) => handleFieldUpdate('article_content', value)}
+                            placeholder="Escreva o artigo completo..."
+                            maxLength={50000}
+                            maxHeight="300px"
+                          />
+                        </div>
+
+                        <Separator className="my-4" />
+                      </>
+                    )}
 
                     {/* Caption (individual per channel) */}
                     <div>

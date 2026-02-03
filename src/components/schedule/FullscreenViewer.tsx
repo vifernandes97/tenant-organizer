@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronLeft, ChevronRight, Image, Type } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Image, Type, Play } from 'lucide-react';
 import { PostWithImages, useUpdatePost } from '@/hooks/usePosts';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,12 @@ interface FullscreenViewerProps {
 }
 
 type ViewMode = 'image' | 'editor';
+
+const isVideoMedia = (media: { image_url: string; media_type?: string }) => {
+  if (media.media_type === 'video') return true;
+  const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
+  return videoExtensions.some(ext => media.image_url.toLowerCase().includes(ext));
+};
 
 export function FullscreenViewer({ post, open, onOpenChange, onSaved }: FullscreenViewerProps) {
   const images = post.post_images || [];
@@ -105,11 +111,19 @@ export function FullscreenViewer({ post, open, onOpenChange, onSaved }: Fullscre
               {images.length > 0 ? (
                 <>
                   <div className="absolute inset-0 flex items-center justify-center p-4">
-                    <img
-                      src={images[currentImageIndex]?.image_url}
-                      alt=""
-                      className="max-h-full max-w-full object-contain"
-                    />
+                    {isVideoMedia(images[currentImageIndex]) ? (
+                      <video
+                        src={images[currentImageIndex]?.image_url}
+                        controls
+                        className="max-h-full max-w-full"
+                      />
+                    ) : (
+                      <img
+                        src={images[currentImageIndex]?.image_url}
+                        alt=""
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    )}
                   </div>
 
                     {/* Navigation Arrows */}
@@ -140,7 +154,7 @@ export function FullscreenViewer({ post, open, onOpenChange, onSaved }: Fullscre
                     )}
                   </>
                 ) : (
-                  <div className="text-muted-foreground">Sem imagens</div>
+                  <div className="text-muted-foreground">Sem mídias</div>
                 )}
               </div>
 
@@ -152,13 +166,24 @@ export function FullscreenViewer({ post, open, onOpenChange, onSaved }: Fullscre
                       key={img.id}
                       onClick={() => setCurrentImageIndex(idx)}
                       className={cn(
-                        'h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all',
+                        'h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all relative',
                         idx === currentImageIndex
                           ? 'ring-2 ring-primary ring-offset-2 ring-offset-black'
                           : 'opacity-60 hover:opacity-100'
                       )}
                     >
-                      <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                      {isVideoMedia(img) ? (
+                        <>
+                          <video src={img.image_url} className="h-full w-full object-cover" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-full bg-black/60 p-1">
+                              <Play className="h-3 w-3 text-white" fill="white" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                      )}
                     </button>
                   ))}
                 </div>
