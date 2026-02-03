@@ -1,7 +1,6 @@
 import { PostWithImages } from '@/hooks/usePosts';
 import { PostStatusBadge } from './PostStatusBadge';
-import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Image } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
 
 interface PostCardProps {
@@ -10,47 +9,30 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onClick }: PostCardProps) {
-  const hasImages = post.post_images && post.post_images.length > 0;
-  const firstImage = hasImages ? post.post_images[0].image_url : null;
-
   // Use AI-generated title if available, otherwise extract plain text from caption
-  const displayTitle = post.title || extractPlainText(post.caption || '').substring(0, 40);
+  const displayTitle = post.title || extractPlainText(post.caption || '').substring(0, 50);
+  const openCommentsCount = post.open_comments_count || 0;
 
   return (
     <div
       onClick={onClick}
-      className="group cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
+      className="cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
     >
-      <div className="flex items-start gap-2">
-        {firstImage ? (
-          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded">
-            <img src={firstImage} alt="" className="h-full w-full object-cover" />
-          </div>
-        ) : (
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-muted">
-            <Image className="h-4 w-4 text-muted-foreground" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1">
-            <ChannelBadges channels={[post.channel]} iconOnly />
-            <span className="truncate text-xs text-muted-foreground">
-              {post.clients?.name}
-            </span>
-          </div>
-          {displayTitle && (
-            <p className="mt-0.5 truncate text-xs text-foreground">
-              {displayTitle}
-              {!post.title && displayTitle.length >= 40 ? '...' : ''}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Title */}
+      <p className="truncate text-sm text-foreground font-medium">
+        {displayTitle || 'Sem título'}
+      </p>
+      
+      {/* Status + Comments */}
       <div className="mt-1.5 flex items-center justify-between">
         <PostStatusBadge status={post.status} showIcon={false} />
-        <span className="text-[10px] text-muted-foreground">
-          {new Date(post.scheduled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-        </span>
+        
+        {openCommentsCount > 0 && (
+          <div className="flex items-center gap-1 text-primary">
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">{openCommentsCount}</span>
+          </div>
+        )}
       </div>
     </div>
   );
