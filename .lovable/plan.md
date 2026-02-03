@@ -1,242 +1,55 @@
 
 
-## Corrigir Overflow de Posts e Adicionar Visualizacao Semanal
+## Corrigir Validacao de Convite
 
-### Problemas Identificados
+### Problema Identificado
 
-1. **Botao "+N mais" abre formulario de nova postagem** - Atualmente o clique no botao de posts ocultos chama `onDayClick` que abre o modal de criacao em vez de exibir os posts ocultos
-2. **Falta visualizacao semanal** - O calendario so possui visao mensal
+A pagina de convite (/convite/:token) mostra "Convite Invalido" mesmo para convites validos porque a politica de RLS exige que o usuario esteja logado com o mesmo email do convite para visualiza-lo.
 
-### Solucao 1: Popover para Posts Ocultos
+**Situacao atual:**
+1. Usuario recebe link do convite
+2. Abre o link no navegador (nao esta logado, ou esta logado com outra conta)
+3. A query `validateToken` tenta buscar o convite
+4. RLS bloqueia porque `auth.email()` nao corresponde ao email do convite
+5. Sistema exibe "Convite Invalido" incorretamente
 
-Quando clicar no "+N mais", exibir um popover com todos os posts do dia em vez de abrir o formulario de nova postagem.
+### Solucao
 
-```text
-┌─────────────────────────────────────┐
-│  15       [+]                       │
-│  ┌─────────────────┐                │
-│  │ Post 1 - Insta  │                │
-│  └─────────────────┘                │
-│  ┌─────────────────┐                │
-│  │ Post 2 - TikTok │                │
-│  └─────────────────┘                │
-│  +2 mais  ←── Clique aqui          │
-│     │                               │
-│     ▼                               │
-│  ┌───────────────────────────────┐  │
-│  │  Posts do dia 15              │  │ ← Popover
-│  │  ┌─────────────────────────┐  │  │
-│  │  │ Post 3 - LinkedIn       │  │  │
-│  │  └─────────────────────────┘  │  │
-│  │  ┌─────────────────────────┐  │  │
-│  │  │ Post 4 - Facebook       │  │  │
-│  │  └─────────────────────────┘  │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
+Criar uma politica de RLS que permita usuarios nao-autenticados (anon) consultarem convites apenas pelo token para validacao. Isso nao expoe dados sensiveis - apenas confirma se o convite existe e retorna informacoes publicas necessarias para o fluxo.
+
+### Mudancas no Banco de Dados
+
+**Nova politica de RLS na tabela `invitations`:**
+
+```sql
+-- Permitir validacao de convite por token (mesmo sem autenticacao)
+CREATE POLICY "Anyone can validate invitation by token"
+ON public.invitations FOR SELECT
+TO anon, authenticated
+USING (status = 'pending' AND expires_at > now());
 ```
 
-### Solucao 2: Adicionar Visualizacao Semanal
+Essa politica permite:
+- Usuarios anonimos (nao logados) podem ver convites pendentes e nao expirados
+- A busca ainda exige o token correto na query WHERE
+- Convites expirados ou ja aceitos/revogados nao sao vistos
 
-Adicionar toggle entre visao mensal e semanal com navegacao por semana.
+### Seguranca
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│  [◀] Fevereiro 2026 [▶]          [ Semana | Mes ]  ← Toggle     │
-├──────────────────────────────────────────────────────────────────┤
-│  Dom  │  Seg  │  Ter  │  Qua  │  Qui  │  Sex  │  Sab  │         │
-│───────┼───────┼───────┼───────┼───────┼───────┼───────┤         │
-│       │       │       │       │       │       │       │         │
-│       │       │       │       │       │       │       │         │
-│  2    │  3    │  4    │  5    │  6    │  7    │  8    │ ← Semana│
-│       │       │       │       │       │       │       │   atual │
-│ Post1 │ Post2 │       │ Post3 │       │ Post4 │       │         │
-│ Post5 │       │       │       │       │ Post6 │       │         │
-│       │       │       │       │       │ Post7 │       │         │
-│       │       │       │       │       │       │       │         │
-│       │       │       │       │       │       │       │         │
-└───────┴───────┴───────┴───────┴───────┴───────┴───────┘
-```
+O token do convite funciona como "chave de acesso":
+- UUIDs tem 122 bits de entropia - virtualmente impossiveis de adivinhar
+- Mesmo que alguem veja os dados do convite, precisa do token para aceita-lo
+- O email exibido ja era intencional (usuario confirmou que quer mostrar email completo)
+- As politicas de UPDATE continuam restritas a usuarios com email correspondente
 
-Caracteristicas da visao semanal:
-- Mais espaco vertical para exibir posts (mostra todos, sem overflow)
-- Navegacao por semana (anterior/proxima)
-- Botao "Hoje" leva para semana atual
-
-### Arquitetura das Mudancas
+### Arquivos Afetados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `ScheduleCalendar.tsx` | Adicionar Popover para posts ocultos em vez de chamar onDayClick |
-| `Schedule.tsx` | Adicionar estado de viewMode ('month' \| 'week'), toggle no header |
-| **Novo** `ScheduleWeekView.tsx` | Componente de visualizacao semanal |
-
-### Detalhes Tecnicos
-
-**1. Popover para Posts Ocultos**
-
-Modificar o botao "+N mais" no `ScheduleCalendar.tsx`:
-
-```tsx
-// Antes
-<button onClick={() => onDayClick(date)}>
-  +{hiddenCount} mais
-</button>
-
-// Depois
-<Popover>
-  <PopoverTrigger asChild>
-    <button className="...">+{hiddenCount} mais</button>
-  </PopoverTrigger>
-  <PopoverContent>
-    <div className="space-y-2">
-      <p className="font-medium text-sm">
-        Posts de {date.toLocaleDateString('pt-BR')}
-      </p>
-      {dayGroups.map((group) => (
-        <GroupedPostCard 
-          key={group.groupId}
-          group={group}
-          onClick={() => onPostClick(group)}
-        />
-      ))}
-    </div>
-  </PopoverContent>
-</Popover>
-```
-
-**2. Toggle de Visualizacao no Schedule.tsx**
-
-```tsx
-const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-const [currentWeek, setCurrentWeek] = useState(new Date());
-
-// No header, adicionar toggle
-<ToggleGroup type="single" value={viewMode} onValueChange={setViewMode}>
-  <ToggleGroupItem value="week">Semana</ToggleGroupItem>
-  <ToggleGroupItem value="month">Mes</ToggleGroupItem>
-</ToggleGroup>
-
-// Renderizar calendario apropriado
-{viewMode === 'month' ? (
-  <ScheduleCalendar ... />
-) : (
-  <ScheduleWeekView 
-    week={currentWeek}
-    posts={posts}
-    onPostClick={handlePostClick}
-    onDayClick={handleDayClick}
-  />
-)}
-```
-
-**3. Componente ScheduleWeekView**
-
-Novo componente que exibe 7 dias em colunas com altura maior:
-
-- Cada coluna ocupa 1/7 da largura
-- Altura fixa maior (ex: 400px) para acomodar mais posts
-- Scroll interno se necessario
-- Mesmo GroupedPostCard usado na visao mensal
-- Exibe data completa no header da coluna
-
-```tsx
-// ScheduleWeekView.tsx
-interface ScheduleWeekViewProps {
-  week: Date; // Qualquer dia da semana
-  posts: PostWithImages[];
-  onPostClick: (group: PostGroup) => void;
-  onDayClick: (date: Date) => void;
-}
-
-export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }) {
-  // Calcular domingo a sabado da semana
-  const weekDays = useMemo(() => {
-    const sunday = startOfWeek(week);
-    return Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
-  }, [week]);
-
-  // Agrupar posts e mapear por dia
-  const groupedPosts = useMemo(() => groupPosts(posts), [posts]);
-  
-  return (
-    <div className="grid grid-cols-7 rounded-lg border bg-card">
-      {weekDays.map((day) => (
-        <div key={day.toISOString()} className="min-h-[400px] border-r p-2">
-          {/* Header do dia */}
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground">
-                {format(day, 'EEE', { locale: ptBR })}
-              </span>
-              <span className={isToday(day) ? 'bg-primary text-primary-foreground rounded-full px-2' : ''}>
-                {day.getDate()}
-              </span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => onDayClick(day)}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* Posts do dia - sem limite */}
-          <ScrollArea className="h-[350px]">
-            <div className="space-y-2">
-              {getGroupsForDay(day).map((group) => (
-                <GroupedPostCard 
-                  key={group.groupId}
-                  group={group}
-                  onClick={() => onPostClick(group)}
-                />
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-      ))}
-    </div>
-  );
-}
-```
-
-### Navegacao por Semana
-
-Quando em modo semana, os botoes de navegacao mudam comportamento:
-
-```tsx
-// Schedule.tsx
-const goToPrevious = () => {
-  if (viewMode === 'month') {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  } else {
-    setCurrentWeek((prev) => addDays(prev, -7));
-  }
-};
-
-const goToNext = () => {
-  if (viewMode === 'month') {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  } else {
-    setCurrentWeek((prev) => addDays(prev, 7));
-  }
-};
-
-const goToToday = () => {
-  const today = new Date();
-  setCurrentMonth(today);
-  setCurrentWeek(today);
-};
-```
-
-### Dependencias
-
-Utilizar funcoes do `date-fns` ja instalado:
-- `startOfWeek` - Obter domingo da semana
-- `addDays` - Adicionar dias
-- `format` - Formatar datas
-- `isToday` - Verificar se e hoje
+| Nova migracao SQL | Adicionar politica `Anyone can validate invitation by token` |
 
 ### Sequencia de Implementacao
 
-1. Adicionar Popover ao botao "+N mais" no `ScheduleCalendar.tsx`
-2. Criar componente `ScheduleWeekView.tsx` com visualizacao semanal
-3. Atualizar `Schedule.tsx` com toggle de visualizacao e navegacao dual
-4. Ajustar query de posts para buscar dados da semana quando em modo semanal
+1. Criar migracao SQL adicionando a nova politica de RLS
+2. A politica existente `Anyone can validate invitation token by email` pode ser mantida como redundancia ou removida
 
