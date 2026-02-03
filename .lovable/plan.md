@@ -1,179 +1,198 @@
 
 
-## Ajustes para Usuários Convidados (Members)
+## Simplificar Card de Postagem no Calendário
 
-### Análise do Estado Atual
+### Objetivo
 
-#### ✅ Métricas do Dashboard - JÁ FUNCIONAM CORRETAMENTE
+Simplificar os cards de postagem para exibir apenas:
+1. **Título/resumo** gerado por IA
+2. **Badge de status**
+3. **Indicador de comentários abertos** (quando houver)
 
-As políticas RLS nas tabelas `posts` e `clients` já restringem os dados automaticamente:
-
-| Tabela | Política RLS |
-|--------|--------------|
-| `posts` | `has_role('owner') OR has_client_access(auth.uid(), client_id)` |
-| `clients` | `has_role('owner') OR has_client_access(auth.uid(), id)` |
-
-O Dashboard faz queries simples sem filtro explícito (linhas 32-49 do Dashboard.tsx), mas o RLS no banco já:
-- Filtra clientes automaticamente para mostrar apenas os que o member tem acesso
-- Filtra posts automaticamente, mostrando apenas posts de clientes permitidos
-
-**Nenhuma mudança necessária no Dashboard** - as métricas já respeitam os acessos.
-
----
-
-#### ❌ Acesso à Aba de Clientes - PRECISA SER RESTRITO
-
-Atualmente, o menu lateral (AppLayout.tsx, linhas 30-35) mostra a mesma navegação para todos:
+### Layout Proposto
 
 ```text
-┌─────────────────┐
-│ Dashboard       │
-│ Clientes        │  ← Deve ser ocultado para members
-│ Cronogramas     │
-│ Configurações   │
-└─────────────────┘
+┌────────────────────────────┐
+│ Fim das LIs e DIs para ... │  ← Título IA
+│ ┌──────────┐   💬 2        │  ← Status + Comentários abertos
+│ │ Agendado │               │
+│ └──────────┘               │
+└────────────────────────────┘
 ```
+
+**Elementos removidos:**
+- Thumbnail da imagem
+- Ícones de canal
+- Nome do cliente
+- Horário
+- Contagem de canais
 
 ---
 
-### Mudanças Necessárias
+### Mudanças Técnicas
 
-#### 1. Ocultar Menu "Clientes" para Members
+#### 1. Adicionar Contagem de Comentários Abertos às Postagens
 
-**Arquivo:** `src/components/layout/AppLayout.tsx`
+**Arquivo:** `src/hooks/usePosts.ts`
 
-Alterar a lista de navegação para considerar o role do usuário:
+Modificar a query para incluir contagem de comentários abertos:
 
 ```tsx
-// Antes (estático)
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/clientes', label: 'Clientes', icon: Users },
-  ...
-];
-
-// Depois (dinâmico)
-const { userRole } = useAuth();
-const isOwner = userRole?.role === 'owner';
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  ...(isOwner ? [{ href: '/clientes', label: 'Clientes', icon: Users }] : []),
-  { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
-  { href: '/configuracoes', label: 'Configurações', icon: Settings },
-];
+// Na query de posts, adicionar subquery para contar comentários
+.from('posts')
+.select(`
+  *,
+  post_images (id, image_url, display_order, media_type, alt_text),
+  clients (name),
+  open_comments:post_comments(count).eq(status, 'open').is(parent_id, null)
+`)
 ```
 
-#### 2. Ocultar Links de Clientes no Dashboard para Members
+**Nota:** Como o Supabase JS não suporta filtros em counts aninhados diretamente, usaremos uma abordagem alternativa - buscar a contagem de comentários separadamente.
 
-**Arquivo:** `src/pages/Dashboard.tsx`
+**Alternativa mais simples:** Criar um RPC para retornar a contagem ou adicionar ao tipo do post.
 
-Remover o botão "Ver Clientes" e o link "Gerenciar Clientes" do acesso rápido para members:
+**Abordagem escolhida:** Modificar o hook `usePosts` para fazer uma query adicional de contagem de comentários abertos por post_id e mesclar os dados.
+
+#### 2. Atualizar Tipo PostWithImages
+
+**Arquivo:** `src/hooks/usePosts.ts`
 
 ```tsx
-const { userRole } = useAuth();
-const isOwner = userRole?.role === 'owner';
-
-// No cabeçalho
-<div className="flex gap-3">
-  {isOwner && (
-    <Button asChild variant="outline">
-      <Link to="/clientes">
-        <Users className="mr-2 h-4 w-4" />
-        Ver Clientes
-      </Link>
-    </Button>
-  )}
-  <Button asChild>
-    <Link to="/cronogramas">
-      <Plus className="mr-2 h-4 w-4" />
-      Nova Postagem
-    </Link>
-  </Button>
-</div>
-
-// Na seção de acesso rápido
-{isOwner && (
-  <Button variant="ghost" className="justify-between" asChild>
-    <Link to="/clientes">
-      <span className="flex items-center gap-2">
-        <Users className="h-4 w-4" />
-        Gerenciar Clientes
-      </span>
-      <ArrowRight className="h-4 w-4" />
-    </Link>
-  </Button>
-)}
+export type PostWithImages = Post & {
+  post_images: (PostImage & { media_type?: string; alt_text?: string | null })[];
+  clients?: { name: string } | null;
+  open_comments_count?: number;  // Nova propriedade
+};
 ```
 
-#### 3. Proteger Rota /clientes para Owners
+#### 3. Atualizar PostGroup
 
-**Arquivo:** `src/App.tsx`
-
-Criar proteção de rota para owners:
+**Arquivo:** `src/hooks/useGroupedPosts.ts`
 
 ```tsx
-<Route
-  path="/clientes"
-  element={
-    <ProtectedRoute requireOwner>
-      <AppLayout>
-        <Clients />
-      </AppLayout>
-    </ProtectedRoute>
-  }
-/>
+export type PostGroup = {
+  groupId: string;
+  posts: PostWithImages[];
+  clientId: string;
+  clientName: string;
+  scheduledAt: string;
+  title: string | null;
+  firstImage: string | null;
+  channels: SocialChannel[];
+  totalOpenComments: number;  // Soma de todos os posts do grupo
+};
 ```
 
-**Arquivo:** `src/components/auth/ProtectedRoute.tsx`
+#### 4. Simplificar GroupedPostCard
 
-Adicionar prop `requireOwner`:
+**Arquivo:** `src/components/schedule/GroupedPostCard.tsx`
 
 ```tsx
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requireOwner?: boolean;
-}
-
-export function ProtectedRoute({ children, requireOwner = false }: ProtectedRouteProps) {
-  const { user, isLoading, profile, profileNotFound, userRole } = useAuth();
+export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
+  const { posts, title, totalOpenComments } = group;
+  const primaryPost = posts[0];
   
-  // ... loading checks ...
+  // Use AI-generated title if available, otherwise extract from caption
+  const displayTitle = title || extractPlainText(primaryPost.caption || '').substring(0, 50);
 
-  // Check owner requirement
-  if (requireOwner && userRole?.role !== 'owner') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
+    >
+      {/* Título */}
+      <p className="truncate text-sm text-foreground font-medium">
+        {displayTitle || 'Sem título'}
+      </p>
+      
+      {/* Status + Comentários */}
+      <div className="mt-1.5 flex items-center justify-between">
+        <PostStatusBadge status={primaryPost.status} showIcon={false} />
+        
+        {totalOpenComments > 0 && (
+          <div className="flex items-center gap-1 text-primary">
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">{totalOpenComments}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
+```
+
+#### 5. Simplificar PostCard (caso ainda seja usado)
+
+**Arquivo:** `src/components/schedule/PostCard.tsx`
+
+Mesma lógica simplificada do GroupedPostCard.
+
+---
+
+### Estratégia para Contagem de Comentários
+
+Para evitar complexidade, usaremos uma query adicional no `usePosts`:
+
+```tsx
+// Após buscar os posts, buscar contagem de comentários
+const postIds = posts.map(p => p.id);
+
+const { data: commentCounts } = await supabase
+  .from('post_comments')
+  .select('post_id')
+  .in('post_id', postIds)
+  .eq('status', 'open')
+  .is('parent_id', null);
+
+// Contar manualmente
+const countByPost = new Map<string, number>();
+for (const c of commentCounts || []) {
+  countByPost.set(c.post_id, (countByPost.get(c.post_id) || 0) + 1);
+}
+
+// Mesclar com posts
+return posts.map(p => ({
+  ...p,
+  open_comments_count: countByPost.get(p.id) || 0
+}));
 ```
 
 ---
 
-### Resumo das Mudanças
+### Arquivos Afetados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/layout/AppLayout.tsx` | Filtrar menu baseado no role |
-| `src/pages/Dashboard.tsx` | Ocultar links para clientes se não for owner |
-| `src/components/auth/ProtectedRoute.tsx` | Adicionar suporte a `requireOwner` |
-| `src/App.tsx` | Usar `requireOwner` na rota `/clientes` |
+| `src/hooks/usePosts.ts` | Adicionar query de contagem de comentários |
+| `src/hooks/useGroupedPosts.ts` | Adicionar `totalOpenComments` ao tipo PostGroup |
+| `src/components/schedule/GroupedPostCard.tsx` | Simplificar layout: título + status + comentários |
+| `src/components/schedule/PostCard.tsx` | Simplificar layout (mesma lógica) |
 
 ---
 
-### Experiência do Member Após Ajustes
+### Resultado Visual
 
+**Antes:**
 ```text
-┌─────────────────┐
-│ Dashboard       │  ✓ Métricas filtradas por RLS
-│ Cronogramas     │  ✓ Apenas posts de clientes permitidos
-│ Configurações   │  ✓ Acesso normal
-└─────────────────┘
-    (sem Clientes)
+┌─────────────────────────────────┐
+│ [img] 📸 🎬 ICS LOGISTICS       │
+│       Fim das LIs e DIs p...    │
+│ ┌──────────┐  (2 canais) 07:00  │
+│ │ Agendado │                    │
+│ └──────────┘                    │
+└─────────────────────────────────┘
 ```
 
-- Members não veem e não acessam a página de gerenciamento de clientes
-- Members continuam vendo as métricas corretas baseadas em seus acessos
-- A segurança é garantida tanto no frontend (UX) quanto no backend (RLS)
+**Depois:**
+```text
+┌─────────────────────────────────┐
+│ Fim das LIs e DIs para projetos │
+│ ┌──────────┐          💬 2      │
+│ │ Agendado │                    │
+│ └──────────┘                    │
+└─────────────────────────────────┘
+```
+
+Mais limpo, focado na informação essencial, e agora com indicador visual quando há comentários pendentes.
 
