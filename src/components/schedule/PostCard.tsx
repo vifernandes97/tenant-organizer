@@ -2,6 +2,7 @@ import { PostWithImages } from '@/hooks/usePosts';
 import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
+import { ChannelBadges } from '@/components/clients/ChannelBadges';
 
 interface PostCardProps {
   post: PostWithImages;
@@ -18,10 +19,13 @@ export function PostCard({ post, onClick }: PostCardProps) {
       onClick={onClick}
       className="cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
     >
-      {/* Title */}
-      <p className="truncate text-sm text-foreground font-medium">
-        {displayTitle || 'Sem título'}
-      </p>
+      {/* Title + Channel Icon */}
+      <div className="flex items-center gap-1.5">
+        <ChannelBadges channels={[post.channel]} iconOnly size="sm" />
+        <p className="truncate text-sm text-foreground font-medium flex-1">
+          {displayTitle || 'Sem título'}
+        </p>
+      </div>
       
       {/* Status + Comments */}
       <div className="mt-1.5 flex items-center justify-between">
