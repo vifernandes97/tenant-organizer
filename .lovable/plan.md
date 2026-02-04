@@ -1,48 +1,118 @@
 
 
-## Alterar Logo da Sidebar para Versão de Fundo Escuro
+## Correção: Convites Mostrando "Inválido" para Usuários Não Logados
 
-### Objetivo
+### Causa Raiz
 
-Substituir a logo atual na sidebar pela versão otimizada para fundo escuro (com texto branco), mantendo a logo original nas outras páginas como Login.
+A alteração de segurança feita anteriormente restringiu a leitura de convites apenas para usuários autenticados. Isso quebrou o fluxo normal onde:
 
-### Alterações
+1. Usuário recebe link de convite por email
+2. Acessa a página `/convite/:token` **sem estar logado**
+3. Sistema valida o token e mostra "Você foi convidado para [Tenant]"
+4. Usuário escolhe criar conta ou fazer login
+5. Após autenticação, aceita o convite
 
-#### 1. Copiar Nova Imagem para Assets
+O problema está na **etapa 3** - o sistema não consegue validar o token porque a política RLS exige `auth.uid() IS NOT NULL`.
 
-| Origem | Destino |
-|--------|---------|
-| `user-uploads://logo-approvee-fundo-escuro.png` | `src/assets/logo-approvee-dark.png` |
+### Solução
 
-#### 2. Atualizar AppLayout.tsx
+Criar uma função RPC `SECURITY DEFINER` para validar convites de forma segura, sem expor dados sensíveis:
 
-**Arquivo:** `src/components/layout/AppLayout.tsx`
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ Fluxo Atual (Quebrado)                                               │
+│                                                                      │
+│ Anônimo → SELECT invitations → RLS BLOQUEIA → "Convite Inválido"   │
+└─────────────────────────────────────────────────────────────────────┘
 
-- Adicionar import da nova logo para fundo escuro
-- Substituir a imagem na seção do logo da sidebar
-
-**Mudanças no código:**
-
-```typescript
-// Adicionar import
-import logoApproveeDark from '@/assets/logo-approvee-dark.png';
-
-// Na linha 77, trocar:
-<img src={faviconApprovee} alt="Approvee" className="h-8" />
-
-// Para:
-<img src={logoApproveeDark} alt="Approvee" className="h-8" />
+┌─────────────────────────────────────────────────────────────────────┐
+│ Fluxo Corrigido                                                      │
+│                                                                      │
+│ Anônimo → RPC validate_invitation_token → Retorna dados seguros     │
+│           (SECURITY DEFINER)               (email, tenant_name)      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Resumo
+### Alterações Necessárias
+
+#### 1. Nova Função RPC (Migração SQL)
+
+Criar função `validate_invitation_token` que:
+- É `SECURITY DEFINER` (bypassa RLS)
+- Recebe o token como parâmetro
+- Valida se existe, está pendente e não expirou
+- Retorna apenas dados necessários: `valid`, `email`, `tenant_name`
+- Não expõe outros campos sensíveis
+
+```sql
+CREATE OR REPLACE FUNCTION validate_invitation_token(_token uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  invitation_record record;
+  tenant_name_val text;
+BEGIN
+  SELECT i.*, t.name as tenant_name
+  INTO invitation_record
+  FROM invitations i
+  INNER JOIN tenants t ON t.id = i.tenant_id
+  WHERE i.token = _token
+    AND i.status = 'pending'
+    AND i.expires_at > now();
+  
+  IF invitation_record IS NULL THEN
+    RETURN jsonb_build_object('valid', false);
+  END IF;
+  
+  RETURN jsonb_build_object(
+    'valid', true,
+    'email', invitation_record.email,
+    'tenant_name', invitation_record.tenant_name
+  );
+END;
+$$;
+```
+
+#### 2. Atualizar Hook `useInvitations.ts`
+
+Modificar a função `validateToken` para usar a nova RPC:
+
+```typescript
+const validateToken = useCallback(async (token: string) => {
+  const { data, error } = await supabase
+    .rpc('validate_invitation_token', { _token: token });
+
+  if (error || !data?.valid) {
+    return { valid: false, invitation: null };
+  }
+
+  return {
+    valid: true,
+    invitation: { email: data.email } as Partial<Invitation>,
+    tenantName: data.tenant_name || 'Organização',
+  };
+}, []);
+```
+
+#### 3. Ajustar `AcceptInvite.tsx`
+
+Pequeno ajuste para usar apenas os campos retornados pela nova RPC.
+
+### Resumo dos Arquivos
 
 | Arquivo | Ação |
 |---------|------|
-| `src/assets/logo-approvee-dark.png` | Criar (copiar da imagem enviada) |
-| `src/components/layout/AppLayout.tsx` | Modificar import e src da imagem |
+| Nova migração SQL | Criar função `validate_invitation_token` |
+| `src/hooks/useInvitations.ts` | Usar RPC ao invés de SELECT direto |
+| `src/pages/AcceptInvite.tsx` | Ajustar uso do inviteEmail |
 
-### Resultado
+### Segurança Mantida
 
-- A sidebar com fundo escuro exibirá a logo com texto branco (legível)
-- A página de Login e outras áreas continuarão usando a logo original
+- Tokens UUID são criptograficamente aleatórios (2^128 valores)
+- A RPC só retorna dados se o token exato for fornecido
+- Não há como enumerar convites ou emails
+- A aceitação do convite ainda exige autenticação com o email correto
 
