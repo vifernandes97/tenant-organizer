@@ -488,6 +488,7 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      validate_invitation_token: { Args: { _token: string }; Returns: Json }
     }
     Enums: {
       app_role: "owner" | "member"
