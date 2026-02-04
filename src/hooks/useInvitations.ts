@@ -153,26 +153,20 @@ export function useAcceptInvitation() {
   });
 
   const validateToken = useCallback(async (token: string) => {
+    // Usar RPC SECURITY DEFINER para permitir validação por usuários anônimos
     const { data, error } = await supabase
-      .from('invitations')
-      .select('*')
-      .eq('token', token)
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString())
-      .single();
+      .rpc('validate_invitation_token', { _token: token });
 
-    if (error || !data) {
+    const result = data as { valid: boolean; email?: string; tenant_name?: string } | null;
+
+    if (error || !result?.valid) {
       return { valid: false, invitation: null };
     }
 
-    // Buscar nome do tenant via RPC (bypassa RLS para usuários anônimos)
-    const { data: tenantName } = await supabase
-      .rpc('get_tenant_name_for_invitation', { invitation_token: token });
-
     return {
       valid: true,
-      invitation: data as Invitation,
-      tenantName: tenantName || 'Organização',
+      invitation: { email: result.email } as Partial<Invitation>,
+      tenantName: result.tenant_name || 'Organização',
     };
   }, []);
 
