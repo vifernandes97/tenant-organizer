@@ -20,7 +20,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import faviconApprovee from '@/assets/logo-approvee.png';
+import logoApproveeDark from '@/assets/logo-approvee-dark.png';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -74,7 +74,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       >
         {/* Logo */}
         <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-          <img src={faviconApprovee} alt="Approvee" className="h-8" />
+          <img src={logoApproveeDark} alt="Approvee" className="h-8" />
         </div>
 
         {/* Navigation */}
