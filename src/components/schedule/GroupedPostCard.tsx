@@ -2,6 +2,7 @@ import { PostGroup } from '@/hooks/useGroupedPosts';
 import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
+import { ChannelBadges } from '@/components/clients/ChannelBadges';
 
 interface GroupedPostCardProps {
   group: PostGroup;
@@ -14,16 +15,22 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   
   // Use AI-generated title if available, otherwise extract from caption
   const displayTitle = title || extractPlainText(primaryPost.caption || '').substring(0, 50);
+  
+  // Collect all unique channels from the group
+  const channels = posts.map(p => p.channel);
 
   return (
     <div
       onClick={onClick}
       className="cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
     >
-      {/* Title */}
-      <p className="truncate text-sm text-foreground font-medium">
-        {displayTitle || 'Sem título'}
-      </p>
+      {/* Title + Channel Icons */}
+      <div className="flex items-center gap-1.5">
+        <ChannelBadges channels={channels} iconOnly size="sm" />
+        <p className="truncate text-sm text-foreground font-medium flex-1">
+          {displayTitle || 'Sem título'}
+        </p>
+      </div>
       
       {/* Status + Comments */}
       <div className="mt-1.5 flex items-center justify-between">
