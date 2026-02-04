@@ -1,118 +1,127 @@
 
 
-## Correção: Convites Mostrando "Inválido" para Usuários Não Logados
+## Implementar Sidebar Colapsável com Ícones
 
-### Causa Raiz
+### Objetivo
 
-A alteração de segurança feita anteriormente restringiu a leitura de convites apenas para usuários autenticados. Isso quebrou o fluxo normal onde:
+Adicionar funcionalidade para recolher o menu lateral, exibindo apenas os ícones de navegação. Isso permitirá que o calendário e demais conteúdos ocupem mais espaço horizontal na tela.
 
-1. Usuário recebe link de convite por email
-2. Acessa a página `/convite/:token` **sem estar logado**
-3. Sistema valida o token e mostra "Você foi convidado para [Tenant]"
-4. Usuário escolhe criar conta ou fazer login
-5. Após autenticação, aceita o convite
-
-O problema está na **etapa 3** - o sistema não consegue validar o token porque a política RLS exige `auth.uid() IS NOT NULL`.
-
-### Solução
-
-Criar uma função RPC `SECURITY DEFINER` para validar convites de forma segura, sem expor dados sensíveis:
+### Comportamento Esperado
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ Fluxo Atual (Quebrado)                                               │
-│                                                                      │
-│ Anônimo → SELECT invitations → RLS BLOQUEIA → "Convite Inválido"   │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ Estado Expandido (padrão)                                        │
+├──────────┬───────────────────────────────────────────────────────┤
+│ [≡]      │                                                       │
+│ Logo     │                                                       │
+│          │                                                       │
+│ 🏠 Dashboard    │         Conteúdo Principal               │
+│ 👥 Clientes     │         (Calendário etc.)                │
+│ 📅 Cronogramas  │                                                │
+│ ⚙️ Config.     │                                                │
+│          │                                                       │
+│ Avatar   │                                                       │
+│ Nome     │                                                       │
+└──────────┴───────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────┐
-│ Fluxo Corrigido                                                      │
-│                                                                      │
-│ Anônimo → RPC validate_invitation_token → Retorna dados seguros     │
-│           (SECURITY DEFINER)               (email, tenant_name)      │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ Estado Recolhido                                                 │
+├────┬─────────────────────────────────────────────────────────────┤
+│[≡] │                                                             │
+│    │                                                             │
+│ 🏠 │         Conteúdo Principal (Mais Espaço!)              │
+│ 👥 │                                                             │
+│ 📅 │         Calendário ocupando área maior                 │
+│ ⚙️ │                                                             │
+│    │                                                             │
+│ 👤 │                                                             │
+└────┴─────────────────────────────────────────────────────────────┘
 ```
+
+### Recursos
+
+- Botão de toggle para expandir/recolher
+- Tooltips nos ícones quando recolhido (mostra nome da página)
+- Atalho de teclado: `Ctrl+B` ou `Cmd+B`
+- Estado persistido no cookie do navegador
+- Animação suave na transição
 
 ### Alterações Necessárias
 
-#### 1. Nova Função RPC (Migração SQL)
+#### 1. Refatorar `AppLayout.tsx`
 
-Criar função `validate_invitation_token` que:
-- É `SECURITY DEFINER` (bypassa RLS)
-- Recebe o token como parâmetro
-- Valida se existe, está pendente e não expirou
-- Retorna apenas dados necessários: `valid`, `email`, `tenant_name`
-- Não expõe outros campos sensíveis
+Utilizar os componentes do Shadcn Sidebar com suporte nativo a colapso:
 
-```sql
-CREATE OR REPLACE FUNCTION validate_invitation_token(_token uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  invitation_record record;
-  tenant_name_val text;
-BEGIN
-  SELECT i.*, t.name as tenant_name
-  INTO invitation_record
-  FROM invitations i
-  INNER JOIN tenants t ON t.id = i.tenant_id
-  WHERE i.token = _token
-    AND i.status = 'pending'
-    AND i.expires_at > now();
-  
-  IF invitation_record IS NULL THEN
-    RETURN jsonb_build_object('valid', false);
-  END IF;
-  
-  RETURN jsonb_build_object(
-    'valid', true,
-    'email', invitation_record.email,
-    'tenant_name', invitation_record.tenant_name
-  );
-END;
-$$;
-```
+| Componente | Uso |
+|------------|-----|
+| `SidebarProvider` | Wrapper que gerencia estado expandido/recolhido |
+| `Sidebar` | Container principal com `collapsible="icon"` |
+| `SidebarHeader` | Área do logo |
+| `SidebarContent` | Área de navegação |
+| `SidebarFooter` | Área do usuário |
+| `SidebarMenu/MenuItem/MenuButton` | Itens de navegação com tooltip automático |
+| `SidebarTrigger` | Botão para toggle |
 
-#### 2. Atualizar Hook `useInvitations.ts`
-
-Modificar a função `validateToken` para usar a nova RPC:
+**Mudanças principais:**
 
 ```typescript
-const validateToken = useCallback(async (token: string) => {
-  const { data, error } = await supabase
-    .rpc('validate_invitation_token', { _token: token });
+// Antes: Sidebar customizada fixa de 256px
+<aside className="w-64 ...">
 
-  if (error || !data?.valid) {
-    return { valid: false, invitation: null };
-  }
-
-  return {
-    valid: true,
-    invitation: { email: data.email } as Partial<Invitation>,
-    tenantName: data.tenant_name || 'Organização',
-  };
-}, []);
+// Depois: Sidebar colapsável (256px → 48px)
+<SidebarProvider>
+  <Sidebar collapsible="icon">
+    <SidebarHeader>
+      {/* Logo - ocultar texto quando recolhido */}
+    </SidebarHeader>
+    <SidebarContent>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton tooltip="Dashboard" asChild>
+            <Link to="/dashboard">
+              <LayoutDashboard />
+              <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        {/* ... demais itens */}
+      </SidebarMenu>
+    </SidebarContent>
+    <SidebarFooter>
+      {/* Avatar - esconder nome/email quando recolhido */}
+    </SidebarFooter>
+  </Sidebar>
+  
+  <main className="flex-1">
+    <header>
+      <SidebarTrigger /> {/* Botão de toggle */}
+    </header>
+    {children}
+  </main>
+</SidebarProvider>
 ```
 
-#### 3. Ajustar `AcceptInvite.tsx`
+### Detalhes de Implementação
 
-Pequeno ajuste para usar apenas os campos retornados pela nova RPC.
+| Aspecto | Comportamento |
+|---------|---------------|
+| Logo | Quando recolhido, mostrar apenas o ícone/favicon |
+| Labels de navegação | Ocultos quando recolhido, visíveis via tooltip |
+| Seção do usuário | Mostrar apenas avatar quando recolhido |
+| Toggle | Botão na topbar, sempre visível |
+| Persistência | Cookie `sidebar:state` válido por 7 dias |
 
 ### Resumo dos Arquivos
 
 | Arquivo | Ação |
 |---------|------|
-| Nova migração SQL | Criar função `validate_invitation_token` |
-| `src/hooks/useInvitations.ts` | Usar RPC ao invés de SELECT direto |
-| `src/pages/AcceptInvite.tsx` | Ajustar uso do inviteEmail |
+| `src/components/layout/AppLayout.tsx` | Refatorar para usar componentes Shadcn Sidebar |
 
-### Segurança Mantida
+### Resultado
 
-- Tokens UUID são criptograficamente aleatórios (2^128 valores)
-- A RPC só retorna dados se o token exato for fornecido
-- Não há como enumerar convites ou emails
-- A aceitação do convite ainda exige autenticação com o email correto
+- Menu colapsável com transição suave
+- Ícones com tooltips quando recolhido
+- Mais espaço para o calendário e conteúdos
+- Atalho de teclado `Ctrl/Cmd + B`
+- Estado persistido entre sessões
 
