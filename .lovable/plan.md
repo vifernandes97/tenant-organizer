@@ -1,127 +1,101 @@
 
 
-## Implementar Sidebar Colapsável com Ícones
+## Card WordPress com Upload de Arquivos
 
 ### Objetivo
 
-Adicionar funcionalidade para recolher o menu lateral, exibindo apenas os ícones de navegação. Isso permitirá que o calendário e demais conteúdos ocupem mais espaço horizontal na tela.
+Quando o canal selecionado for WordPress, o formulário e detalhes do post devem ter um comportamento diferente:
+1. **Upload expandido**: Aceitar arquivos além de imagens/vídeos (PDF, DOCX, MP4, PNG, JPG, etc.)
+2. **Sem campo de legenda**: Ocultar o campo "Legenda" pois não se aplica a artigos WordPress
 
-### Comportamento Esperado
+### Comportamento Atual vs. Proposto
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ Estado Expandido (padrão)                                        │
-├──────────┬───────────────────────────────────────────────────────┤
-│ [≡]      │                                                       │
-│ Logo     │                                                       │
-│          │                                                       │
-│ 🏠 Dashboard    │         Conteúdo Principal               │
-│ 👥 Clientes     │         (Calendário etc.)                │
-│ 📅 Cronogramas  │                                                │
-│ ⚙️ Config.     │                                                │
-│          │                                                       │
-│ Avatar   │                                                       │
-│ Nome     │                                                       │
-└──────────┴───────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────┐
-│ Estado Recolhido                                                 │
-├────┬─────────────────────────────────────────────────────────────┤
-│[≡] │                                                             │
-│    │                                                             │
-│ 🏠 │         Conteúdo Principal (Mais Espaço!)              │
-│ 👥 │                                                             │
-│ 📅 │         Calendário ocupando área maior                 │
-│ ⚙️ │                                                             │
-│    │                                                             │
-│ 👤 │                                                             │
-└────┴─────────────────────────────────────────────────────────────┘
-```
-
-### Recursos
-
-- Botão de toggle para expandir/recolher
-- Tooltips nos ícones quando recolhido (mostra nome da página)
-- Atalho de teclado: `Ctrl+B` ou `Cmd+B`
-- Estado persistido no cookie do navegador
-- Animação suave na transição
+| Aspecto | Canais Sociais | WordPress |
+|---------|----------------|-----------|
+| Upload | Imagens (10MB) e Vídeos (50MB) | Arquivos gerais (PDF, DOCX, etc. até 25MB) |
+| Legenda | Exibir campo de 2200 caracteres | Ocultar (não se aplica) |
+| Campos específicos | Nenhum | Título, SEO, Tipo de Projeto, Texto do Artigo (já existem) |
 
 ### Alterações Necessárias
 
-#### 1. Refatorar `AppLayout.tsx`
+#### 1. Criar Componente `FileUploader` para WordPress
 
-Utilizar os componentes do Shadcn Sidebar com suporte nativo a colapso:
+Novo componente similar ao `ImageUploader`, mas:
+- Aceita mais tipos de arquivo: `image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx`
+- Limite de arquivo: 25MB para documentos
+- Preview diferenciado: ícone por tipo de arquivo (PDF, Word, Excel, etc.)
+- Exibe nome do arquivo e tamanho
 
-| Componente | Uso |
-|------------|-----|
-| `SidebarProvider` | Wrapper que gerencia estado expandido/recolhido |
-| `Sidebar` | Container principal com `collapsible="icon"` |
-| `SidebarHeader` | Área do logo |
-| `SidebarContent` | Área de navegação |
-| `SidebarFooter` | Área do usuário |
-| `SidebarMenu/MenuItem/MenuButton` | Itens de navegação com tooltip automático |
-| `SidebarTrigger` | Botão para toggle |
+#### 2. Atualizar Tabela `post_images`
 
-**Mudanças principais:**
+O campo `media_type` já existe e suporta strings. Expandir os valores possíveis:
+- `'image'` - Imagens (PNG, JPG, etc.)
+- `'video'` - Vídeos (MP4, etc.)
+- `'document'` - Documentos (PDF, DOCX, etc.)
 
-```typescript
-// Antes: Sidebar customizada fixa de 256px
-<aside className="w-64 ...">
+Não requer migração SQL pois o campo já é `text`.
 
-// Depois: Sidebar colapsável (256px → 48px)
-<SidebarProvider>
-  <Sidebar collapsible="icon">
-    <SidebarHeader>
-      {/* Logo - ocultar texto quando recolhido */}
-    </SidebarHeader>
-    <SidebarContent>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton tooltip="Dashboard" asChild>
-            <Link to="/dashboard">
-              <LayoutDashboard />
-              <span>Dashboard</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        {/* ... demais itens */}
-      </SidebarMenu>
-    </SidebarContent>
-    <SidebarFooter>
-      {/* Avatar - esconder nome/email quando recolhido */}
-    </SidebarFooter>
-  </Sidebar>
-  
-  <main className="flex-1">
-    <header>
-      <SidebarTrigger /> {/* Botão de toggle */}
-    </header>
-    {children}
-  </main>
-</SidebarProvider>
+#### 3. Atualizar `PostForm.tsx`
+
+Condicionar o formulário baseado no canal selecionado:
+
+```text
+Se canal contém 'wordpress':
+  - Mostrar FileUploader (aceita todos os tipos)
+  - Ocultar campo "Legenda"
+  - Manter campos WordPress específicos (já existem)
+
+Senão:
+  - Mostrar ImageUploader (imagens e vídeos apenas)
+  - Mostrar campo "Legenda"
 ```
 
-### Detalhes de Implementação
+#### 4. Atualizar `GroupPostDetails.tsx`
 
-| Aspecto | Comportamento |
-|---------|---------------|
-| Logo | Quando recolhido, mostrar apenas o ícone/favicon |
-| Labels de navegação | Ocultos quando recolhido, visíveis via tooltip |
-| Seção do usuário | Mostrar apenas avatar quando recolhido |
-| Toggle | Botão na topbar, sempre visível |
-| Persistência | Cookie `sidebar:state` válido por 7 dias |
+Na aba WordPress:
+- Ocultar seção "Legenda"
+- Na galeria de mídia, mostrar preview apropriado para documentos (ícone + nome do arquivo)
 
-### Resumo dos Arquivos
+#### 5. Atualizar Hooks `usePosts.ts`
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/layout/AppLayout.tsx` | Refatorar para usar componentes Shadcn Sidebar |
+Ajustar o upload de arquivos para identificar corretamente o `media_type`:
+- Imagens: `media_type = 'image'`
+- Vídeos: `media_type = 'video'`
+- Outros: `media_type = 'document'`
 
-### Resultado
+### Novos Componentes
 
-- Menu colapsável com transição suave
-- Ícones com tooltips quando recolhido
-- Mais espaço para o calendário e conteúdos
-- Atalho de teclado `Ctrl/Cmd + B`
-- Estado persistido entre sessões
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/components/schedule/FileUploader.tsx` | Componente de upload genérico para WordPress |
+| `src/components/schedule/FilePreview.tsx` | Preview de documentos (ícone + nome) |
+
+### Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/schedule/PostForm.tsx` | Condicionar campos por canal, usar FileUploader para WordPress |
+| `src/components/schedule/GroupPostDetails.tsx` | Ocultar legenda para WordPress, preview de documentos |
+| `src/hooks/usePosts.ts` | Expandir lógica de upload para detectar tipo de arquivo |
+
+### Tipos de Arquivo Suportados (WordPress)
+
+| Categoria | Extensões | Limite |
+|-----------|-----------|--------|
+| Imagens | PNG, JPG, JPEG, GIF, WEBP | 10MB |
+| Vídeos | MP4, WEBM, MOV | 50MB |
+| Documentos | PDF, DOC, DOCX | 25MB |
+| Planilhas | XLS, XLSX | 25MB |
+| Apresentações | PPT, PPTX | 25MB |
+
+### Preview de Arquivos
+
+Para documentos que não são imagens/vídeos, exibir:
+- Ícone representativo do tipo (FileText para PDF, FileSpreadsheet para Excel, etc.)
+- Nome do arquivo (truncado se necessário)
+- Tamanho do arquivo
+
+### Segurança
+
+Reutilizar as políticas RLS existentes em `post_images`. Como os arquivos são armazenados no Storage bucket e apenas a URL é salva na tabela, não há necessidade de novas políticas.
 
