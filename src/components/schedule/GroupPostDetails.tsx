@@ -19,6 +19,7 @@ import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react';
+import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -87,6 +88,11 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     if (media.media_type === 'video') return true;
     const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
     return videoExtensions.some(ext => media.image_url.toLowerCase().includes(ext));
+  };
+
+  const isDocMedia = (media: { image_url: string; media_type?: string }) => {
+    const fileName = media.image_url.split('/').pop() || '';
+    return isDocumentFile(fileName, media.media_type);
   };
   const handleDelete = async () => {
     // Delete only the active channel's post
@@ -197,6 +203,29 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                           className="max-h-full max-w-full rounded-lg"
                         />
                       </div>
+                    ) : isDocMedia(images[currentImageIndex]) ? (
+                      <div className="flex flex-col items-center justify-center p-8">
+                        {(() => {
+                          const fileName = images[currentImageIndex]?.image_url.split('/').pop() || 'arquivo';
+                          const Icon = getFileIcon(fileName, images[currentImageIndex]?.media_type);
+                          const label = getFileTypeLabel(fileName, images[currentImageIndex]?.media_type);
+                          return (
+                            <>
+                              <Icon className="h-24 w-24 text-muted-foreground mb-4" />
+                              <p className="text-lg font-medium text-foreground mb-1">{fileName}</p>
+                              <p className="text-sm text-muted-foreground">{label}</p>
+                              <a 
+                                href={images[currentImageIndex]?.image_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="mt-4 text-sm text-primary hover:underline"
+                              >
+                                Abrir arquivo
+                              </a>
+                            </>
+                          );
+                        })()}
+                      </div>
                     ) : (
                       <ImageCommentLayer
                         postId={activePost.id}
@@ -266,6 +295,14 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                                 </div>
                               </div>
                             </>
+                          ) : isDocMedia(img) ? (
+                            <div className="h-full w-full bg-muted flex flex-col items-center justify-center">
+                              {(() => {
+                                const fileName = img.image_url.split('/').pop() || '';
+                                const Icon = getFileIcon(fileName, img.media_type);
+                                return <Icon className="h-6 w-6 text-muted-foreground" />;
+                              })()}
+                            </div>
                           ) : (
                             <img src={img.image_url} alt="" className="h-full w-full object-cover" />
                           )}
@@ -459,32 +496,34 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                       </>
                     )}
 
-                    {/* Caption (individual per channel) */}
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-xs font-medium text-muted-foreground">
-                          Legenda
-                          {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
-                        </h4>
-                        {activePost.caption && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCaptionDialogOpen(true)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            <Maximize2 className="mr-1 h-3 w-3" />
-                            Expandir
-                          </Button>
-                        )}
+                    {/* Caption (individual per channel) - hide for WordPress */}
+                    {!isWordPress && (
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <h4 className="text-xs font-medium text-muted-foreground">
+                            Legenda
+                            {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
+                          </h4>
+                          {activePost.caption && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setCaptionDialogOpen(true)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Maximize2 className="mr-1 h-3 w-3" />
+                              Expandir
+                            </Button>
+                          )}
+                        </div>
+                        <InlineRichTextEditor
+                          value={activePost.caption || ''}
+                          onSave={(value) => handleFieldUpdate('caption', value)}
+                          isLoading={savingField === 'caption'}
+                          placeholder="Clique para adicionar legenda..."
+                        />
                       </div>
-                      <InlineRichTextEditor
-                        value={activePost.caption || ''}
-                        onSave={(value) => handleFieldUpdate('caption', value)}
-                        isLoading={savingField === 'caption'}
-                        placeholder="Clique para adicionar legenda..."
-                      />
-                    </div>
+                    )}
 
                     <Separator className="my-4" />
 

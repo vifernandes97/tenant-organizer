@@ -25,6 +25,7 @@ import {
   useUpdatePost 
 } from '@/hooks/usePosts';
 import { ImageUploader } from './ImageUploader';
+import { FileUploader } from './FileUploader';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -110,6 +111,12 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
 
   // For create mode - watch the form directly
   const selectedChannels = form.watch('channels') || [];
+  
+  // Check if WordPress channel is selected (for create or edit mode)
+  const editChannel = editForm.watch('channel');
+  const isWordPressSelected = isEditing 
+    ? editChannel === 'wordpress'
+    : selectedChannels.includes('wordpress');
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activeForm = (isEditing ? editForm : form) as any;
@@ -395,45 +402,66 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                   )}
                 />
 
-                {/* Legenda */}
-                <FormField
-                  control={activeForm.control}
-                  name="caption"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Legenda
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {field.value?.length || 0}/2200
-                        </span>
-                      </FormLabel>
-                      <FormControl>
-                        <ExpandableTextarea
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="Escreva a legenda do post..."
-                          className="min-h-[120px] resize-none"
-                          maxLength={2200}
-                          dialogTitle="Editor de Legenda"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Legenda - hide for WordPress */}
+                {!isWordPressSelected && (
+                  <FormField
+                    control={activeForm.control}
+                    name="caption"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Legenda
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {field.value?.length || 0}/2200
+                          </span>
+                        </FormLabel>
+                        <FormControl>
+                          <ExpandableTextarea
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Escreva a legenda do post..."
+                            className="min-h-[120px] resize-none"
+                            maxLength={2200}
+                            dialogTitle="Editor de Legenda"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="images" className="pt-4">
-                <Label>Mídias do Post</Label>
-                <p className="text-xs text-muted-foreground mb-2">Imagens até 10MB • Vídeos até 50MB</p>
-                <div className="mt-2">
-                  <ImageUploader
-                    images={images}
-                    existingImages={existingImages}
-                    onImagesChange={setImages}
-                    onExistingImageRemove={handleExistingImageRemove}
-                  />
-                </div>
+                {isWordPressSelected ? (
+                  <>
+                    <Label>Arquivos do Artigo</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      PDF, DOCX, XLSX, PPTX, imagens e vídeos
+                    </p>
+                    <div className="mt-2">
+                      <FileUploader
+                        files={images}
+                        existingFiles={existingImages}
+                        onFilesChange={setImages}
+                        onExistingFileRemove={handleExistingImageRemove}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Label>Mídias do Post</Label>
+                    <p className="text-xs text-muted-foreground mb-2">Imagens até 10MB • Vídeos até 50MB</p>
+                    <div className="mt-2">
+                      <ImageUploader
+                        images={images}
+                        existingImages={existingImages}
+                        onImagesChange={setImages}
+                        onExistingImageRemove={handleExistingImageRemove}
+                      />
+                    </div>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
 

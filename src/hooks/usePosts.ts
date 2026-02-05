@@ -230,13 +230,20 @@ export function useCreatePost() {
       const groupId = post.channels.length > 1 ? crypto.randomUUID() : null;
 
       // Upload images first (will be shared across all posts)
-      const uploadedMedia: { path: string; mediaType: 'image' | 'video' }[] = [];
+      const uploadedMedia: { path: string; mediaType: 'image' | 'video' | 'document' }[] = [];
       if (images.length > 0) {
         for (let i = 0; i < images.length; i++) {
           const file = images[i];
           const fileExt = file.name.split('.').pop();
           const fileName = `${profile.tenant_id}/shared/${Date.now()}-${i}.${fileExt}`;
-          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          
+          // Determine media type
+          let mediaType: 'image' | 'video' | 'document' = 'document';
+          if (file.type.startsWith('image/')) {
+            mediaType = 'image';
+          } else if (file.type.startsWith('video/')) {
+            mediaType = 'video';
+          }
 
           const { error: uploadError } = await supabase.storage
             .from('post-images')
@@ -397,7 +404,14 @@ export function useUpdatePost() {
           const file = newImages[i];
           const fileExt = file.name.split('.').pop();
           const fileName = `${profile.tenant_id}/${id}/${startOrder + i}-${Date.now()}.${fileExt}`;
-          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          
+          // Determine media type
+          let mediaType: 'image' | 'video' | 'document' = 'document';
+          if (file.type.startsWith('image/')) {
+            mediaType = 'image';
+          } else if (file.type.startsWith('video/')) {
+            mediaType = 'video';
+          }
 
           const { error: uploadError } = await supabase.storage
             .from('post-images')
