@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, DragEvent } from 'react';
 import { PostWithImages } from '@/hooks/usePosts';
 import { PostGroup, groupPosts } from '@/hooks/useGroupedPosts';
 import { GroupedPostCard } from './GroupedPostCard';
@@ -12,61 +12,39 @@ interface ScheduleCalendarProps {
   posts: PostWithImages[];
   onPostClick: (group: PostGroup) => void;
   onDayClick: (date: Date) => void;
+  onReschedule?: (posts: { id: string; scheduled_at: string }[], newDate: Date) => void;
 }
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: ScheduleCalendarProps) {
+export function ScheduleCalendar({ month, posts, onPostClick, onDayClick, onReschedule }: ScheduleCalendarProps) {
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
   const calendarDays = useMemo(() => {
     const year = month.getFullYear();
     const monthIndex = month.getMonth();
-    
     const firstDay = new Date(year, monthIndex, 1);
     const lastDay = new Date(year, monthIndex + 1, 0);
-    
     const startOffset = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    
     const days: (Date | null)[] = [];
-    
-    // Add empty slots for days before the first of the month
-    for (let i = 0; i < startOffset; i++) {
-      days.push(null);
-    }
-    
-    // Add all days of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, monthIndex, i));
-    }
-    
-    // Add empty slots to complete the last week
+    for (let i = 0; i < startOffset; i++) days.push(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, monthIndex, i));
     const remaining = 7 - (days.length % 7);
-    if (remaining < 7) {
-      for (let i = 0; i < remaining; i++) {
-        days.push(null);
-      }
-    }
-    
+    if (remaining < 7) for (let i = 0; i < remaining; i++) days.push(null);
     return days;
   }, [month]);
 
-  // Group posts by group_id
   const groupedPosts = useMemo(() => groupPosts(posts), [posts]);
 
-  // Create a map of groups by day
   const groupsByDay = useMemo(() => {
     const map = new Map<string, PostGroup[]>();
-    
     groupedPosts.forEach((group) => {
       const date = new Date(group.scheduledAt);
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-      
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
+      if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(group);
     });
-    
     return map;
   }, [groupedPosts]);
 
@@ -81,15 +59,34 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
     return groupsByDay.get(key) || [];
   };
 
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (date: Date) => {
+    setDragOverDate(date.toISOString());
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, date: Date) => {
+    e.preventDefault();
+    setDragOverDate(null);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      onReschedule?.(data.posts, date);
+    } catch {}
+  };
+
   return (
     <div className="rounded-lg border bg-card">
       {/* Header */}
       <div className="grid grid-cols-7 border-b">
         {WEEKDAYS.map((day) => (
-          <div
-            key={day}
-            className="py-3 text-center text-sm font-medium text-muted-foreground"
-          >
+          <div key={day} className="py-3 text-center text-sm font-medium text-muted-foreground">
             {day}
           </div>
         ))}
@@ -110,13 +107,18 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
           const dayGroups = getGroupsForDay(date);
           const maxVisible = 2;
           const hiddenCount = dayGroups.length - maxVisible;
+          const isDragOver = dragOverDate === date.toISOString();
 
           return (
             <div
               key={date.toISOString()}
+              onDragOver={handleDragOver}
+              onDragEnter={() => handleDragEnter(date)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, date)}
               className={`group relative min-h-[140px] border-b border-r p-1 transition-colors last:border-r-0 hover:bg-muted/30 ${
                 isToday(date) ? 'bg-primary/5' : ''
-              }`}
+              } ${isDragOver ? 'border-primary bg-primary/10' : ''}`}
             >
               {/* Day Number */}
               <div className="mb-1 flex items-center justify-between px-1">
@@ -151,9 +153,7 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick }: Sche
                 {hiddenCount > 0 && (
                   <Popover>
                     <PopoverTrigger asChild>
-                      <button
-                        className="w-full rounded bg-muted px-2 py-1 text-center text-xs text-muted-foreground hover:bg-muted/80"
-                      >
+                      <button className="w-full rounded bg-muted px-2 py-1 text-center text-xs text-muted-foreground hover:bg-muted/80">
                         +{hiddenCount} mais
                       </button>
                     </PopoverTrigger>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, DragEvent } from 'react';
 import { startOfWeek, addDays, isToday, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PostWithImages } from '@/hooks/usePosts';
@@ -13,32 +13,27 @@ interface ScheduleWeekViewProps {
   posts: PostWithImages[];
   onPostClick: (group: PostGroup) => void;
   onDayClick: (date: Date) => void;
+  onReschedule?: (posts: { id: string; scheduled_at: string }[], newDate: Date) => void;
 }
 
-export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }: ScheduleWeekViewProps) {
-  // Calculate Sunday to Saturday of the week
+export function ScheduleWeekView({ week, posts, onPostClick, onDayClick, onReschedule }: ScheduleWeekViewProps) {
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
   const weekDays = useMemo(() => {
     const sunday = startOfWeek(week, { weekStartsOn: 0 });
     return Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
   }, [week]);
 
-  // Group posts by group_id
   const groupedPosts = useMemo(() => groupPosts(posts), [posts]);
 
-  // Create a map of groups by day
   const groupsByDay = useMemo(() => {
     const map = new Map<string, PostGroup[]>();
-    
     groupedPosts.forEach((group) => {
       const date = new Date(group.scheduledAt);
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-      
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
+      if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(group);
     });
-    
     return map;
   }, [groupedPosts]);
 
@@ -47,15 +42,34 @@ export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }: Sched
     return groupsByDay.get(key) || [];
   };
 
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (date: Date) => {
+    setDragOverDate(date.toISOString());
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, date: Date) => {
+    e.preventDefault();
+    setDragOverDate(null);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      onReschedule?.(data.posts, date);
+    } catch {}
+  };
+
   return (
     <div className="rounded-lg border bg-card">
       {/* Header */}
       <div className="grid grid-cols-7 border-b">
         {weekDays.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="border-r py-3 text-center last:border-r-0"
-          >
+          <div key={day.toISOString()} className="border-r py-3 text-center last:border-r-0">
             <span className="text-sm font-medium text-muted-foreground">
               {format(day, 'EEE', { locale: ptBR })}
             </span>
@@ -67,13 +81,18 @@ export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }: Sched
       <div className="grid grid-cols-7">
         {weekDays.map((day) => {
           const dayGroups = getGroupsForDay(day);
+          const isDragOver = dragOverDate === day.toISOString();
 
           return (
             <div
               key={day.toISOString()}
+              onDragOver={handleDragOver}
+              onDragEnter={() => handleDragEnter(day)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, day)}
               className={`group relative min-h-[450px] border-r p-2 transition-colors last:border-r-0 hover:bg-muted/30 ${
                 isToday(day) ? 'bg-primary/5' : ''
-              }`}
+              } ${isDragOver ? 'border-primary bg-primary/10' : ''}`}
             >
               {/* Day Number */}
               <div className="mb-2 flex items-center justify-between">
@@ -101,7 +120,7 @@ export function ScheduleWeekView({ week, posts, onPostClick, onDayClick }: Sched
                 </Button>
               </div>
 
-              {/* Posts - with scroll for many items */}
+              {/* Posts */}
               <ScrollArea className="h-[380px]">
                 <div className="space-y-2 pr-2">
                   {dayGroups.map((group) => (

@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { usePosts } from '@/hooks/usePosts';
+import { usePosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
@@ -52,6 +52,19 @@ export default function Schedule() {
     status: statusFilter.length > 0 ? statusFilter : undefined,
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
+
+  const rescheduleGroup = useRescheduleGroup();
+
+  const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
+    // Map dragged post stubs to full PostWithImages from the loaded posts
+    const fullPosts = draggedPosts
+      .map(dp => posts.find(p => p.id === dp.id))
+      .filter(Boolean) as PostWithImages[];
+    
+    if (fullPosts.length > 0) {
+      rescheduleGroup.mutate({ posts: fullPosts, newDate });
+    }
+  }, [posts, rescheduleGroup]);
 
   const stats = useMemo(() => {
     return {
@@ -220,6 +233,7 @@ export default function Schedule() {
           posts={posts}
           onPostClick={handlePostClick}
           onDayClick={handleDayClick}
+          onReschedule={handleReschedule}
         />
       ) : (
         <ScheduleWeekView
@@ -227,6 +241,7 @@ export default function Schedule() {
           posts={posts}
           onPostClick={handlePostClick}
           onDayClick={handleDayClick}
+          onReschedule={handleReschedule}
         />
       )}
 

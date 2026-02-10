@@ -1,3 +1,4 @@
+import { useState, DragEvent } from 'react';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare } from 'lucide-react';
@@ -12,6 +13,7 @@ interface GroupedPostCardProps {
 export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   const { posts, title, totalOpenComments } = group;
   const primaryPost = posts[0];
+  const [isDragging, setIsDragging] = useState(false);
   
   // Use AI-generated title if available, otherwise extract from caption
   const displayTitle = title || extractPlainText(primaryPost.caption || '').substring(0, 50);
@@ -19,10 +21,28 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   // Collect all unique channels from the group
   const channels = posts.map(p => p.channel);
 
+  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      groupId: group.groupId,
+      posts: posts.map(p => ({ id: p.id, scheduled_at: p.scheduled_at })),
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
   return (
     <div
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={onClick}
-      className="cursor-pointer rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50"
+      className={`cursor-grab rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${
+        isDragging ? 'opacity-50 cursor-grabbing' : ''
+      }`}
     >
       {/* Title + Channel Icons */}
       <div className="flex items-center gap-1.5">

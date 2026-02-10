@@ -506,3 +506,34 @@ export function useDeletePost() {
     },
   });
 }
+
+export function useRescheduleGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ posts, newDate }: { posts: PostWithImages[]; newDate: Date }) => {
+      // Update each post's scheduled_at, preserving the original time
+      for (const post of posts) {
+        const oldDate = new Date(post.scheduled_at);
+        const updated = new Date(newDate);
+        updated.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+
+        const { error } = await supabase
+          .from('posts')
+          .update({ scheduled_at: updated.toISOString() })
+          .eq('id', post.id);
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { newDate }) => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      const formatted = newDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      toast.success(`Post reagendado para ${formatted}`);
+    },
+    onError: (error) => {
+      console.error('Erro ao reagendar post:', error);
+      toast.error('Erro ao reagendar post');
+    },
+  });
+}
