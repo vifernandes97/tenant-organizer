@@ -53,6 +53,19 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+  const rescheduleGroup = useRescheduleGroup();
+
+  const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
+    // Map dragged post stubs to full PostWithImages from the loaded posts
+    const fullPosts = draggedPosts
+      .map(dp => posts.find(p => p.id === dp.id))
+      .filter(Boolean) as PostWithImages[];
+    
+    if (fullPosts.length > 0) {
+      rescheduleGroup.mutate({ posts: fullPosts, newDate });
+    }
+  }, [posts, rescheduleGroup]);
+
   const stats = useMemo(() => {
     return {
       total: posts.length,
