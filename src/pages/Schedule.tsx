@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { usePosts } from '@/hooks/usePosts';
+import { usePosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
