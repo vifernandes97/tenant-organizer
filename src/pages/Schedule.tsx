@@ -233,6 +233,7 @@ export default function Schedule() {
           posts={posts}
           onPostClick={handlePostClick}
           onDayClick={handleDayClick}
+          onReschedule={handleReschedule}
         />
       ) : (
         <ScheduleWeekView
