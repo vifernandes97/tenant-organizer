@@ -1,101 +1,77 @@
 
 
-## Card WordPress com Upload de Arquivos
+## Drag and Drop para Alterar Datas no Calendário
 
 ### Objetivo
 
-Quando o canal selecionado for WordPress, o formulário e detalhes do post devem ter um comportamento diferente:
-1. **Upload expandido**: Aceitar arquivos além de imagens/vídeos (PDF, DOCX, MP4, PNG, JPG, etc.)
-2. **Sem campo de legenda**: Ocultar o campo "Legenda" pois não se aplica a artigos WordPress
+Permitir arrastar cards de postagens entre dias do calendário (mensal e semanal) para alterar a data agendada. Ao soltar o card em outro dia, a data de todos os posts do grupo será atualizada automaticamente.
 
-### Comportamento Atual vs. Proposto
+### Abordagem
 
-| Aspecto | Canais Sociais | WordPress |
-|---------|----------------|-----------|
-| Upload | Imagens (10MB) e Vídeos (50MB) | Arquivos gerais (PDF, DOCX, etc. até 25MB) |
-| Legenda | Exibir campo de 2200 caracteres | Ocultar (não se aplica) |
-| Campos específicos | Nenhum | Título, SEO, Tipo de Projeto, Texto do Artigo (já existem) |
+Utilizar a HTML5 Drag and Drop API nativa do navegador (sem dependências externas), mantendo o projeto leve.
+
+### Comportamento
+
+1. Usuário clica e arrasta um card de postagem
+2. Ao arrastar sobre outro dia, a célula do dia recebe destaque visual (borda/fundo)
+3. Ao soltar, a data `scheduled_at` de todos os posts do grupo é atualizada (mantendo o horário original, apenas alterando o dia)
+4. Feedback visual: toast de sucesso e atualização instantânea via invalidação do cache
 
 ### Alterações Necessárias
 
-#### 1. Criar Componente `FileUploader` para WordPress
+#### 1. Novo hook `useRescheduleGroup` em `usePosts.ts`
 
-Novo componente similar ao `ImageUploader`, mas:
-- Aceita mais tipos de arquivo: `image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx`
-- Limite de arquivo: 25MB para documentos
-- Preview diferenciado: ícone por tipo de arquivo (PDF, Word, Excel, etc.)
-- Exibe nome do arquivo e tamanho
+Mutation dedicada que atualiza `scheduled_at` de todos os posts de um grupo de uma só vez, preservando o horário original:
 
-#### 2. Atualizar Tabela `post_images`
-
-O campo `media_type` já existe e suporta strings. Expandir os valores possíveis:
-- `'image'` - Imagens (PNG, JPG, etc.)
-- `'video'` - Vídeos (MP4, etc.)
-- `'document'` - Documentos (PDF, DOCX, etc.)
-
-Não requer migração SQL pois o campo já é `text`.
-
-#### 3. Atualizar `PostForm.tsx`
-
-Condicionar o formulário baseado no canal selecionado:
-
-```text
-Se canal contém 'wordpress':
-  - Mostrar FileUploader (aceita todos os tipos)
-  - Ocultar campo "Legenda"
-  - Manter campos WordPress específicos (já existem)
-
-Senão:
-  - Mostrar ImageUploader (imagens e vídeos apenas)
-  - Mostrar campo "Legenda"
+```typescript
+export function useRescheduleGroup() {
+  // Recebe: groupId, posts[], newDate
+  // Para cada post do grupo: atualiza scheduled_at mantendo hora/minuto
+  // Sem regenerar título (não muda caption)
+  // Toast: "Post reagendado para DD/MM"
+}
 ```
 
-#### 4. Atualizar `GroupPostDetails.tsx`
+#### 2. Atualizar `GroupedPostCard.tsx`
 
-Na aba WordPress:
-- Ocultar seção "Legenda"
-- Na galeria de mídia, mostrar preview apropriado para documentos (ícone + nome do arquivo)
+Tornar o card draggable:
+- Adicionar `draggable` e handlers `onDragStart`/`onDragEnd`
+- No `onDragStart`, serializar dados do grupo no `dataTransfer`
+- Feedback visual: opacidade reduzida durante arrasto
 
-#### 5. Atualizar Hooks `usePosts.ts`
+#### 3. Atualizar `ScheduleCalendar.tsx`
 
-Ajustar o upload de arquivos para identificar corretamente o `media_type`:
-- Imagens: `media_type = 'image'`
-- Vídeos: `media_type = 'video'`
-- Outros: `media_type = 'document'`
+Tornar as células dos dias drop targets:
+- Adicionar handlers `onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`
+- Highlight visual na célula ao arrastar sobre ela
+- No `onDrop`, extrair dados do grupo e chamar `useRescheduleGroup`
+- Receber `onReschedule` callback via props
 
-### Novos Componentes
+#### 4. Atualizar `ScheduleWeekView.tsx`
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/schedule/FileUploader.tsx` | Componente de upload genérico para WordPress |
-| `src/components/schedule/FilePreview.tsx` | Preview de documentos (ícone + nome) |
+Mesma lógica de drop target aplicada à visão semanal.
 
-### Arquivos a Modificar
+#### 5. Atualizar `Schedule.tsx`
+
+- Instanciar `useRescheduleGroup`
+- Passar callback `onReschedule` para ambos os calendários
+
+### Resumo dos Arquivos
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/schedule/PostForm.tsx` | Condicionar campos por canal, usar FileUploader para WordPress |
-| `src/components/schedule/GroupPostDetails.tsx` | Ocultar legenda para WordPress, preview de documentos |
-| `src/hooks/usePosts.ts` | Expandir lógica de upload para detectar tipo de arquivo |
+| `src/hooks/usePosts.ts` | Adicionar hook `useRescheduleGroup` |
+| `src/components/schedule/GroupedPostCard.tsx` | Tornar draggable com dados do grupo |
+| `src/components/schedule/ScheduleCalendar.tsx` | Adicionar drop zones nas células + prop `onReschedule` |
+| `src/components/schedule/ScheduleWeekView.tsx` | Adicionar drop zones nas células + prop `onReschedule` |
+| `src/pages/Schedule.tsx` | Conectar mutation aos calendários |
 
-### Tipos de Arquivo Suportados (WordPress)
+### Detalhes Visuais
 
-| Categoria | Extensões | Limite |
-|-----------|-----------|--------|
-| Imagens | PNG, JPG, JPEG, GIF, WEBP | 10MB |
-| Vídeos | MP4, WEBM, MOV | 50MB |
-| Documentos | PDF, DOC, DOCX | 25MB |
-| Planilhas | XLS, XLSX | 25MB |
-| Apresentações | PPT, PPTX | 25MB |
-
-### Preview de Arquivos
-
-Para documentos que não são imagens/vídeos, exibir:
-- Ícone representativo do tipo (FileText para PDF, FileSpreadsheet para Excel, etc.)
-- Nome do arquivo (truncado se necessário)
-- Tamanho do arquivo
-
-### Segurança
-
-Reutilizar as políticas RLS existentes em `post_images`. Como os arquivos são armazenados no Storage bucket e apenas a URL é salva na tabela, não há necessidade de novas políticas.
+| Estado | Feedback |
+|--------|----------|
+| Arrastando | Card com opacidade 50%, cursor `grabbing` |
+| Sobre célula válida | Borda `primary` + fundo `primary/10` |
+| Sucesso | Toast "Post reagendado para [data]" |
+| Erro | Toast de erro |
 
