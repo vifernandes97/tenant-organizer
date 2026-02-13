@@ -1,112 +1,57 @@
 
 
-## Webhook WordPress para n8n
+# Compressao de PDFs no Servidor
 
-### Objetivo
+## Contexto
+Atualmente, os PDFs sao enviados diretamente ao storage sem nenhum processamento. O objetivo e criar uma funcao backend que comprima os PDFs antes de armazena-los.
 
-Quando um post WordPress for criado, enviar automaticamente os dados para um webhook do n8n. O n8n processa os dados e devolve os campos preenchidos (titulo do artigo, palavra-chave SEO, tipo de projeto, conteudo do artigo). O sistema recebe a resposta e atualiza o post automaticamente.
+## Desafios Tecnicos
+Comprimir PDFs de forma significativa (como o Ghostscript faz) nao e possivel nativamente em funcoes backend Deno. A biblioteca `pdf-lib` permite otimizacoes basicas (remover objetos nao utilizados, limpar metadados), mas nao faz compressao de imagens embutidas no PDF -- que e onde normalmente esta o maior ganho de tamanho.
 
-### Fluxo
+## Abordagem Proposta
 
+### 1. Nova Edge Function: `compress-pdf`
+- Recebe o caminho do arquivo no storage
+- Baixa o PDF do bucket `post-images`
+- Usa `pdf-lib` (via `npm:pdf-lib`) para:
+  - Remover metadados desnecessarios
+  - Otimizar a estrutura interna do documento
+  - Re-salvar o PDF de forma otimizada
+- Substitui o arquivo original no storage pela versao otimizada
+- Retorna o tamanho original e o tamanho comprimido
+
+### 2. Integracao no fluxo de upload (`usePosts.ts`)
+- Apos o upload de cada arquivo PDF ao storage, invocar a funcao `compress-pdf` passando o caminho do arquivo
+- A compressao e fire-and-forget (nao bloqueia a criacao do post)
+- Aplica-se tanto na criacao quanto na edicao de posts
+
+### 3. Arquivos afetados
+- **Novo**: `supabase/functions/compress-pdf/index.ts` -- funcao de compressao
+- **Editado**: `src/hooks/usePosts.ts` -- chamada a funcao apos upload de PDFs
+
+## Secao Tecnica
+
+### Edge Function (`compress-pdf/index.ts`)
 ```text
-Criar Post WordPress
-       │
-       ▼
-  Salva no banco (como hoje)
-       │
-       ▼
-  Chama Edge Function "wordpress-webhook"
-       │
-       ▼
-  Edge Function envia JSON para n8n
-       │
-       ▼
-  n8n processa (IA, templates, etc.)
-       │
-       ▼
-  n8n retorna JSON com campos preenchidos
-       │
-       ▼
-  Edge Function atualiza o post no banco
-       │
-       ▼
-  Frontend recebe confirmacao e recarrega dados
+Fluxo:
+1. Valida JWT do usuario
+2. Recebe { file_path: string } no body
+3. Baixa o arquivo do bucket "post-images" usando service role
+4. Carrega com PDFDocument.load() do pdf-lib
+5. Re-salva com PDFDocument.save() (remove objetos orfaos)
+6. Faz upload do buffer comprimido substituindo o original
+7. Retorna { original_size, compressed_size }
 ```
 
-### Dados Enviados ao n8n
-
-```json
-{
-  "post_id": "uuid",
-  "group_id": "uuid",
-  "client_id": "uuid",
-  "client_name": "Nome do Cliente",
-  "scheduled_at": "2026-02-15T10:00:00Z",
-  "caption": "texto se houver",
-  "title": "titulo gerado",
-  "status": "draft",
-  "channel": "wordpress",
-  "tenant_id": "uuid",
-  "media": [
-    { "url": "signed_url_do_arquivo", "media_type": "document", "file_name": "proposta.pdf" }
-  ]
-}
+### Hook de upload (`usePosts.ts`)
+```text
+Apos cada upload bem-sucedido:
+- Verifica se o arquivo e PDF (file.type === 'application/pdf')
+- Se sim, chama supabase.functions.invoke('compress-pdf', { body: { file_path } })
+- Usa await para garantir que a compressao termine antes do webhook n8n
 ```
 
-### Dados Esperados de Volta do n8n
-
-```json
-{
-  "article_title": "Titulo do Artigo",
-  "seo_keyword": "palavra-chave",
-  "project_type": "ete",
-  "article_content": "<p>Conteudo HTML do artigo...</p>"
-}
-```
-
-Campos opcionais -- apenas os campos presentes na resposta serao atualizados.
-
-### Alteracoes Necessarias
-
-#### 1. Novo Secret: URL do Webhook n8n
-
-Sera necessario configurar a URL do webhook do n8n como um secret chamado `N8N_WEBHOOK_URL`.
-
-#### 2. Nova Edge Function: `wordpress-webhook`
-
-Endpoint que:
-- Recebe `post_id` do frontend
-- Valida autenticacao JWT e pertencimento ao tenant
-- Busca dados completos do post (incluindo cliente e midias)
-- Gera signed URLs para as midias
-- Envia tudo como JSON para o webhook n8n
-- Recebe a resposta do n8n
-- Atualiza o post no banco com os campos retornados
-- Retorna sucesso ao frontend
-
-#### 3. Atualizar `usePosts.ts`
-
-No `useCreatePost`, apos criar um post WordPress, chamar a edge function `wordpress-webhook` de forma assincrona (fire-and-forget ou aguardando resposta, dependendo da velocidade do n8n).
-
-Adicionar tambem um hook `useTriggerWordPressWebhook` para permitir disparo manual a partir do detalhe do post.
-
-#### 4. Atualizar `GroupPostDetails.tsx`
-
-Adicionar um botao "Gerar Conteudo" na secao WordPress que permite disparar o webhook manualmente para regenerar/atualizar os campos.
-
-### Resumo dos Arquivos
-
-| Arquivo | Acao |
-|---------|------|
-| `supabase/functions/wordpress-webhook/index.ts` | Criar edge function |
-| `supabase/config.toml` | Adicionar config da funcao (verify_jwt = false) |
-| `src/hooks/usePosts.ts` | Chamar webhook apos criar post WordPress + hook manual |
-| `src/components/schedule/GroupPostDetails.tsx` | Botao "Gerar Conteudo" para disparo manual |
-
-### Seguranca
-
-- A edge function valida o JWT do usuario antes de processar
-- Confirma que o usuario pertence ao tenant dono do post
-- Signed URLs das midias tem validade de 1 hora
-- A URL do webhook fica armazenada como secret, nunca exposta ao frontend
+## Limitacoes
+- A otimizacao com `pdf-lib` oferece ganhos modestos (5-20% tipicamente), pois nao recomprime imagens internas
+- Para compressao mais agressiva, seria necessario integrar um servico externo (ex: iLovePDF API)
 
