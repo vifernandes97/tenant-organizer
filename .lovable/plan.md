@@ -1,77 +1,112 @@
 
 
-## Drag and Drop para Alterar Datas no Calendário
+## Webhook WordPress para n8n
 
 ### Objetivo
 
-Permitir arrastar cards de postagens entre dias do calendário (mensal e semanal) para alterar a data agendada. Ao soltar o card em outro dia, a data de todos os posts do grupo será atualizada automaticamente.
+Quando um post WordPress for criado, enviar automaticamente os dados para um webhook do n8n. O n8n processa os dados e devolve os campos preenchidos (titulo do artigo, palavra-chave SEO, tipo de projeto, conteudo do artigo). O sistema recebe a resposta e atualiza o post automaticamente.
 
-### Abordagem
+### Fluxo
 
-Utilizar a HTML5 Drag and Drop API nativa do navegador (sem dependências externas), mantendo o projeto leve.
+```text
+Criar Post WordPress
+       │
+       ▼
+  Salva no banco (como hoje)
+       │
+       ▼
+  Chama Edge Function "wordpress-webhook"
+       │
+       ▼
+  Edge Function envia JSON para n8n
+       │
+       ▼
+  n8n processa (IA, templates, etc.)
+       │
+       ▼
+  n8n retorna JSON com campos preenchidos
+       │
+       ▼
+  Edge Function atualiza o post no banco
+       │
+       ▼
+  Frontend recebe confirmacao e recarrega dados
+```
 
-### Comportamento
+### Dados Enviados ao n8n
 
-1. Usuário clica e arrasta um card de postagem
-2. Ao arrastar sobre outro dia, a célula do dia recebe destaque visual (borda/fundo)
-3. Ao soltar, a data `scheduled_at` de todos os posts do grupo é atualizada (mantendo o horário original, apenas alterando o dia)
-4. Feedback visual: toast de sucesso e atualização instantânea via invalidação do cache
-
-### Alterações Necessárias
-
-#### 1. Novo hook `useRescheduleGroup` em `usePosts.ts`
-
-Mutation dedicada que atualiza `scheduled_at` de todos os posts de um grupo de uma só vez, preservando o horário original:
-
-```typescript
-export function useRescheduleGroup() {
-  // Recebe: groupId, posts[], newDate
-  // Para cada post do grupo: atualiza scheduled_at mantendo hora/minuto
-  // Sem regenerar título (não muda caption)
-  // Toast: "Post reagendado para DD/MM"
+```json
+{
+  "post_id": "uuid",
+  "group_id": "uuid",
+  "client_id": "uuid",
+  "client_name": "Nome do Cliente",
+  "scheduled_at": "2026-02-15T10:00:00Z",
+  "caption": "texto se houver",
+  "title": "titulo gerado",
+  "status": "draft",
+  "channel": "wordpress",
+  "tenant_id": "uuid",
+  "media": [
+    { "url": "signed_url_do_arquivo", "media_type": "document", "file_name": "proposta.pdf" }
+  ]
 }
 ```
 
-#### 2. Atualizar `GroupedPostCard.tsx`
+### Dados Esperados de Volta do n8n
 
-Tornar o card draggable:
-- Adicionar `draggable` e handlers `onDragStart`/`onDragEnd`
-- No `onDragStart`, serializar dados do grupo no `dataTransfer`
-- Feedback visual: opacidade reduzida durante arrasto
+```json
+{
+  "article_title": "Titulo do Artigo",
+  "seo_keyword": "palavra-chave",
+  "project_type": "ete",
+  "article_content": "<p>Conteudo HTML do artigo...</p>"
+}
+```
 
-#### 3. Atualizar `ScheduleCalendar.tsx`
+Campos opcionais -- apenas os campos presentes na resposta serao atualizados.
 
-Tornar as células dos dias drop targets:
-- Adicionar handlers `onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`
-- Highlight visual na célula ao arrastar sobre ela
-- No `onDrop`, extrair dados do grupo e chamar `useRescheduleGroup`
-- Receber `onReschedule` callback via props
+### Alteracoes Necessarias
 
-#### 4. Atualizar `ScheduleWeekView.tsx`
+#### 1. Novo Secret: URL do Webhook n8n
 
-Mesma lógica de drop target aplicada à visão semanal.
+Sera necessario configurar a URL do webhook do n8n como um secret chamado `N8N_WEBHOOK_URL`.
 
-#### 5. Atualizar `Schedule.tsx`
+#### 2. Nova Edge Function: `wordpress-webhook`
 
-- Instanciar `useRescheduleGroup`
-- Passar callback `onReschedule` para ambos os calendários
+Endpoint que:
+- Recebe `post_id` do frontend
+- Valida autenticacao JWT e pertencimento ao tenant
+- Busca dados completos do post (incluindo cliente e midias)
+- Gera signed URLs para as midias
+- Envia tudo como JSON para o webhook n8n
+- Recebe a resposta do n8n
+- Atualiza o post no banco com os campos retornados
+- Retorna sucesso ao frontend
+
+#### 3. Atualizar `usePosts.ts`
+
+No `useCreatePost`, apos criar um post WordPress, chamar a edge function `wordpress-webhook` de forma assincrona (fire-and-forget ou aguardando resposta, dependendo da velocidade do n8n).
+
+Adicionar tambem um hook `useTriggerWordPressWebhook` para permitir disparo manual a partir do detalhe do post.
+
+#### 4. Atualizar `GroupPostDetails.tsx`
+
+Adicionar um botao "Gerar Conteudo" na secao WordPress que permite disparar o webhook manualmente para regenerar/atualizar os campos.
 
 ### Resumo dos Arquivos
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/hooks/usePosts.ts` | Adicionar hook `useRescheduleGroup` |
-| `src/components/schedule/GroupedPostCard.tsx` | Tornar draggable com dados do grupo |
-| `src/components/schedule/ScheduleCalendar.tsx` | Adicionar drop zones nas células + prop `onReschedule` |
-| `src/components/schedule/ScheduleWeekView.tsx` | Adicionar drop zones nas células + prop `onReschedule` |
-| `src/pages/Schedule.tsx` | Conectar mutation aos calendários |
+| Arquivo | Acao |
+|---------|------|
+| `supabase/functions/wordpress-webhook/index.ts` | Criar edge function |
+| `supabase/config.toml` | Adicionar config da funcao (verify_jwt = false) |
+| `src/hooks/usePosts.ts` | Chamar webhook apos criar post WordPress + hook manual |
+| `src/components/schedule/GroupPostDetails.tsx` | Botao "Gerar Conteudo" para disparo manual |
 
-### Detalhes Visuais
+### Seguranca
 
-| Estado | Feedback |
-|--------|----------|
-| Arrastando | Card com opacidade 50%, cursor `grabbing` |
-| Sobre célula válida | Borda `primary` + fundo `primary/10` |
-| Sucesso | Toast "Post reagendado para [data]" |
-| Erro | Toast de erro |
+- A edge function valida o JWT do usuario antes de processar
+- Confirma que o usuario pertence ao tenant dono do post
+- Signed URLs das midias tem validade de 1 hora
+- A URL do webhook fica armazenada como secret, nunca exposta ao frontend
 
