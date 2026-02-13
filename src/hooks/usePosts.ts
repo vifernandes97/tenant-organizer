@@ -251,6 +251,17 @@ export function useCreatePost() {
 
           if (uploadError) throw uploadError;
 
+          // Compress PDF files server-side
+          if (file.type === 'application/pdf') {
+            try {
+              await supabase.functions.invoke('compress-pdf', {
+                body: { file_path: fileName }
+              });
+            } catch (e) {
+              console.error('PDF compression error (non-blocking):', e);
+            }
+          }
+
           // Store just the path - signed URLs will be generated when fetching
           uploadedMedia.push({ path: fileName, mediaType });
         }
@@ -426,6 +437,17 @@ export function useUpdatePost() {
             .upload(fileName, file);
 
           if (uploadError) throw uploadError;
+
+          // Compress PDF files server-side
+          if (file.type === 'application/pdf') {
+            try {
+              await supabase.functions.invoke('compress-pdf', {
+                body: { file_path: fileName }
+              });
+            } catch (e) {
+              console.error('PDF compression error (non-blocking):', e);
+            }
+          }
 
           // Store just the path - signed URLs will be generated when fetching
           const { error: imageError } = await supabase
