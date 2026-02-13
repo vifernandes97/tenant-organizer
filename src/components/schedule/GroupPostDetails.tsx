@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, PROJECT_TYPES } from '@/hooks/usePosts';
+import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, useTriggerWordPressWebhook, PROJECT_TYPES } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { useClients } from '@/hooks/useClients';
 import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
@@ -18,7 +18,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react';
+import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2 } from 'lucide-react';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -48,6 +48,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
+  const triggerWebhook = useTriggerWordPressWebhook();
   const { data: clients = [] } = useClients();
   
   // Track active channel within the group
@@ -438,6 +439,24 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     {/* WordPress-specific fields */}
                     {isWordPress && (
                       <>
+                        <div className="mb-4 flex items-center justify-between">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">WordPress</h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => triggerWebhook.mutate(activePost.id)}
+                            disabled={triggerWebhook.isPending}
+                            className="h-7 text-xs"
+                          >
+                            {triggerWebhook.isPending ? (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <Wand2 className="mr-1 h-3 w-3" />
+                            )}
+                            Gerar Conteúdo
+                          </Button>
+                        </div>
+
                         <div className="mb-4">
                           <h4 className="mb-1 text-xs font-medium text-muted-foreground">Título do Artigo</h4>
                           <InlineEditable

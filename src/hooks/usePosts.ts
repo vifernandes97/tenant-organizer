@@ -313,6 +313,14 @@ export function useCreatePost() {
         createdPosts.push(newPost);
       }
 
+      // Trigger WordPress webhook for WordPress posts (fire-and-forget)
+      const wordPressPosts = createdPosts.filter(p => p.channel === 'wordpress');
+      for (const wpPost of wordPressPosts) {
+        supabase.functions.invoke('wordpress-webhook', {
+          body: { post_id: wpPost.id }
+        }).catch(e => console.error('WordPress webhook error:', e));
+      }
+
       return createdPosts;
     },
     onSuccess: (posts) => {
@@ -512,7 +520,6 @@ export function useRescheduleGroup() {
 
   return useMutation({
     mutationFn: async ({ posts, newDate }: { posts: PostWithImages[]; newDate: Date }) => {
-      // Update each post's scheduled_at, preserving the original time
       for (const post of posts) {
         const oldDate = new Date(post.scheduled_at);
         const updated = new Date(newDate);
@@ -534,6 +541,30 @@ export function useRescheduleGroup() {
     onError: (error) => {
       console.error('Erro ao reagendar post:', error);
       toast.error('Erro ao reagendar post');
+    },
+  });
+}
+
+export function useTriggerWordPressWebhook() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const { data, error } = await supabase.functions.invoke('wordpress-webhook', {
+        body: { post_id: postId }
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      toast.success('Conteúdo gerado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao gerar conteúdo:', error);
+      toast.error('Erro ao gerar conteúdo');
     },
   });
 }
