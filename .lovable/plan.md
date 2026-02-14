@@ -1,47 +1,20 @@
 
-# Correções na função wordpress-webhook
 
-## Problemas Identificados
+# Atualizar URL do Webhook n8n para Producao
 
-1. **Resposta em array**: O n8n retorna `[{...}]` (array), mas o código trata como objeto `{...}`. Resultado: nenhum campo é atualizado.
-2. **Campo `status` ignorado**: A lógica atual não inclui o `status` nos campos atualizados no banco.
-3. **`project_type` incompatível**: O n8n envia texto livre (ex: "ETA Compacta"), mas o banco exige um dos valores do enum: `ete`, `eta`, `osmose_reversa`, `ultrafiltracao`, `fisico_quimico`, `mbr`.
+## O que sera feito
 
-## Solucao
-
-### Arquivo editado: `supabase/functions/wordpress-webhook/index.ts`
-
-- Ao receber a resposta do n8n, verificar se e um array e extrair o primeiro elemento: `const data = Array.isArray(n8nData) ? n8nData[0] : n8nData`
-- Adicionar `status` a lista de campos atualizaveis (validando que e um valor valido do enum `post_status`: `draft`, `approved`, `scheduled`, `published`)
-- Adicionar mapeamento de `project_type` do texto livre para o valor do enum. Exemplo: se contem "eta" sera mapeado para `eta`, se contem "ete" para `ete`, etc. Se nao corresponder a nenhum valor conhecido, o campo sera ignorado para evitar erro no banco.
-
-### Como testar
-
-Apos a correcao:
-1. Abra um post do canal WordPress no Approvee
-2. Clique em "Gerar Conteudo" (que dispara o webhook)
-3. O n8n deve processar e retornar o JSON
-4. Os campos titulo do artigo, palavra-chave SEO, tipo do projeto, conteudo e status devem ser preenchidos automaticamente no post
+Atualizar o secret `N8N_WEBHOOK_URL` com a URL de producao do n8n:
+`https://n8n-n8n.q0dhaw.easypanel.host/webhook/4079488a-b777-44d9-863e-c5bfbd339275`
 
 ## Secao Tecnica
 
-```text
-Mudancas no wordpress-webhook/index.ts:
+- Usar a ferramenta `add_secret` para atualizar o valor do secret `N8N_WEBHOOK_URL`
+- Nenhuma alteracao de codigo e necessaria - a funcao `wordpress-webhook` ja le esse secret via `Deno.env.get("N8N_WEBHOOK_URL")`
+- Apos a atualizacao, o fluxo pode ser testado imediatamente
 
-1. Apos: const n8nData = await n8nResponse.json();
-   Adicionar: const data = Array.isArray(n8nData) ? n8nData[0] : n8nData;
+## Observacoes importantes
 
-2. Usar "data" ao inves de "n8nData" para ler os campos
+- Certifique-se de que o workflow no n8n esta **Ativo** (toggle ligado) para que o webhook de producao funcione
+- O node "Respond to Webhook" deve estar conectado corretamente no fluxo do n8n para evitar o erro 500 que apareceu anteriormente
 
-3. Adicionar mapeamento de project_type:
-   const PROJECT_TYPE_MAP = {
-     "eta": "eta", "ete": "ete",
-     "osmose": "osmose_reversa", "ultrafiltra": "ultrafiltracao",
-     "fisico": "fisico_quimico", "mbr": "mbr"
-   };
-   - Busca case-insensitive no valor recebido
-
-4. Adicionar status aos campos atualizaveis:
-   if (data.status && ["draft","approved","scheduled","published"].includes(data.status))
-     updateFields.status = data.status;
-```
