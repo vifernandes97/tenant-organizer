@@ -1,57 +1,47 @@
 
+# Correções na função wordpress-webhook
 
-# Compressao de PDFs no Servidor
+## Problemas Identificados
 
-## Contexto
-Atualmente, os PDFs sao enviados diretamente ao storage sem nenhum processamento. O objetivo e criar uma funcao backend que comprima os PDFs antes de armazena-los.
+1. **Resposta em array**: O n8n retorna `[{...}]` (array), mas o código trata como objeto `{...}`. Resultado: nenhum campo é atualizado.
+2. **Campo `status` ignorado**: A lógica atual não inclui o `status` nos campos atualizados no banco.
+3. **`project_type` incompatível**: O n8n envia texto livre (ex: "ETA Compacta"), mas o banco exige um dos valores do enum: `ete`, `eta`, `osmose_reversa`, `ultrafiltracao`, `fisico_quimico`, `mbr`.
 
-## Desafios Tecnicos
-Comprimir PDFs de forma significativa (como o Ghostscript faz) nao e possivel nativamente em funcoes backend Deno. A biblioteca `pdf-lib` permite otimizacoes basicas (remover objetos nao utilizados, limpar metadados), mas nao faz compressao de imagens embutidas no PDF -- que e onde normalmente esta o maior ganho de tamanho.
+## Solucao
 
-## Abordagem Proposta
+### Arquivo editado: `supabase/functions/wordpress-webhook/index.ts`
 
-### 1. Nova Edge Function: `compress-pdf`
-- Recebe o caminho do arquivo no storage
-- Baixa o PDF do bucket `post-images`
-- Usa `pdf-lib` (via `npm:pdf-lib`) para:
-  - Remover metadados desnecessarios
-  - Otimizar a estrutura interna do documento
-  - Re-salvar o PDF de forma otimizada
-- Substitui o arquivo original no storage pela versao otimizada
-- Retorna o tamanho original e o tamanho comprimido
+- Ao receber a resposta do n8n, verificar se e um array e extrair o primeiro elemento: `const data = Array.isArray(n8nData) ? n8nData[0] : n8nData`
+- Adicionar `status` a lista de campos atualizaveis (validando que e um valor valido do enum `post_status`: `draft`, `approved`, `scheduled`, `published`)
+- Adicionar mapeamento de `project_type` do texto livre para o valor do enum. Exemplo: se contem "eta" sera mapeado para `eta`, se contem "ete" para `ete`, etc. Se nao corresponder a nenhum valor conhecido, o campo sera ignorado para evitar erro no banco.
 
-### 2. Integracao no fluxo de upload (`usePosts.ts`)
-- Apos o upload de cada arquivo PDF ao storage, invocar a funcao `compress-pdf` passando o caminho do arquivo
-- A compressao e fire-and-forget (nao bloqueia a criacao do post)
-- Aplica-se tanto na criacao quanto na edicao de posts
+### Como testar
 
-### 3. Arquivos afetados
-- **Novo**: `supabase/functions/compress-pdf/index.ts` -- funcao de compressao
-- **Editado**: `src/hooks/usePosts.ts` -- chamada a funcao apos upload de PDFs
+Apos a correcao:
+1. Abra um post do canal WordPress no Approvee
+2. Clique em "Gerar Conteudo" (que dispara o webhook)
+3. O n8n deve processar e retornar o JSON
+4. Os campos titulo do artigo, palavra-chave SEO, tipo do projeto, conteudo e status devem ser preenchidos automaticamente no post
 
 ## Secao Tecnica
 
-### Edge Function (`compress-pdf/index.ts`)
 ```text
-Fluxo:
-1. Valida JWT do usuario
-2. Recebe { file_path: string } no body
-3. Baixa o arquivo do bucket "post-images" usando service role
-4. Carrega com PDFDocument.load() do pdf-lib
-5. Re-salva com PDFDocument.save() (remove objetos orfaos)
-6. Faz upload do buffer comprimido substituindo o original
-7. Retorna { original_size, compressed_size }
+Mudancas no wordpress-webhook/index.ts:
+
+1. Apos: const n8nData = await n8nResponse.json();
+   Adicionar: const data = Array.isArray(n8nData) ? n8nData[0] : n8nData;
+
+2. Usar "data" ao inves de "n8nData" para ler os campos
+
+3. Adicionar mapeamento de project_type:
+   const PROJECT_TYPE_MAP = {
+     "eta": "eta", "ete": "ete",
+     "osmose": "osmose_reversa", "ultrafiltra": "ultrafiltracao",
+     "fisico": "fisico_quimico", "mbr": "mbr"
+   };
+   - Busca case-insensitive no valor recebido
+
+4. Adicionar status aos campos atualizaveis:
+   if (data.status && ["draft","approved","scheduled","published"].includes(data.status))
+     updateFields.status = data.status;
 ```
-
-### Hook de upload (`usePosts.ts`)
-```text
-Apos cada upload bem-sucedido:
-- Verifica se o arquivo e PDF (file.type === 'application/pdf')
-- Se sim, chama supabase.functions.invoke('compress-pdf', { body: { file_path } })
-- Usa await para garantir que a compressao termine antes do webhook n8n
-```
-
-## Limitacoes
-- A otimizacao com `pdf-lib` oferece ganhos modestos (5-20% tipicamente), pois nao recomprime imagens internas
-- Para compressao mais agressiva, seria necessario integrar um servico externo (ex: iLovePDF API)
-
