@@ -152,14 +152,41 @@ serve(async (req) => {
       throw new Error(`n8n webhook error: ${n8nResponse.status}`);
     }
 
-    const n8nData = await n8nResponse.json();
+    const n8nRaw = await n8nResponse.json();
+    const data = Array.isArray(n8nRaw) ? n8nRaw[0] : n8nRaw;
+
+    // Map free-text project_type to enum value
+    const PROJECT_TYPE_MAP: Record<string, string> = {
+      "eta": "eta",
+      "ete": "ete",
+      "osmose": "osmose_reversa",
+      "ultrafiltra": "ultrafiltracao",
+      "fisico": "fisico_quimico",
+      "mbr": "mbr",
+    };
+
+    function mapProjectType(value: string | undefined): string | null {
+      if (!value) return null;
+      const lower = value.toLowerCase();
+      for (const [keyword, enumVal] of Object.entries(PROJECT_TYPE_MAP)) {
+        if (lower.includes(keyword)) return enumVal;
+      }
+      return null;
+    }
 
     // Update post with returned fields (only update fields that are present)
     const updateFields: Record<string, unknown> = {};
-    if (n8nData.article_title !== undefined) updateFields.article_title = n8nData.article_title;
-    if (n8nData.seo_keyword !== undefined) updateFields.seo_keyword = n8nData.seo_keyword;
-    if (n8nData.project_type !== undefined) updateFields.project_type = n8nData.project_type;
-    if (n8nData.article_content !== undefined) updateFields.article_content = n8nData.article_content;
+    if (data.article_title !== undefined) updateFields.article_title = data.article_title;
+    if (data.seo_keyword !== undefined) updateFields.seo_keyword = data.seo_keyword;
+    if (data.article_content !== undefined) updateFields.article_content = data.article_content;
+
+    const mappedType = mapProjectType(data.project_type);
+    if (mappedType) updateFields.project_type = mappedType;
+
+    const validStatuses = ["draft", "approved", "scheduled", "published"];
+    if (data.status && validStatuses.includes(data.status)) {
+      updateFields.status = data.status;
+    }
 
     if (Object.keys(updateFields).length > 0) {
       const { error: updateError } = await supabase
