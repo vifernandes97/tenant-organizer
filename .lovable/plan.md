@@ -1,46 +1,35 @@
 
-# Permitir alterar o nome exibido do post no calendario
+# Tornar o titulo um campo compartilhado entre todos os canais do grupo
 
-## Resumo
+## Problema
 
-Adicionar um campo editavel de titulo no painel de detalhes do post, antes dos outros campos. O titulo e o texto exibido nos cards do calendario. Atualmente ele e gerado automaticamente por IA, mas o usuario podera sobrescreve-lo manualmente.
+Atualmente, o campo "Titulo" no `GroupPostDetails` usa `handleFieldUpdate`, que atualiza apenas o post do canal ativo. Isso obriga o usuario a editar o titulo em cada canal separadamente.
 
-## Alteracoes
+## Solucao
 
-### 1. `src/components/schedule/PostDetails.tsx`
+Duas alteracoes simples:
 
-Adicionar um campo `InlineEditable` do tipo `text` para o titulo, logo no inicio da aba de detalhes (antes do campo "Canal"):
+### 1. `src/components/schedule/GroupPostDetails.tsx`
 
-```
-Titulo
-[campo editavel inline com o valor de post.title]
-```
+- Alterar a chamada do campo titulo de `handleFieldUpdate('title', value)` para `handleSharedFieldUpdate('title', value)` (igual ao que ja e feito para `client_id` e `scheduled_at`)
+- Atualizar a tipagem de `handleSharedFieldUpdate` para aceitar `'title'` alem de `'client_id' | 'scheduled_at'`
 
-Usara `handleFieldUpdate('title', value)` que ja existe e funciona para qualquer campo.
+### 2. Nenhuma outra alteracao necessaria
 
-### 2. `src/components/schedule/GroupPostDetails.tsx`
-
-Mesma logica: adicionar campo de titulo editavel no painel de detalhes do post ativo do grupo. O titulo e individual por canal (cada post do grupo pode ter titulo diferente).
-
-### 3. `src/components/schedule/PostCard.tsx`
-
-Nenhuma alteracao necessaria. O card ja exibe `post.title` e atualizara automaticamente apos a edicao, pois a query e invalidada pelo `useUpdatePost`.
+O `PostDetails.tsx` (post individual sem grupo) nao precisa de mudanca pois nao tem multiplos canais.
 
 ## Secao tecnica
 
-O campo sera adicionado assim no PostDetails:
+Alterar a assinatura de `handleSharedFieldUpdate`:
 
-```tsx
-<div className="mb-4">
-  <h4 className="mb-1 text-xs font-medium text-muted-foreground">Titulo</h4>
-  <InlineEditable
-    type="text"
-    value={post.title || ''}
-    placeholder="Sem titulo"
-    onSave={(value) => handleFieldUpdate('title', value)}
-    isLoading={savingField === 'title'}
-  />
-</div>
+```typescript
+const handleSharedFieldUpdate = async (field: 'client_id' | 'scheduled_at' | 'title', value: string) => {
 ```
 
-Sera inserido logo acima do campo "Canal" na aba de detalhes.
+E no campo titulo, trocar:
+
+```tsx
+onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('title', value) : handleFieldUpdate('title', value)}
+```
+
+Isso garante que ao editar o titulo em um grupo multi-canal, todos os posts do grupo recebem o mesmo titulo. Para posts individuais (sem grupo), continua atualizando normalmente.
