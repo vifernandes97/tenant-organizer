@@ -196,37 +196,48 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
 
                   {/* Thumbnails */}
                   {images.length > 1 && (
-                    <div className="flex shrink-0 gap-2 overflow-x-auto border-t bg-background/50 p-4">
-                      {images.map((img, idx) => (
-                        <button
-                          key={img.id}
-                          draggable
-                          onDragStart={() => setDragIndex(idx)}
-                          onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
-                          onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            if (dragIndex === null || dragIndex === idx) return;
-                            const reordered = [...localImages];
-                            const [moved] = reordered.splice(dragIndex, 1);
-                            reordered.splice(idx, 0, moved);
-                            setLocalImages(reordered);
-                            reorderImages.mutate(
-                              reordered.map((img, i) => ({ id: img.id, display_order: i }))
-                            );
-                            setDragIndex(null);
-                            setDragOverIndex(null);
-                          }}
-                          onClick={() => setCurrentImageIndex(idx)}
-                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all cursor-grab active:cursor-grabbing ${
-                            idx === currentImageIndex 
-                              ? 'ring-2 ring-primary ring-offset-2' 
-                              : 'opacity-60 hover:opacity-100'
-                          } ${dragOverIndex === idx && dragIndex !== idx ? 'ring-2 ring-accent scale-110' : ''}`}
-                        >
-                          <img src={img.image_url} alt="" className="h-full w-full object-cover pointer-events-none" />
-                        </button>
-                      ))}
+                    <div className="flex shrink-0 items-center overflow-x-auto border-t bg-background/50 p-4 gap-0">
+                      {images.map((img, idx) => {
+                        const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
+                        const showRightBar = dragOverIndex === idx && dragIndex !== null && dragIndex < idx && dragIndex !== idx;
+                        return (
+                          <div key={img.id} className="relative flex items-center px-1">
+                            {showLeftBar && (
+                              <div className="absolute -left-0.5 top-0 bottom-0 w-[3px] bg-primary rounded-full animate-pulse z-10" />
+                            )}
+                            <button
+                              draggable
+                              onDragStart={() => setDragIndex(idx)}
+                              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                              onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (dragIndex === null || dragIndex === idx) return;
+                                const reordered = [...localImages];
+                                const [moved] = reordered.splice(dragIndex, 1);
+                                reordered.splice(idx, 0, moved);
+                                setLocalImages(reordered);
+                                reorderImages.mutate(
+                                  reordered.map((img, i) => ({ id: img.id, display_order: i }))
+                                );
+                                setDragIndex(null);
+                                setDragOverIndex(null);
+                              }}
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all cursor-grab active:cursor-grabbing ${
+                                idx === currentImageIndex 
+                                  ? 'ring-2 ring-primary ring-offset-2' 
+                                  : 'opacity-60 hover:opacity-100'
+                              } ${dragIndex === idx ? 'opacity-40' : ''}`}
+                            >
+                              <img src={img.image_url} alt="" className="h-full w-full object-cover pointer-events-none" />
+                            </button>
+                            {showRightBar && (
+                              <div className="absolute -right-0.5 top-0 bottom-0 w-[3px] bg-primary rounded-full animate-pulse z-10" />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>

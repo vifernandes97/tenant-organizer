@@ -286,56 +286,67 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                   </div>
 
                   {images.length > 1 && (
-                    <div className="flex shrink-0 gap-2 overflow-x-auto border-t bg-background/50 p-4">
-                      {images.map((img, idx) => (
-                        <button
-                          key={img.id}
-                          draggable
-                          onDragStart={() => setDragIndex(idx)}
-                          onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
-                          onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            if (dragIndex === null || dragIndex === idx) return;
-                            const reordered = [...localImages];
-                            const [moved] = reordered.splice(dragIndex, 1);
-                            reordered.splice(idx, 0, moved);
-                            setLocalImages(reordered);
-                            reorderImages.mutate(
-                              reordered.map((img, i) => ({ id: img.id, display_order: i }))
-                            );
-                            setDragIndex(null);
-                            setDragOverIndex(null);
-                          }}
-                          onClick={() => setCurrentImageIndex(idx)}
-                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all relative cursor-grab active:cursor-grabbing ${
-                            idx === currentImageIndex 
-                              ? 'ring-2 ring-primary ring-offset-2' 
-                              : 'opacity-60 hover:opacity-100'
-                          } ${dragOverIndex === idx && dragIndex !== idx ? 'ring-2 ring-accent scale-110' : ''}`}
-                        >
-                          {isVideoMedia(img) ? (
-                            <>
-                              <video src={img.image_url} className="h-full w-full object-cover pointer-events-none" />
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="rounded-full bg-black/60 p-1">
-                                  <Play className="h-3 w-3 text-white" fill="white" />
+                    <div className="flex shrink-0 items-center overflow-x-auto border-t bg-background/50 p-4 gap-0">
+                      {images.map((img, idx) => {
+                        const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
+                        const showRightBar = dragOverIndex === idx && dragIndex !== null && dragIndex < idx && dragIndex !== idx;
+                        return (
+                          <div key={img.id} className="relative flex items-center px-1">
+                            {showLeftBar && (
+                              <div className="absolute -left-0.5 top-0 bottom-0 w-[3px] bg-primary rounded-full animate-pulse z-10" />
+                            )}
+                            <button
+                              draggable
+                              onDragStart={() => setDragIndex(idx)}
+                              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                              onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (dragIndex === null || dragIndex === idx) return;
+                                const reordered = [...localImages];
+                                const [moved] = reordered.splice(dragIndex, 1);
+                                reordered.splice(idx, 0, moved);
+                                setLocalImages(reordered);
+                                reorderImages.mutate(
+                                  reordered.map((img, i) => ({ id: img.id, display_order: i }))
+                                );
+                                setDragIndex(null);
+                                setDragOverIndex(null);
+                              }}
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all relative cursor-grab active:cursor-grabbing ${
+                                idx === currentImageIndex 
+                                  ? 'ring-2 ring-primary ring-offset-2' 
+                                  : 'opacity-60 hover:opacity-100'
+                              } ${dragIndex === idx ? 'opacity-40' : ''}`}
+                            >
+                              {isVideoMedia(img) ? (
+                                <>
+                                  <video src={img.image_url} className="h-full w-full object-cover pointer-events-none" />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="rounded-full bg-black/60 p-1">
+                                      <Play className="h-3 w-3 text-white" fill="white" />
+                                    </div>
+                                  </div>
+                                </>
+                              ) : isDocMedia(img) ? (
+                                <div className="h-full w-full bg-muted flex flex-col items-center justify-center">
+                                  {(() => {
+                                    const fileName = img.image_url.split('/').pop() || '';
+                                    const Icon = getFileIcon(fileName, img.media_type);
+                                    return <Icon className="h-6 w-6 text-muted-foreground" />;
+                                  })()}
                                 </div>
-                              </div>
-                            </>
-                          ) : isDocMedia(img) ? (
-                            <div className="h-full w-full bg-muted flex flex-col items-center justify-center">
-                              {(() => {
-                                const fileName = img.image_url.split('/').pop() || '';
-                                const Icon = getFileIcon(fileName, img.media_type);
-                                return <Icon className="h-6 w-6 text-muted-foreground" />;
-                              })()}
-                            </div>
-                          ) : (
-                            <img src={img.image_url} alt="" className="h-full w-full object-cover pointer-events-none" />
-                          )}
-                        </button>
-                      ))}
+                              ) : (
+                                <img src={img.image_url} alt="" className="h-full w-full object-cover pointer-events-none" />
+                              )}
+                            </button>
+                            {showRightBar && (
+                              <div className="absolute -right-0.5 top-0 bottom-0 w-[3px] bg-primary rounded-full animate-pulse z-10" />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>
