@@ -1,39 +1,41 @@
 
-# Baixar todos os arquivos em ZIP
+
+# Reordenar imagens de cada post
 
 ## O que sera feito
 
-Adicionar um botao "Baixar Arquivos" no footer dos detalhes da publicacao (tanto em `PostDetails` quanto em `GroupPostDetails`). Ao clicar, todos os arquivos de midia (imagens, videos, documentos) do post ativo serao baixados e empacotados em um arquivo ZIP no navegador.
+Adicionar a funcionalidade de arrastar e soltar (drag and drop) nas miniaturas de imagens dentro dos detalhes da publicacao, permitindo ao usuario reorganizar a ordem das imagens. A nova ordem sera salva automaticamente no banco de dados usando a coluna `display_order` que ja existe na tabela `post_images`.
 
 ## Como funciona
 
-1. O usuario abre os detalhes de uma publicacao
-2. No rodape, ao lado dos botoes existentes (Editar, Copiar, Excluir), aparece um novo botao com icone de download
-3. Ao clicar, os arquivos sao buscados via fetch, compactados em ZIP usando a biblioteca `jszip`, e o download inicia automaticamente
-4. Um toast informa o progresso e conclusao
-5. O botao so aparece quando ha arquivos na publicacao
+1. O usuario abre os detalhes de uma publicacao que tenha mais de uma imagem
+2. Na barra de miniaturas (thumbnails) na parte inferior da galeria, o usuario arrasta uma imagem para a posicao desejada
+3. As miniaturas se reorganizam visualmente durante o arraste
+4. Ao soltar, a nova ordem e salva automaticamente no banco de dados
+5. Um toast confirma que a ordem foi atualizada
 
 ## Secao Tecnica
 
-### Dependencia nova
-- Instalar `jszip` para gerar o ZIP no lado do cliente
+### Nova mutation em `src/hooks/usePosts.ts`
+- Criar `useReorderPostImages` que recebe um array de `{ id: string, display_order: number }` e atualiza cada registro na tabela `post_images`
+- Invalida as queries de posts apos sucesso
 
-### Novo utilitario: `src/lib/downloadZip.ts`
-- Funcao `downloadPostFilesAsZip(files: {url: string, name: string}[], zipName: string)`
-- Faz fetch de cada arquivo, adiciona ao JSZip, gera o blob e dispara o download
-- Trata erros individuais (se um arquivo falhar, os outros ainda sao incluidos)
+### Alteracoes em `src/components/schedule/PostDetails.tsx`
+- Implementar drag and drop nativo (HTML5 Drag and Drop API) na area de thumbnails (linhas 190-206)
+- Adicionar estados para controlar o item sendo arrastado e a posicao de destino
+- Ao concluir o arraste, chamar a mutation `useReorderPostImages`
+- Adicionar cursor `grab` nas miniaturas para indicar que sao arrastáveis
 
-### Alteracoes em `PostDetails.tsx`
-- Importar `Download` icon do lucide e a funcao `downloadPostFilesAsZip`
-- Adicionar estado `isDownloading`
-- Adicionar botao de download no footer, entre o botao "Copiar" e o "Excluir"
-- O botao chama a funcao com os arquivos de `post.post_images`
-- O nome do ZIP sera baseado no titulo/cliente e data do post
+### Alteracoes em `src/components/schedule/GroupPostDetails.tsx`
+- Mesma logica de drag and drop aplicada a area de thumbnails do post ativo
+- Usa a mesma mutation `useReorderPostImages`
 
-### Alteracoes em `GroupPostDetails.tsx`
-- Mesma logica aplicada ao `activePost`
-- Botao de download no footer, usando os arquivos do post ativo no canal selecionado
+### Abordagem tecnica
+- Usar a API nativa de Drag and Drop do HTML5 (sem biblioteca externa)
+- Eventos: `onDragStart`, `onDragOver`, `onDragEnd`, `onDrop`
+- Estado local para reordenar visualmente antes de salvar
+- Atualizar `display_order` de todas as imagens do post com a nova ordem
+- A coluna `display_order` ja existe e ja e usada na query de busca dos posts
 
-### Nome do arquivo ZIP
-- Formato: `{cliente}_{data}_{canal}.zip` (ex: `ClienteX_2026-02-18_instagram-feed.zip`)
-- Caracteres especiais removidos para compatibilidade
+### Garantir ordenacao correta
+- Verificar que as queries em `usePosts.ts` ordenam por `display_order` (o Supabase ordena relacoes pela chave primaria por padrao; pode ser necessario adicionar `.order` na relacao `post_images`)
