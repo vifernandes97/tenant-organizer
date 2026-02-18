@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [isDownloading, setIsDownloading] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [localImages, setLocalImages] = useState<any[]>([]);
 
   // Get the current post based on active channel
   const activePost = useMemo(() => {
@@ -82,10 +83,14 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   }, [group?.groupId]);
 
+  useEffect(() => {
+    setLocalImages(activePost?.post_images || []);
+  }, [activePost?.post_images]);
+
   if (!group || !activePost) return null;
 
   const scheduledDate = new Date(activePost.scheduled_at);
-  const images = activePost.post_images || [];
+  const images = localImages;
   const openCommentsCount = comments.filter(c => c.status === 'open').length;
   const isMultiChannel = group.posts.length > 1;
   const isWordPress = activePost.channel === 'wordpress';
@@ -292,9 +297,10 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                           onDrop={(e) => {
                             e.preventDefault();
                             if (dragIndex === null || dragIndex === idx) return;
-                            const reordered = [...images];
+                            const reordered = [...localImages];
                             const [moved] = reordered.splice(dragIndex, 1);
                             reordered.splice(idx, 0, moved);
+                            setLocalImages(reordered);
                             reorderImages.mutate(
                               reordered.map((img, i) => ({ id: img.id, display_order: i }))
                             );

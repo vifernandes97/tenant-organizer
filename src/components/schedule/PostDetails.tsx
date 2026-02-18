@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -59,11 +59,16 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [isDownloading, setIsDownloading] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [localImages, setLocalImages] = useState(post?.post_images || []);
+
+  useEffect(() => {
+    setLocalImages(post?.post_images || []);
+  }, [post?.post_images]);
 
   if (!post) return null;
 
   const scheduledDate = new Date(post.scheduled_at);
-  const images = post.post_images || [];
+  const images = localImages;
   const openCommentsCount = comments.filter(c => c.status === 'open').length;
 
   const handleDelete = async () => {
@@ -202,9 +207,10 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                           onDrop={(e) => {
                             e.preventDefault();
                             if (dragIndex === null || dragIndex === idx) return;
-                            const reordered = [...images];
+                            const reordered = [...localImages];
                             const [moved] = reordered.splice(dragIndex, 1);
                             reordered.splice(idx, 0, moved);
+                            setLocalImages(reordered);
                             reorderImages.mutate(
                               reordered.map((img, i) => ({ id: img.id, display_order: i }))
                             );
