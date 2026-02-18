@@ -102,6 +102,7 @@ export const postEditSchema = z.object({
   scheduled_at: z.string().min(1, 'Selecione data e hora'),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
+  title: z.string().optional(),
 });
 
 export type PostFormData = z.infer<typeof postSchema>;
@@ -372,9 +373,10 @@ export function useUpdatePost() {
       if (post.scheduled_at) postUpdate.scheduled_at = post.scheduled_at;
       if (post.caption !== undefined) postUpdate.caption = post.caption || null;
       if (post.status) postUpdate.status = post.status;
+      if (post.title !== undefined) postUpdate.title = post.title || null;
 
-      // Regenerate AI title if caption changed
-      if (post.caption !== undefined) {
+      // Regenerate AI title if caption changed (only if title wasn't explicitly set)
+      if (post.caption !== undefined && post.title === undefined) {
         const plainText = extractPlainText(post.caption || '');
         if (plainText.trim()) {
           try {
