@@ -385,6 +385,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     status={activePost.status} 
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
+                    channel={activePost.channel}
                   />
                   <span className="text-xs text-muted-foreground">
                     {activePost.clients?.name}

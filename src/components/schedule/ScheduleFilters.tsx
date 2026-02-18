@@ -22,6 +22,8 @@ interface ScheduleFiltersProps {
 
 const statusOptions: { value: PostStatus; label: string }[] = [
   { value: 'draft', label: 'Rascunho' },
+  { value: 'ai_generated', label: 'Gerado por IA' },
+  { value: 'reviewed', label: 'Revisado' },
   { value: 'approved', label: 'Aprovado' },
   { value: 'scheduled', label: 'Agendado' },
   { value: 'published', label: 'Publicado' },

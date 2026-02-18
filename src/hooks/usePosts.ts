@@ -90,7 +90,7 @@ export const postSchema = z.object({
   channels: z.array(z.enum(socialChannels)).min(1, 'Selecione pelo menos um canal'),
   scheduled_at: z.string().min(1, 'Selecione data e hora'),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
-  status: z.enum(['draft', 'approved', 'scheduled', 'published'] as const).default('draft'),
+  status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
 });
 
 // Schema for editing (single channel)
@@ -101,7 +101,7 @@ export const postEditSchema = z.object({
   }),
   scheduled_at: z.string().min(1, 'Selecione data e hora'),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
-  status: z.enum(['draft', 'approved', 'scheduled', 'published'] as const).default('draft'),
+  status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
 });
 
 export type PostFormData = z.infer<typeof postSchema>;

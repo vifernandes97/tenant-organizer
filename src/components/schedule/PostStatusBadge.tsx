@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { FileText, Check, Clock, CheckCircle } from 'lucide-react';
+import { FileText, Check, Clock, CheckCircle, Sparkles, Eye } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -15,6 +15,18 @@ const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | '
     variant: 'secondary',
     className: 'bg-muted text-muted-foreground',
     icon: FileText,
+  },
+  ai_generated: {
+    label: 'Gerado por IA',
+    variant: 'outline',
+    className: 'border-violet-500 text-violet-600 bg-violet-50',
+    icon: Sparkles,
+  },
+  reviewed: {
+    label: 'Revisado',
+    variant: 'outline',
+    className: 'border-orange-500 text-orange-600 bg-orange-50',
+    icon: Eye,
   },
   approved: {
     label: 'Aprovado',
