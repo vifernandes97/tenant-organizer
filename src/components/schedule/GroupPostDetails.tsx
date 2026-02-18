@@ -438,6 +438,18 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                 {/* Details Tab */}
                 <TabsContent value="details" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                    {/* Title (individual per channel) */}
+                    <div className="mb-4">
+                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">Título</h4>
+                      <InlineEditable
+                        type="text"
+                        value={activePost.title || ''}
+                        placeholder="Sem título"
+                        onSave={(value) => handleFieldUpdate('title', value)}
+                        isLoading={savingField === 'title'}
+                      />
+                    </div>
+
                     {/* Channel (individual - only show if single channel) */}
                     {!isMultiChannel && (
                       <div className="mb-4">
