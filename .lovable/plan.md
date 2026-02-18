@@ -1,35 +1,43 @@
 
-# Tornar o titulo um campo compartilhado entre todos os canais do grupo
+
+# Corrigir erro ao atualizar titulo do post
 
 ## Problema
 
-Atualmente, o campo "Titulo" no `GroupPostDetails` usa `handleFieldUpdate`, que atualiza apenas o post do canal ativo. Isso obriga o usuario a editar o titulo em cada canal separadamente.
+O erro `PGRST116: The result contains 0 rows` ocorre porque a funcao `useUpdatePost` no arquivo `src/hooks/usePosts.ts` nao mapeia o campo `title` para o objeto de update enviado ao banco.
+
+Na linha 369-374, apenas estes campos sao copiados:
+- `client_id`
+- `channel`
+- `scheduled_at`
+- `caption`
+- `status`
+
+Quando `handleSharedFieldUpdate('title', value)` e chamado, o `postUpdate` fica vazio `{}`, o update nao altera nenhuma linha, e o `.single()` falha por retornar 0 linhas.
 
 ## Solucao
 
-Duas alteracoes simples:
+Adicionar o mapeamento do campo `title` no `useUpdatePost` em `src/hooks/usePosts.ts`, logo apos os outros campos:
 
-### 1. `src/components/schedule/GroupPostDetails.tsx`
-
-- Alterar a chamada do campo titulo de `handleFieldUpdate('title', value)` para `handleSharedFieldUpdate('title', value)` (igual ao que ja e feito para `client_id` e `scheduled_at`)
-- Atualizar a tipagem de `handleSharedFieldUpdate` para aceitar `'title'` alem de `'client_id' | 'scheduled_at'`
-
-### 2. Nenhuma outra alteracao necessaria
-
-O `PostDetails.tsx` (post individual sem grupo) nao precisa de mudanca pois nao tem multiplos canais.
+```typescript
+if (post.title !== undefined) postUpdate.title = post.title || null;
+```
 
 ## Secao tecnica
 
-Alterar a assinatura de `handleSharedFieldUpdate`:
+### Arquivo: `src/hooks/usePosts.ts`
+
+Adicionar na linha ~375 (apos `if (post.status)`):
 
 ```typescript
-const handleSharedFieldUpdate = async (field: 'client_id' | 'scheduled_at' | 'title', value: string) => {
+if (post.title !== undefined) postUpdate.title = post.title || null;
 ```
 
-E no campo titulo, trocar:
+Tambem sera necessario garantir que `PostEditFormData` (ou `Partial<PostEditFormData>`) inclua `title`. Verificar o schema Zod usado.
 
-```tsx
-onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('title', value) : handleFieldUpdate('title', value)}
-```
+Alem disso, quando o titulo e editado manualmente, NAO deve ser sobrescrito pela geracao automatica de titulo por IA (que ocorre quando `caption` muda). O campo `title` manual deve ter prioridade.
 
-Isso garante que ao editar o titulo em um grupo multi-canal, todos os posts do grupo recebem o mesmo titulo. Para posts individuais (sem grupo), continua atualizando normalmente.
+### Arquivos alterados
+
+- `src/hooks/usePosts.ts` - adicionar mapeamento de `title` no `postUpdate`
+
