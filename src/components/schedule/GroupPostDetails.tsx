@@ -148,7 +148,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   };
 
   // Update shared fields across all posts in the group
-  const handleSharedFieldUpdate = async (field: 'client_id' | 'scheduled_at', value: string) => {
+  const handleSharedFieldUpdate = async (field: 'client_id' | 'scheduled_at' | 'title', value: string) => {
     setSavingField(field);
     try {
       for (const post of group.posts) {
@@ -445,7 +445,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         type="text"
                         value={activePost.title || ''}
                         placeholder="Sem título"
-                        onSave={(value) => handleFieldUpdate('title', value)}
+                        onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('title', value) : handleFieldUpdate('title', value)}
                         isLoading={savingField === 'title'}
                       />
                     </div>
