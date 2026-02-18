@@ -15,8 +15,9 @@ import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
-import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -54,6 +55,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (!post) return null;
 
@@ -353,6 +355,33 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       <Button variant="outline" size="icon" title="Copiar">
                         <Copy className="h-4 w-4" />
                       </Button>
+                      {images.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Baixar arquivos"
+                          disabled={isDownloading}
+                          onClick={async () => {
+                            setIsDownloading(true);
+                            try {
+                              const files = images.map((img, i) => ({
+                                url: img.image_url,
+                                name: getFileNameFromUrl(img.image_url, i),
+                              }));
+                              const zipName = buildZipName(
+                                post.clients?.name || 'post',
+                                scheduledDate,
+                                post.channel
+                              );
+                              await downloadPostFilesAsZip(files, zipName);
+                            } finally {
+                              setIsDownloading(false);
+                            }
+                          }}
+                        >
+                          {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="icon" title="Excluir">
