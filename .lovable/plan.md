@@ -1,55 +1,95 @@
 
-# Melhorar indicador visual do drag and drop nas imagens
+# Visualizar e revogar acesso de usuarios nas Configuracoes
 
-## O que sera feito
+## Problema atual
 
-Substituir o efeito atual (ring + scale) por uma barra colorida vertical que aparece entre as miniaturas, indicando claramente onde a imagem sera inserida ao soltar. Isso torna a interacao muito mais intuitiva.
+A pagina de Configuracoes ja possui o componente `TeamList` com UI para listar membros e botao de remover. Porem, ha dois problemas de seguranca no banco (RLS) que impedem o funcionamento:
 
-## Como funciona
+1. **Profiles SELECT**: a politica atual so permite visualizar o proprio perfil (`id = auth.uid()`). Owners nao conseguem ver nomes/avatares de outros membros do tenant.
+2. **Profiles UPDATE**: a politica so permite atualizar o proprio perfil. Quando o owner tenta remover um membro (setar `tenant_id = null`), a operacao falha silenciosamente.
 
-1. Ao arrastar uma imagem sobre outra miniatura, uma barra vertical colorida (azul/primary) aparece no lado esquerdo ou direito da miniatura alvo, indicando a posicao de insercao
-2. A imagem sendo arrastada fica com opacidade reduzida
-3. A barra tem uma animacao sutil (pulse) para chamar atencao
+## Solucao
 
-## Secao Tecnica
+### 1. Adicionar politica RLS no profiles (SELECT)
 
-### Abordagem
+Permitir que usuarios do mesmo tenant visualizem perfis uns dos outros:
 
-Em vez de aplicar estilos na propria miniatura alvo, renderizar um elemento separado (barra divisoria) entre as miniaturas. A logica sera:
-
-- Trocar o container de `gap-2` para `gap-0` e controlar o espacamento via padding/margin nos itens
-- Cada thumbnail sera envolvido em um wrapper `div` que inclui a barra indicadora como pseudo-elemento ou elemento condicional
-- A barra aparece a esquerda do item quando `dragOverIndex === idx` e `dragIndex > idx`, ou a direita quando `dragIndex < idx`
-
-**Simplificacao**: usar uma abordagem mais direta — cada thumbnail tera um `before` ou `after` visual (um `div` de 3px de largura com cor primary) que aparece condicionalmente baseado em `dragOverIndex`.
-
-### Alteracoes em `src/components/schedule/PostDetails.tsx` (linhas 198-230)
-
-- Envolver cada `button` de thumbnail em um `div` com `position: relative`
-- Adicionar um `div` condicional com classes `absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full` (barra esquerda) ou no lado direito, dependendo da direcao do arraste
-- Reduzir opacidade do item sendo arrastado (`dragIndex === idx ? 'opacity-40' : ''`)
-- Remover o efeito `scale-110` e `ring-accent` atual
-
-### Alteracoes em `src/components/schedule/GroupPostDetails.tsx` (linhas 288-339)
-
-- Mesma logica aplicada ao thumbnails do post ativo
-
-### Logica da barra
-
-```typescript
-// Mostrar barra a esquerda se o item arrastado vem de depois
-const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
-// Mostrar barra a direita se o item arrastado vem de antes  
-const showRightBar = dragOverIndex === idx && dragIndex !== null && dragIndex < idx && dragIndex !== idx;
+```sql
+CREATE POLICY "Users can view profiles in same tenant"
+ON public.profiles FOR SELECT TO authenticated
+USING (tenant_id = get_user_tenant_id(auth.uid()));
 ```
 
-A barra tera:
-- Largura: 3px
-- Cor: `bg-primary` (azul do tema)
-- Altura: 100% do thumbnail
-- Bordas arredondadas
-- Animacao: `animate-pulse` sutil
+### 2. Criar funcao RPC para remocao segura de membro
 
-### Arquivos alterados
-- `src/components/schedule/PostDetails.tsx`
-- `src/components/schedule/GroupPostDetails.tsx`
+Em vez de adicionar politica UPDATE permissiva no profiles, criar uma funcao `SECURITY DEFINER` que realiza a remocao atomicamente:
+
+- Valida que quem chama e owner do tenant
+- Remove `user_roles` do membro
+- Remove `user_client_access` do membro
+- Seta `tenant_id = null` no profile do membro
+
+```sql
+CREATE OR REPLACE FUNCTION public.remove_team_member(_member_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _tenant_id uuid;
+BEGIN
+  -- Verificar que o chamador e owner
+  SELECT tenant_id INTO _tenant_id FROM profiles WHERE id = auth.uid();
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_id = auth.uid() AND tenant_id = _tenant_id AND role = 'owner'
+  ) THEN
+    RAISE EXCEPTION 'Sem permissao';
+  END IF;
+
+  -- Verificar que o membro pertence ao mesmo tenant
+  IF NOT EXISTS (
+    SELECT 1 FROM profiles WHERE id = _member_id AND tenant_id = _tenant_id
+  ) THEN
+    RAISE EXCEPTION 'Membro nao encontrado';
+  END IF;
+
+  -- Nao permitir remover a si mesmo
+  IF _member_id = auth.uid() THEN
+    RAISE EXCEPTION 'Nao e possivel remover a si mesmo';
+  END IF;
+
+  -- Remover acessos a clientes
+  DELETE FROM user_client_access WHERE user_id = _member_id AND tenant_id = _tenant_id;
+  -- Remover role
+  DELETE FROM user_roles WHERE user_id = _member_id AND tenant_id = _tenant_id;
+  -- Desvincular do tenant
+  UPDATE profiles SET tenant_id = NULL WHERE id = _member_id;
+
+  RETURN true;
+END;
+$$;
+```
+
+### 3. Atualizar `useTeamMembers.ts`
+
+Alterar a mutation `removeMember` para chamar a RPC em vez de fazer queries diretas:
+
+```typescript
+const { error } = await supabase.rpc('remove_team_member', { _member_id: memberId });
+```
+
+Isso simplifica o codigo e garante que todas as operacoes de limpeza ocorram atomicamente.
+
+## Arquivos alterados
+
+- **Migracao SQL**: nova politica RLS em profiles + funcao `remove_team_member`
+- **`src/hooks/useTeamMembers.ts`**: simplificar `removeMemberMutation` para usar RPC
+
+## Resultado
+
+- Owners verao todos os membros do tenant com nomes e avatares corretos
+- Botao de remover funcionara corretamente, limpando roles, acessos a clientes e desvinculando do tenant
+- Membros comuns continuarao vendo apenas seu proprio perfil (a politica existente ja cobre isso)
