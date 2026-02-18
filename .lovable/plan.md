@@ -1,20 +1,39 @@
 
-
-# Atualizar URL do Webhook n8n para Producao
+# Baixar todos os arquivos em ZIP
 
 ## O que sera feito
 
-Atualizar o secret `N8N_WEBHOOK_URL` com a URL de producao do n8n:
-`https://n8n-n8n.q0dhaw.easypanel.host/webhook/4079488a-b777-44d9-863e-c5bfbd339275`
+Adicionar um botao "Baixar Arquivos" no footer dos detalhes da publicacao (tanto em `PostDetails` quanto em `GroupPostDetails`). Ao clicar, todos os arquivos de midia (imagens, videos, documentos) do post ativo serao baixados e empacotados em um arquivo ZIP no navegador.
+
+## Como funciona
+
+1. O usuario abre os detalhes de uma publicacao
+2. No rodape, ao lado dos botoes existentes (Editar, Copiar, Excluir), aparece um novo botao com icone de download
+3. Ao clicar, os arquivos sao buscados via fetch, compactados em ZIP usando a biblioteca `jszip`, e o download inicia automaticamente
+4. Um toast informa o progresso e conclusao
+5. O botao so aparece quando ha arquivos na publicacao
 
 ## Secao Tecnica
 
-- Usar a ferramenta `add_secret` para atualizar o valor do secret `N8N_WEBHOOK_URL`
-- Nenhuma alteracao de codigo e necessaria - a funcao `wordpress-webhook` ja le esse secret via `Deno.env.get("N8N_WEBHOOK_URL")`
-- Apos a atualizacao, o fluxo pode ser testado imediatamente
+### Dependencia nova
+- Instalar `jszip` para gerar o ZIP no lado do cliente
 
-## Observacoes importantes
+### Novo utilitario: `src/lib/downloadZip.ts`
+- Funcao `downloadPostFilesAsZip(files: {url: string, name: string}[], zipName: string)`
+- Faz fetch de cada arquivo, adiciona ao JSZip, gera o blob e dispara o download
+- Trata erros individuais (se um arquivo falhar, os outros ainda sao incluidos)
 
-- Certifique-se de que o workflow no n8n esta **Ativo** (toggle ligado) para que o webhook de producao funcione
-- O node "Respond to Webhook" deve estar conectado corretamente no fluxo do n8n para evitar o erro 500 que apareceu anteriormente
+### Alteracoes em `PostDetails.tsx`
+- Importar `Download` icon do lucide e a funcao `downloadPostFilesAsZip`
+- Adicionar estado `isDownloading`
+- Adicionar botao de download no footer, entre o botao "Copiar" e o "Excluir"
+- O botao chama a funcao com os arquivos de `post.post_images`
+- O nome do ZIP sera baseado no titulo/cliente e data do post
 
+### Alteracoes em `GroupPostDetails.tsx`
+- Mesma logica aplicada ao `activePost`
+- Botao de download no footer, usando os arquivos do post ativo no canal selecionado
+
+### Nome do arquivo ZIP
+- Formato: `{cliente}_{data}_{canal}.zip` (ex: `ClienteX_2026-02-18_instagram-feed.zip`)
+- Caracteres especiais removidos para compatibilidade
