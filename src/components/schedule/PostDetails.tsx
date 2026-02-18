@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus } from '@/hooks/usePosts';
+import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, useReorderPostImages } from '@/hooks/usePosts';
 import { useClients } from '@/hooks/useClients';
 import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
 import { PostStatusDropdown } from './PostStatusDropdown';
@@ -46,6 +46,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
+  const reorderImages = useReorderPostImages();
   const { data: clients = [] } = useClients();
   const { data: comments = [] } = useAllPostComments(post?.id || null);
   
@@ -56,6 +57,8 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   if (!post) return null;
 
@@ -192,14 +195,30 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       {images.map((img, idx) => (
                         <button
                           key={img.id}
+                          draggable
+                          onDragStart={() => setDragIndex(idx)}
+                          onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                          onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dragIndex === null || dragIndex === idx) return;
+                            const reordered = [...images];
+                            const [moved] = reordered.splice(dragIndex, 1);
+                            reordered.splice(idx, 0, moved);
+                            reorderImages.mutate(
+                              reordered.map((img, i) => ({ id: img.id, display_order: i }))
+                            );
+                            setDragIndex(null);
+                            setDragOverIndex(null);
+                          }}
                           onClick={() => setCurrentImageIndex(idx)}
-                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all ${
+                          className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg transition-all cursor-grab active:cursor-grabbing ${
                             idx === currentImageIndex 
                               ? 'ring-2 ring-primary ring-offset-2' 
                               : 'opacity-60 hover:opacity-100'
-                          }`}
+                          } ${dragOverIndex === idx && dragIndex !== idx ? 'ring-2 ring-accent scale-110' : ''}`}
                         >
-                          <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                          <img src={img.image_url} alt="" className="h-full w-full object-cover pointer-events-none" />
                         </button>
                       ))}
                     </div>

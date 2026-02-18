@@ -567,6 +567,31 @@ export function useRescheduleGroup() {
   });
 }
 
+export function useReorderPostImages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (images: { id: string; display_order: number }[]) => {
+      for (const img of images) {
+        const { error } = await supabase
+          .from('post_images')
+          .update({ display_order: img.display_order })
+          .eq('id', img.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      toast.success('Ordem das imagens atualizada!');
+    },
+    onError: (error) => {
+      console.error('Erro ao reordenar imagens:', error);
+      toast.error('Erro ao reordenar imagens');
+    },
+  });
+}
+
 export function useTriggerWordPressWebhook() {
   const queryClient = useQueryClient();
 
