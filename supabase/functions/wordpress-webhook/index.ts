@@ -183,10 +183,8 @@ serve(async (req) => {
     const mappedType = mapProjectType(data.project_type);
     if (mappedType) updateFields.project_type = mappedType;
 
-    const validStatuses = ["draft", "approved", "scheduled", "published"];
-    if (data.status && validStatuses.includes(data.status)) {
-      updateFields.status = data.status;
-    }
+    // Sempre definir status como ai_generated apos geracao bem-sucedida
+    updateFields.status = 'ai_generated';
 
     if (Object.keys(updateFields).length > 0) {
       const { error: updateError } = await supabase
