@@ -1,100 +1,90 @@
 
-# Permitir excluir imagens individuais da postagem
+# Status diferenciados para publicações WordPress
 
-## O que sera feito
+## Resumo
 
-Adicionar um botao de excluir (X) em cada thumbnail de imagem nos modais de detalhes do post. Ao clicar, exibe confirmacao e remove a imagem do banco e do storage. A lista local atualiza otimisticamente.
+Adicionar dois novos valores ao enum `post_status` no banco (`ai_generated` e `reviewed`) e fazer os componentes de status mostrarem opcoes diferentes conforme o canal:
+
+- **WordPress**: Rascunho, Gerado por IA, Revisado, Aprovado, Publicado
+- **Demais canais**: Rascunho, Aprovado, Agendado, Publicado (sem mudanca)
 
 ## Alteracoes
 
-### 1. Criar hook `useDeletePostImage` em `src/hooks/usePosts.ts`
+### 1. Migracao SQL
 
-Nova mutation que:
-- Busca o registro da `post_images` para obter o `image_url` (path no storage)
-- Remove o arquivo do bucket `post-images` via `supabase.storage.from('post-images').remove([path])`
-- Deleta o registro da tabela `post_images`
-- Invalida queries de posts
+Adicionar os novos valores ao enum `post_status`:
 
-### 2. Atualizar `src/components/schedule/PostDetails.tsx`
+```sql
+ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'ai_generated' AFTER 'draft';
+ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'reviewed' AFTER 'ai_generated';
+```
 
-- Importar `useDeletePostImage` e o icone `X`
-- Em cada thumbnail, adicionar um botao `X` no canto superior direito (visivel no hover)
-- Ao clicar no X, mostrar confirmacao via `AlertDialog` ou simplesmente executar a exclusao com toast
-- Apos a mutation, remover a imagem de `localImages` otimisticamente e ajustar `currentImageIndex` se necessario
+### 2. `PostStatusBadge.tsx`
 
-### 3. Atualizar `src/components/schedule/GroupPostDetails.tsx`
+- Adicionar entradas no `statusConfig` para `ai_generated` (icone Sparkles, cor violeta) e `reviewed` (icone Eye, cor laranja)
 
-- Mesma logica: botao X nos thumbnails com exclusao otimista de `localImages`
+### 3. `PostStatusDropdown.tsx`
+
+- Receber nova prop `channel?: SocialChannel`
+- Adicionar `ai_generated` e `reviewed` ao `statusConfig`
+- Filtrar `STATUS_OPTIONS` com base no canal:
+  - Se `channel === 'wordpress'`: `draft`, `ai_generated`, `reviewed`, `approved`, `published`
+  - Caso contrario: `draft`, `approved`, `scheduled`, `published`
+
+### 4. `PostDetails.tsx` e `GroupPostDetails.tsx`
+
+- Passar `channel={post.channel}` (ou `activePost.channel`) para o `PostStatusDropdown`
+
+### 5. `ScheduleFilters.tsx`
+
+- Adicionar `ai_generated` e `reviewed` nas opcoes de filtro de status
 
 ## Secao Tecnica
 
-### Hook `useDeletePostImage`
+### Novos status no config
 
 ```typescript
-export function useDeletePostImage() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (imageId: string) => {
-      // Buscar path da imagem
-      const { data: img, error: fetchErr } = await supabase
-        .from('post_images')
-        .select('image_url')
-        .eq('id', imageId)
-        .single();
-      if (fetchErr) throw fetchErr;
-
-      // Remover do storage
-      const path = extractStoragePath(img.image_url);
-      await supabase.storage.from('post-images').remove([path]);
-
-      // Deletar registro
-      const { error } = await supabase
-        .from('post_images')
-        .delete()
-        .eq('id', imageId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post'] });
-      toast.success('Imagem excluída!');
-    },
-    onError: () => {
-      toast.error('Erro ao excluir imagem');
-    },
-  });
-}
+ai_generated: {
+  label: 'Gerado por IA',
+  variant: 'outline',
+  className: 'border-violet-500 text-violet-600 bg-violet-50',
+  icon: Sparkles,
+},
+reviewed: {
+  label: 'Revisado',
+  variant: 'outline', 
+  className: 'border-orange-500 text-orange-600 bg-orange-50',
+  icon: Eye,
+},
 ```
 
-### Botao X no thumbnail (ambos componentes)
+### Filtragem por canal no dropdown
 
-```tsx
-<div key={img.id} className="relative flex items-center px-1 group">
-  {/* Botao de excluir - visivel no hover */}
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      // Remover otimisticamente
-      const updated = localImages.filter(i => i.id !== img.id);
-      setLocalImages(updated);
-      if (currentImageIndex >= updated.length) {
-        setCurrentImageIndex(Math.max(0, updated.length - 1));
-      }
-      deleteImage.mutate(img.id);
-    }}
-    className="absolute -top-1 -right-1 z-20 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-  >
-    <X className="h-3 w-3" />
-  </button>
-  {/* ... thumbnail existente ... */}
-</div>
+```typescript
+const STATUS_OPTIONS_WORDPRESS = [
+  { value: 'draft', ... },
+  { value: 'ai_generated', ... },
+  { value: 'reviewed', ... },
+  { value: 'approved', ... },
+  { value: 'published', ... },
+];
+
+const STATUS_OPTIONS_DEFAULT = [
+  { value: 'draft', ... },
+  { value: 'approved', ... },
+  { value: 'scheduled', ... },
+  { value: 'published', ... },
+];
+
+// No componente:
+const options = channel === 'wordpress' ? STATUS_OPTIONS_WORDPRESS : STATUS_OPTIONS_DEFAULT;
 ```
-
-Para a imagem unica (quando so tem 1 imagem e a area de thumbnails nao aparece), adicionar o botao X na area principal da imagem.
 
 ## Arquivos alterados
 
-- `src/hooks/usePosts.ts` — novo hook `useDeletePostImage`
-- `src/components/schedule/PostDetails.tsx` — botao X nos thumbnails + importacoes
-- `src/components/schedule/GroupPostDetails.tsx` — mesma logica
+- Migracao SQL (novo enum values)
+- `src/components/schedule/PostStatusBadge.tsx`
+- `src/components/schedule/PostStatusDropdown.tsx`
+- `src/components/schedule/PostDetails.tsx`
+- `src/components/schedule/GroupPostDetails.tsx`
+- `src/components/schedule/ScheduleFilters.tsx`
