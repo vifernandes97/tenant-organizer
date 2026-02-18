@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, useTriggerWordPressWebhook, PROJECT_TYPES, useReorderPostImages } from '@/hooks/usePosts';
+import { PostWithImages, useDeletePost, useUpdatePost, useUpdatePostStatus, useTriggerWordPressWebhook, PROJECT_TYPES, useReorderPostImages, useDeletePostImage } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { useClients } from '@/hooks/useClients';
 import { useAllPostComments, type PostCommentWithAuthor } from '@/hooks/useComments';
@@ -18,7 +18,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download } from 'lucide-react';
+import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download, X } from 'lucide-react';
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
@@ -51,6 +51,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const updateStatus = useUpdatePostStatus();
   const triggerWebhook = useTriggerWordPressWebhook();
   const reorderImages = useReorderPostImages();
+  const deleteImage = useDeletePostImage();
   const { data: clients = [] } = useClients();
   
   // Track active channel within the group
@@ -291,10 +292,25 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
                         const showRightBar = dragOverIndex === idx && dragIndex !== null && dragIndex < idx && dragIndex !== idx;
                         return (
-                          <div key={img.id} className="relative flex items-center px-1">
+                          <div key={img.id} className="relative flex items-center px-1 group/thumb">
                             {showLeftBar && (
                               <div className="absolute -left-0.5 top-0 bottom-0 w-[3px] bg-primary rounded-full animate-pulse z-10" />
                             )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updated = localImages.filter(i => i.id !== img.id);
+                                setLocalImages(updated);
+                                if (currentImageIndex >= updated.length) {
+                                  setCurrentImageIndex(Math.max(0, updated.length - 1));
+                                }
+                                deleteImage.mutate(img.id);
+                              }}
+                              className="absolute -top-1 -right-0 z-20 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                             <button
                               draggable
                               onDragStart={() => setDragIndex(idx)}

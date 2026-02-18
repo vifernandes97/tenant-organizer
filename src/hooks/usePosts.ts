@@ -594,6 +594,41 @@ export function useReorderPostImages() {
   });
 }
 
+export function useDeletePostImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (imageId: string) => {
+      // Fetch image path
+      const { data: img, error: fetchErr } = await supabase
+        .from('post_images')
+        .select('image_url')
+        .eq('id', imageId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      // Remove from storage
+      const path = extractStoragePath(img.image_url);
+      await supabase.storage.from('post-images').remove([path]);
+
+      // Delete record
+      const { error } = await supabase
+        .from('post_images')
+        .delete()
+        .eq('id', imageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      toast.success('Imagem excluída!');
+    },
+    onError: () => {
+      toast.error('Erro ao excluir imagem');
+    },
+  });
+}
+
 export function useTriggerWordPressWebhook() {
   const queryClient = useQueryClient();
 
