@@ -1,90 +1,46 @@
 
-# Status diferenciados para publicações WordPress
+# Permitir alterar o nome exibido do post no calendario
 
 ## Resumo
 
-Adicionar dois novos valores ao enum `post_status` no banco (`ai_generated` e `reviewed`) e fazer os componentes de status mostrarem opcoes diferentes conforme o canal:
-
-- **WordPress**: Rascunho, Gerado por IA, Revisado, Aprovado, Publicado
-- **Demais canais**: Rascunho, Aprovado, Agendado, Publicado (sem mudanca)
+Adicionar um campo editavel de titulo no painel de detalhes do post, antes dos outros campos. O titulo e o texto exibido nos cards do calendario. Atualmente ele e gerado automaticamente por IA, mas o usuario podera sobrescreve-lo manualmente.
 
 ## Alteracoes
 
-### 1. Migracao SQL
+### 1. `src/components/schedule/PostDetails.tsx`
 
-Adicionar os novos valores ao enum `post_status`:
+Adicionar um campo `InlineEditable` do tipo `text` para o titulo, logo no inicio da aba de detalhes (antes do campo "Canal"):
 
-```sql
-ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'ai_generated' AFTER 'draft';
-ALTER TYPE public.post_status ADD VALUE IF NOT EXISTS 'reviewed' AFTER 'ai_generated';
+```
+Titulo
+[campo editavel inline com o valor de post.title]
 ```
 
-### 2. `PostStatusBadge.tsx`
+Usara `handleFieldUpdate('title', value)` que ja existe e funciona para qualquer campo.
 
-- Adicionar entradas no `statusConfig` para `ai_generated` (icone Sparkles, cor violeta) e `reviewed` (icone Eye, cor laranja)
+### 2. `src/components/schedule/GroupPostDetails.tsx`
 
-### 3. `PostStatusDropdown.tsx`
+Mesma logica: adicionar campo de titulo editavel no painel de detalhes do post ativo do grupo. O titulo e individual por canal (cada post do grupo pode ter titulo diferente).
 
-- Receber nova prop `channel?: SocialChannel`
-- Adicionar `ai_generated` e `reviewed` ao `statusConfig`
-- Filtrar `STATUS_OPTIONS` com base no canal:
-  - Se `channel === 'wordpress'`: `draft`, `ai_generated`, `reviewed`, `approved`, `published`
-  - Caso contrario: `draft`, `approved`, `scheduled`, `published`
+### 3. `src/components/schedule/PostCard.tsx`
 
-### 4. `PostDetails.tsx` e `GroupPostDetails.tsx`
+Nenhuma alteracao necessaria. O card ja exibe `post.title` e atualizara automaticamente apos a edicao, pois a query e invalidada pelo `useUpdatePost`.
 
-- Passar `channel={post.channel}` (ou `activePost.channel`) para o `PostStatusDropdown`
+## Secao tecnica
 
-### 5. `ScheduleFilters.tsx`
+O campo sera adicionado assim no PostDetails:
 
-- Adicionar `ai_generated` e `reviewed` nas opcoes de filtro de status
-
-## Secao Tecnica
-
-### Novos status no config
-
-```typescript
-ai_generated: {
-  label: 'Gerado por IA',
-  variant: 'outline',
-  className: 'border-violet-500 text-violet-600 bg-violet-50',
-  icon: Sparkles,
-},
-reviewed: {
-  label: 'Revisado',
-  variant: 'outline', 
-  className: 'border-orange-500 text-orange-600 bg-orange-50',
-  icon: Eye,
-},
+```tsx
+<div className="mb-4">
+  <h4 className="mb-1 text-xs font-medium text-muted-foreground">Titulo</h4>
+  <InlineEditable
+    type="text"
+    value={post.title || ''}
+    placeholder="Sem titulo"
+    onSave={(value) => handleFieldUpdate('title', value)}
+    isLoading={savingField === 'title'}
+  />
+</div>
 ```
 
-### Filtragem por canal no dropdown
-
-```typescript
-const STATUS_OPTIONS_WORDPRESS = [
-  { value: 'draft', ... },
-  { value: 'ai_generated', ... },
-  { value: 'reviewed', ... },
-  { value: 'approved', ... },
-  { value: 'published', ... },
-];
-
-const STATUS_OPTIONS_DEFAULT = [
-  { value: 'draft', ... },
-  { value: 'approved', ... },
-  { value: 'scheduled', ... },
-  { value: 'published', ... },
-];
-
-// No componente:
-const options = channel === 'wordpress' ? STATUS_OPTIONS_WORDPRESS : STATUS_OPTIONS_DEFAULT;
-```
-
-## Arquivos alterados
-
-- Migracao SQL (novo enum values)
-- `src/components/schedule/PostStatusBadge.tsx`
-- `src/components/schedule/PostStatusDropdown.tsx`
-- `src/components/schedule/PostDetails.tsx`
-- `src/components/schedule/GroupPostDetails.tsx`
-- `src/components/schedule/ScheduleFilters.tsx`
+Sera inserido logo acima do campo "Canal" na aba de detalhes.
