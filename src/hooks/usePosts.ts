@@ -130,7 +130,8 @@ export function usePosts(filters?: PostFilters) {
           clients (name)
         `)
         .eq('tenant_id', profile.tenant_id)
-        .order('scheduled_at', { ascending: true });
+        .order('scheduled_at', { ascending: true })
+        .order('display_order', { ascending: true, referencedTable: 'post_images' });
 
       if (filters?.month) {
         const startOfMonth = new Date(filters.month.getFullYear(), filters.month.getMonth(), 1);
@@ -204,6 +205,7 @@ export function usePost(id: string | null) {
           clients (name)
         `)
         .eq('id', id)
+        .order('display_order', { ascending: true, referencedTable: 'post_images' })
         .single();
 
       if (error) throw error;
