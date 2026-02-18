@@ -61,24 +61,8 @@ export function useTeamMembers() {
 
   const removeMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
-
-      // Remover role do usuário
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', memberId)
-        .eq('tenant_id', profile.tenant_id);
-
-      if (roleError) throw roleError;
-
-      // Remover tenant_id do profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ tenant_id: null })
-        .eq('id', memberId);
-
-      if (profileError) throw profileError;
+      const { error } = await supabase.rpc('remove_team_member', { _member_id: memberId });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
