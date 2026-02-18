@@ -276,6 +276,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                     status={post.status} 
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
+                    channel={post.channel}
                   />
                   <span className="text-xs text-muted-foreground">
                     {post.clients?.name}

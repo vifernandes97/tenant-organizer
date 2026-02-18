@@ -496,7 +496,13 @@ export type Database = {
       client_status: "active" | "paused"
       comment_status: "open" | "resolved"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
-      post_status: "draft" | "approved" | "scheduled" | "published"
+      post_status:
+        | "draft"
+        | "ai_generated"
+        | "reviewed"
+        | "approved"
+        | "scheduled"
+        | "published"
       project_type:
         | "ete"
         | "eta"
@@ -645,7 +651,14 @@ export const Constants = {
       client_status: ["active", "paused"],
       comment_status: ["open", "resolved"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
-      post_status: ["draft", "approved", "scheduled", "published"],
+      post_status: [
+        "draft",
+        "ai_generated",
+        "reviewed",
+        "approved",
+        "scheduled",
+        "published",
+      ],
       project_type: [
         "ete",
         "eta",
