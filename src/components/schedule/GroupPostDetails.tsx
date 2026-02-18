@@ -18,7 +18,8 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download } from 'lucide-react';
+import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -59,6 +60,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Get the current post based on active channel
   const activePost = useMemo(() => {
@@ -581,6 +583,33 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                       <Button variant="outline" size="icon" title="Copiar">
                         <Copy className="h-4 w-4" />
                       </Button>
+                      {images.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Baixar arquivos"
+                          disabled={isDownloading}
+                          onClick={async () => {
+                            setIsDownloading(true);
+                            try {
+                              const files = images.map((img, i) => ({
+                                url: img.image_url,
+                                name: getFileNameFromUrl(img.image_url, i),
+                              }));
+                              const zipName = buildZipName(
+                                activePost.clients?.name || 'post',
+                                scheduledDate,
+                                activePost.channel
+                              );
+                              await downloadPostFilesAsZip(files, zipName);
+                            } finally {
+                              setIsDownloading(false);
+                            }
+                          }}
+                        >
+                          {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="icon" title="Excluir">
