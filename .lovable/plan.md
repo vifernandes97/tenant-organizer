@@ -1,43 +1,70 @@
 
 
-# Corrigir erro ao atualizar titulo do post
+# Regras automaticas de status dos posts
 
-## Problema
+## 1. Scheduled -> Published (automatico por data)
 
-O erro `PGRST116: The result contains 0 rows` ocorre porque a funcao `useUpdatePost` no arquivo `src/hooks/usePosts.ts` nao mapeia o campo `title` para o objeto de update enviado ao banco.
+Quando um post esta com status "scheduled" e a data/hora agendada (`scheduled_at`) ja passou, o status deve mudar automaticamente para "published".
 
-Na linha 369-374, apenas estes campos sao copiados:
-- `client_id`
-- `channel`
-- `scheduled_at`
-- `caption`
-- `status`
+### Implementacao
 
-Quando `handleSharedFieldUpdate('title', value)` e chamado, o `postUpdate` fica vazio `{}`, o update nao altera nenhuma linha, e o `.single()` falha por retornar 0 linhas.
+Criar uma edge function `auto-publish` que:
+- Busca todos os posts com `status = 'scheduled'` e `scheduled_at <= now()`
+- Atualiza o status para `'published'`
 
-## Solucao
+Configurar um cron job via `pg_cron` + `pg_net` para executar essa function a cada minuto.
 
-Adicionar o mapeamento do campo `title` no `useUpdatePost` em `src/hooks/usePosts.ts`, logo apos os outros campos:
+### Arquivos
 
-```typescript
-if (post.title !== undefined) postUpdate.title = post.title || null;
-```
+- **Novo:** `supabase/functions/auto-publish/index.ts` - Edge function que faz o update
+- **SQL (insert tool):** Criar cron job que chama a function a cada minuto
+
+## 2. Gerar Conteudo -> Status "Gerado por IA"
+
+Quando o usuario clica em "Gerar Conteudo" no painel WordPress, apos o conteudo ser gerado com sucesso, o status do post deve mudar automaticamente para `ai_generated`.
+
+### Implementacao
+
+Alterar a edge function `wordpress-webhook/index.ts` para sempre incluir `status: 'ai_generated'` no update do post apos o webhook retornar com sucesso (substituindo a logica atual que so atualiza status se o n8n retornar um status especifico).
+
+### Arquivos
+
+- **Editar:** `supabase/functions/wordpress-webhook/index.ts` - Forcar `updateFields.status = 'ai_generated'` apos sucesso
 
 ## Secao tecnica
 
-### Arquivo: `src/hooks/usePosts.ts`
-
-Adicionar na linha ~375 (apos `if (post.status)`):
+### Edge function `auto-publish`
 
 ```typescript
-if (post.title !== undefined) postUpdate.title = post.title || null;
+// Busca posts scheduled com data passada e atualiza para published
+const { data, error } = await supabase
+  .from('posts')
+  .update({ status: 'published' })
+  .eq('status', 'scheduled')
+  .lte('scheduled_at', new Date().toISOString());
 ```
 
-Tambem sera necessario garantir que `PostEditFormData` (ou `Partial<PostEditFormData>`) inclua `title`. Verificar o schema Zod usado.
+Usa `SUPABASE_SERVICE_ROLE_KEY` para bypass de RLS.
 
-Alem disso, quando o titulo e editado manualmente, NAO deve ser sobrescrito pela geracao automatica de titulo por IA (que ocorre quando `caption` muda). O campo `title` manual deve ter prioridade.
+### Cron job (via insert tool)
 
-### Arquivos alterados
+```sql
+select cron.schedule(
+  'auto-publish-posts',
+  '* * * * *',
+  $$ select net.http_post(
+    url:='https://<project>.supabase.co/functions/v1/auto-publish',
+    headers:='{"Authorization": "Bearer <anon_key>"}'::jsonb,
+    body:='{}'::jsonb
+  ) as request_id; $$
+);
+```
 
-- `src/hooks/usePosts.ts` - adicionar mapeamento de `title` no `postUpdate`
+### WordPress webhook - mudanca de status
 
+Na funcao `wordpress-webhook/index.ts`, linha ~186-189, remover a condicional de status do n8n e forcar:
+
+```typescript
+// Sempre definir status como ai_generated apos geracao bem-sucedida
+updateFields.status = 'ai_generated';
+```
