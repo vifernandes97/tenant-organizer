@@ -22,22 +22,26 @@ export default function Settings() {
         {isOwner && <InviteDialog />}
       </div>
 
-      <Tabs defaultValue="team" className="space-y-6">
+      <Tabs defaultValue={isOwner ? "team" : "organization"} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="team" className="gap-2">
-            <Users className="h-4 w-4" />
-            Equipe
-          </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="team" className="gap-2">
+              <Users className="h-4 w-4" />
+              Equipe
+            </TabsTrigger>
+          )}
           <TabsTrigger value="organization" className="gap-2">
             <Building2 className="h-4 w-4" />
             Organização
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="team" className="space-y-6">
-          {isOwner && <PendingInvites />}
-          <TeamList />
-        </TabsContent>
+        {isOwner && (
+          <TabsContent value="team" className="space-y-6">
+            <PendingInvites />
+            <TeamList />
+          </TabsContent>
+        )}
 
         <TabsContent value="organization" className="space-y-6">
           <Card>
