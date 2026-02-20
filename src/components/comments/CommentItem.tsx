@@ -7,7 +7,7 @@ import { useResolveComment, useDeleteComment, useUpdateComment, type PostComment
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, RotateCcw, Trash2, Image as ImageIcon, Pencil, X, Save } from 'lucide-react';
+import { Check, RotateCcw, Trash2, Image as ImageIcon, Pencil, X, Save, Copy, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CommentItemProps {
@@ -32,6 +32,7 @@ export function CommentItem({
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
+  const [copied, setCopied] = useState(false);
 
   const isOwn = user?.id === comment.author_id;
   const isOwner = userRole?.role === 'owner';
@@ -66,6 +67,13 @@ export function CommentItem({
     e.stopPropagation();
     setEditContent(comment.content);
     setIsEditing(false);
+  };
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(comment.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const getInitials = (name: string | null) => {
@@ -177,6 +185,24 @@ export function CommentItem({
       {/* Actions - show on hover */}
       {!isEditing && (
         <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <>
+                <CheckCheck className="mr-1 h-3 w-3 text-green-500" />
+                Copiado
+              </>
+            ) : (
+              <>
+                <Copy className="mr-1 h-3 w-3" />
+                Copiar
+              </>
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
