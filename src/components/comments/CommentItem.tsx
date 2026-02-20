@@ -150,7 +150,7 @@ export function CommentItem({
               }}
             />
           ) : (
-            <p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
+            <p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
               {comment.content}
             </p>
           )}
