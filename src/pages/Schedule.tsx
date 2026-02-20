@@ -255,6 +255,7 @@ export default function Schedule() {
 
       {/* Group Post Details Modal */}
       <GroupPostDetails
+        key={selectedGroup?.groupId || 'empty'}
         group={selectedGroup}
         open={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}

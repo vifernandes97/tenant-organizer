@@ -76,17 +76,18 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
 
   const { data: comments = [] } = useAllPostComments(activePost?.id || null);
 
-  // Set initial active channel when group changes
-  useMemo(() => {
+  // Reset all local state when group changes
+  useEffect(() => {
     if (group && group.posts.length > 0) {
       setActiveChannel(group.posts[0].channel);
       setCurrentImageIndex(0);
+      setActiveTab('details');
+      setActiveCommentId(null);
+      setLocalImages(group.posts[0].post_images || []);
+      setDragIndex(null);
+      setDragOverIndex(null);
     }
   }, [group?.groupId]);
-
-  useEffect(() => {
-    setLocalImages(activePost?.post_images || []);
-  }, [activePost?.post_images]);
 
   if (!group || !activePost) return null;
 
