@@ -1,45 +1,70 @@
 
-# Permitir edição de comentários
+# Corrigir dados desatualizados no modal ao trocar de post
 
-## O que será feito
+## Causa Raiz
 
-Adicionar a funcionalidade de editar o conteúdo de um comentário diretamente no `CommentItem`. O hook `useUpdateComment` já existe em `useComments.ts` e o banco já permite a operação via RLS.
+O componente `GroupPostDetails` fica sempre montado no DOM. Quando o usuário fecha um modal e abre outro post, o React recebe:
+1. `group` → novo grupo
+2. `open` → true
 
-## Comportamento esperado
+Mas os estados locais (`currentImageIndex`, `activeTab`, `activeCommentId`, `localImages`, `activeChannel`) ainda guardam os valores do post anterior. O `useMemo` que tenta resetar o `activeChannel` não é garantido de rodar de forma síncrona e não reseta os outros estados.
 
-- Apenas o autor do comentário ou o owner poderão ver o botão "Editar"
-- Ao clicar em "Editar", o texto do comentário vira um campo de texto editável (textarea inline)
-- Aparecem botões "Salvar" e "Cancelar"
-- Ao salvar, chama `useUpdateComment` e exibe toast de sucesso
-- Ao cancelar, volta ao texto original sem salvar
+A solução é mover o reset para um `useEffect` que observa `group?.groupId`, garantindo que todos os estados sejam zerados quando o grupo mudar.
 
-## Arquivo alterado
+## Solução
 
-### `src/components/comments/CommentItem.tsx`
+### `src/components/schedule/GroupPostDetails.tsx`
 
-1. Importar `useUpdateComment` e `useState` do React
-2. Adicionar estado `isEditing` e `editContent`
-3. No bloco de ações (hover), adicionar botão "Editar" visível apenas para `canModify`
-4. Renderizar condicionalmente: quando `isEditing` for `true`, exibir um `<textarea>` com o conteúdo atual + botões "Salvar" / "Cancelar" em vez do texto normal
-5. Ao salvar, chamar `updateComment.mutate({ id: comment.id, content: editContent })`
+Substituir o `useMemo` que faz reset (linhas 80-85) por um `useEffect` que reseta **todos** os estados locais quando o `groupId` muda:
 
-## Seção técnica
-
-### Fluxo de estado
-
-```text
-isEditing = false  →  exibe texto + botão "Editar" no hover
-isEditing = true   →  exibe <textarea> + botões "Salvar" e "Cancelar"
+```typescript
+useEffect(() => {
+  if (group && group.posts.length > 0) {
+    setActiveChannel(group.posts[0].channel);
+    setCurrentImageIndex(0);
+    setActiveTab('details');
+    setActiveCommentId(null);
+    setLocalImages(group.posts[0].post_images || []);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }
+}, [group?.groupId]);
 ```
 
-### Permissões (já implementadas no banco)
+Isso garante que, ao receber um novo `groupId`, o modal limpa imediatamente todos os estados antes de renderizar o conteúdo do novo post.
 
-RLS `Users can update own comments`:
-- `author_id = auth.uid()` → autor pode editar
-- `has_role(auth.uid(), 'owner')` → owner pode editar
+## Seção Técnica
 
-No frontend, o botão "Editar" usa a mesma variável `canModify` já existente no componente.
+### Por que `useMemo` não resolve
 
-### Nenhuma alteração de banco necessária
+`useMemo` é uma otimização de performance, não uma garantia de efeito colateral. O React pode ignorar o cache do `useMemo` e recomputar em qualquer momento — mas o problema principal é que `useMemo` **não deve** ser usado para disparar `setState`, pois isso cria renders inconsistentes.
 
-O hook `useUpdateComment` e as políticas RLS já estão prontos.
+### Por que `useEffect` resolve
+
+`useEffect` roda **após** o commit do render. Ao mudar o `group?.groupId`:
+1. React renderiza com o novo `group` mas estados ainda antigos
+2. `useEffect` dispara e reseta todos os estados
+3. React re-renderiza com os estados corretos
+
+O flash visual é mínimo (um frame), mas é muito menos perceptível do que a situação atual onde dados antigos ficam visíveis por vários segundos enquanto carregam os novos.
+
+### Alternativa mais robusta (também implementada)
+
+Adicionar uma `key` no componente a partir do `Schedule.tsx`:
+
+```tsx
+<GroupPostDetails
+  key={selectedGroup?.groupId || 'empty'}
+  group={selectedGroup}
+  open={isDetailsOpen}
+  onOpenChange={setIsDetailsOpen}
+  onEdit={handleEditPost}
+/>
+```
+
+Isso força o React a **desmontar e remontar** o componente quando o `groupId` muda, resetando absolutamente todos os estados e hooks de uma vez. Esta é a abordagem mais segura e definitiva.
+
+## Arquivos alterados
+
+- `src/pages/Schedule.tsx` — adicionar `key={selectedGroup?.groupId || 'empty'}` no `<GroupPostDetails>`
+- `src/components/schedule/GroupPostDetails.tsx` — substituir o `useMemo` de reset por `useEffect` que reseta todos os estados
