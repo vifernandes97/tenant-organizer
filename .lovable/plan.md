@@ -1,26 +1,26 @@
 
-# Exibir o texto completo do comentário
+
+# Aumentar limite de caracteres da legenda para 5000
 
 ## Problema
 
-No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
+Atualmente o campo de legenda do post tem um limite de 2200 caracteres, definido em vários arquivos como valor padrão e como prop explícita.
 
 ## Solução
 
-Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
+Alterar o `maxLength` de `2200` para `5000` em todos os locais relevantes:
 
-## Arquivo alterado
+### Valores padrão dos componentes (3 arquivos)
 
-### `src/components/comments/CommentItem.tsx` — linha 153
+1. **`src/components/ui/expandable-textarea.tsx`** (linha 25): `maxLength = 2200` → `maxLength = 5000`
+2. **`src/components/ui/rich-text-editor.tsx`** (linha 45): `maxLength = 2200` → `maxLength = 5000`
+3. **`src/components/ui/inline-rich-text-editor.tsx`** (linha 60): `maxLength = 2200` → `maxLength = 5000`
 
-**Antes:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-```
+### Props explícitas nos formulários (3 arquivos)
 
-**Depois:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
-```
+4. **`src/components/schedule/PostForm.tsx`** (linha 424): `maxLength={2200}` → `maxLength={5000}`
+5. **`src/components/schedule/PostDetails.tsx`** (linha 508): `maxLength={2200}` → `maxLength={5000}`
+6. **`src/components/schedule/GroupPostDetails.tsx`** (linha 751): `maxLength={2200}` → `maxLength={5000}`
 
-Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
+Nenhuma alteração de banco de dados necessária — a coluna `caption` já é do tipo `text` sem limite de tamanho.
+
