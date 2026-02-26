@@ -421,7 +421,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                             onChange={field.onChange}
                             placeholder="Escreva a legenda do post..."
                             className="min-h-[120px] resize-none"
-                            maxLength={2200}
+                            maxLength={5000}
                             dialogTitle="Editor de Legenda"
                           />
                         </FormControl>
