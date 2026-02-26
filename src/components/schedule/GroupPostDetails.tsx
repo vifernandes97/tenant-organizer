@@ -748,7 +748,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
               value={activePost.caption || ''}
               onChange={(value) => handleFieldUpdate('caption', value)}
               placeholder="Digite a legenda..."
-              maxLength={2200}
+              maxLength={5000}
               className="h-full"
               maxHeight="calc(85vh - 180px)"
             />
