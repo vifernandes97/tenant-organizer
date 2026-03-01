@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useBrainstormIdeas, BrainstormIdea } from '@/hooks/useBrainstormIdeas';
+import { useBrainstormIdeas, BrainstormIdea, BrainstormIdeaStatus } from '@/hooks/useBrainstormIdeas';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -19,12 +20,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Lightbulb, Plus, MoreVertical, Pencil, Trash2, Loader2 } from 'lucide-react';
 
+const STATUS_CONFIG: Record<BrainstormIdeaStatus, { label: string; className: string }> = {
+  nova: { label: 'Nova', className: 'bg-secondary text-secondary-foreground hover:bg-secondary/80' },
+  dar_sequencia: { label: 'Dar sequência', className: 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400' },
+  reformular: { label: 'Reformular', className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  abandonar: { label: 'Abandonar', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
+};
+
+const FILTER_OPTIONS: { value: 'all' | BrainstormIdeaStatus; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'nova', label: 'Nova' },
+  { value: 'dar_sequencia', label: 'Dar sequência' },
+  { value: 'reformular', label: 'Reformular' },
+  { value: 'abandonar', label: 'Abandonar' },
+];
+
 export default function Brainstorm() {
-  const { ideas, isLoading, createIdea, updateIdea, deleteIdea } = useBrainstormIdeas();
+  const { ideas, isLoading, createIdea, updateIdea, updateIdeaStatus, deleteIdea } = useBrainstormIdeas();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<BrainstormIdea | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | BrainstormIdeaStatus>('all');
+
+  const filteredIdeas = statusFilter === 'all' ? ideas : ideas.filter((i) => i.status === statusFilter);
 
   const openNew = () => {
     setEditingIdea(null);
@@ -54,6 +73,10 @@ export default function Brainstorm() {
     await deleteIdea.mutateAsync(id);
   };
 
+  const handleStatusChange = (id: string, status: BrainstormIdeaStatus) => {
+    updateIdeaStatus.mutate({ id, status });
+  };
+
   const isSaving = createIdea.isPending || updateIdea.isPending;
 
   return (
@@ -69,24 +92,62 @@ export default function Brainstorm() {
         </Button>
       </div>
 
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-2">
+        {FILTER_OPTIONS.map((opt) => (
+          <Button
+            key={opt.value}
+            variant={statusFilter === opt.value ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter(opt.value)}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : ideas.length === 0 ? (
+      ) : filteredIdeas.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Lightbulb className="h-12 w-12 text-muted-foreground/40 mb-4" />
-          <p className="text-muted-foreground">Nenhuma ideia ainda.</p>
-          <p className="text-sm text-muted-foreground/70">Clique em "Nova ideia" para começar.</p>
+          <p className="text-muted-foreground">Nenhuma ideia encontrada.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ideas.map((idea) => (
+          {filteredIdeas.map((idea) => (
             <Card key={idea.id} className="group relative">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-semibold leading-snug pr-8">
-                  {idea.title}
-                </CardTitle>
+                <div className="space-y-2 pr-8">
+                  <CardTitle className="text-base font-semibold leading-snug">
+                    {idea.title}
+                  </CardTitle>
+                  {/* Status badge dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="focus:outline-none">
+                        <Badge
+                          className={`cursor-pointer border-0 ${STATUS_CONFIG[idea.status].className}`}
+                        >
+                          {STATUS_CONFIG[idea.status].label}
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {(Object.keys(STATUS_CONFIG) as BrainstormIdeaStatus[]).map((s) => (
+                        <DropdownMenuItem
+                          key={s}
+                          onClick={() => handleStatusChange(idea.id, s)}
+                          className={idea.status === s ? 'font-semibold' : ''}
+                        >
+                          {STATUS_CONFIG[s].label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
