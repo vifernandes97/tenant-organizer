@@ -1,33 +1,26 @@
 
+# Exibir o texto completo do comentário
 
-# Nova rota de Brainstorm
+## Problema
 
-## Banco de dados
+No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
 
-Criar tabela `brainstorm_ideas` com:
-- `id` (uuid, PK)
-- `tenant_id` (uuid, FK para tenants)
-- `title` (text, obrigatório)
-- `description` (text, nullable)
-- `created_by` (uuid, referência ao user)
-- `created_at` (timestamptz)
-- `updated_at` (timestamptz)
+## Solução
 
-RLS: usuários só acessam ideias do próprio tenant.
+Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
 
-## Frontend
+## Arquivo alterado
 
-### 1. Página `src/pages/Brainstorm.tsx`
-- Lista de ideias em cards
-- Botão "Nova ideia" que abre dialog com campos título e descrição
-- Editar/excluir ideias existentes
+### `src/components/comments/CommentItem.tsx` — linha 153
 
-### 2. Hook `src/hooks/useBrainstormIdeas.ts`
-- CRUD usando supabase client + react-query
+**Antes:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
+```
 
-### 3. Rota em `src/App.tsx`
-- Adicionar rota `/brainstorm` com ProtectedRoute + AppLayout
+**Depois:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
+```
 
-### 4. Menu lateral em `src/components/layout/AppLayout.tsx`
-- Adicionar item "Brainstorm" com ícone `Lightbulb` no navItems (visível para todos)
-
+Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.

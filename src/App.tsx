@@ -14,6 +14,7 @@ import Clients from "./pages/Clients";
 import Schedule from "./pages/Schedule";
 import Settings from "./pages/Settings";
 import AcceptInvite from "./pages/AcceptInvite";
+import Brainstorm from "./pages/Brainstorm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,16 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <Settings />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/brainstorm"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Brainstorm />
                   </AppLayout>
                 </ProtectedRoute>
               }

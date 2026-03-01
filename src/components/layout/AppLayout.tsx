@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
+  Lightbulb,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ function AppSidebar() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ...(isOwner ? [{ href: '/clientes', label: 'Clientes', icon: Users }] : []),
     { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
+    { href: '/brainstorm', label: 'Brainstorm', icon: Lightbulb },
     { href: '/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
@@ -162,6 +164,7 @@ function AppHeader() {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cronogramas', label: 'Cronogramas' },
+    { href: '/brainstorm', label: 'Brainstorm' },
     { href: '/configuracoes', label: 'Configurações' },
   ];
   const location = useLocation();
