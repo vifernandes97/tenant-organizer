@@ -1,26 +1,26 @@
 
-# Exibir o texto completo do comentário
 
-## Problema
+# Adicionar status às ideias do Brainstorm
 
-No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
+## Banco de dados
 
-## Solução
+1. Criar enum `brainstorm_idea_status` com valores: `nova`, `dar_sequencia`, `reformular`, `abandonar`
+2. Adicionar coluna `status` na tabela `brainstorm_ideas` com default `nova`
 
-Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
+## Frontend
 
-## Arquivo alterado
+### `src/hooks/useBrainstormIdeas.ts`
+- Atualizar interface `BrainstormIdea` com campo `status`
+- Adicionar mutation `updateIdeaStatus` para alterar só o status
 
-### `src/components/comments/CommentItem.tsx` — linha 153
+### `src/pages/Brainstorm.tsx`
+- Em cada card, exibir badge clicável com o status atual (dropdown para trocar)
+- Adicionar filtro por status no topo da página (botões/tabs: Todas, Nova, Dar sequência, Reformular, Abandonar)
+- Filtrar a lista localmente com base no status selecionado
 
-**Antes:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-```
+### Cores dos badges
+- **Nova** — cinza/secondary
+- **Dar sequência** — verde
+- **Reformular** — amarelo
+- **Abandonar** — vermelho/destructive
 
-**Depois:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
-```
-
-Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
