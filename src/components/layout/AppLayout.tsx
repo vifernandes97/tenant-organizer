@@ -164,6 +164,7 @@ function AppHeader() {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/clientes', label: 'Clientes' },
     { href: '/cronogramas', label: 'Cronogramas' },
+    { href: '/brainstorm', label: 'Brainstorm' },
     { href: '/configuracoes', label: 'Configurações' },
   ];
   const location = useLocation();
