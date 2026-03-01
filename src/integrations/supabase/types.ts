@@ -20,6 +20,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          status: Database["public"]["Enums"]["brainstorm_idea_status"]
           tenant_id: string
           title: string
           updated_at: string
@@ -29,6 +30,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          status?: Database["public"]["Enums"]["brainstorm_idea_status"]
           tenant_id: string
           title: string
           updated_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          status?: Database["public"]["Enums"]["brainstorm_idea_status"]
           tenant_id?: string
           title?: string
           updated_at?: string
@@ -531,6 +534,11 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "member"
+      brainstorm_idea_status:
+        | "nova"
+        | "dar_sequencia"
+        | "reformular"
+        | "abandonar"
       client_status: "active" | "paused"
       comment_status: "open" | "resolved"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
@@ -686,6 +694,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "member"],
+      brainstorm_idea_status: [
+        "nova",
+        "dar_sequencia",
+        "reformular",
+        "abandonar",
+      ],
       client_status: ["active", "paused"],
       comment_status: ["open", "resolved"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],

@@ -3,11 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+export type BrainstormIdeaStatus = 'nova' | 'dar_sequencia' | 'reformular' | 'abandonar';
+
 export interface BrainstormIdea {
   id: string;
   tenant_id: string;
   title: string;
   description: string | null;
+  status: BrainstormIdeaStatus;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -71,6 +74,21 @@ export function useBrainstormIdeas() {
     onError: () => toast.error('Erro ao atualizar ideia'),
   });
 
+  const updateIdeaStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: BrainstormIdeaStatus }) => {
+      const { error } = await supabase
+        .from('brainstorm_ideas')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['brainstorm-ideas'] });
+    },
+    onError: () => toast.error('Erro ao atualizar status'),
+  });
+
   const deleteIdea = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -92,6 +110,7 @@ export function useBrainstormIdeas() {
     isLoading: ideasQuery.isLoading,
     createIdea,
     updateIdea,
+    updateIdeaStatus,
     deleteIdea,
   };
 }
