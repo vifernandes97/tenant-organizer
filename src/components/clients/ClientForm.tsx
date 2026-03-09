@@ -104,6 +104,15 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         important_links: (client.important_links as { label: string; url: string }[]) || [],
         notes: client.notes || "",
       });
+      // Load existing custom statuses
+      setCustomStatuses(existingStatuses.map(s => ({
+        name: s.name,
+        slug: s.slug,
+        color: s.color,
+        icon: s.icon,
+        display_order: s.display_order,
+        is_final: s.is_final,
+      })));
     } else {
       form.reset({
         name: "",
