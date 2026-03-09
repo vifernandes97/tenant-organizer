@@ -30,6 +30,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Loader2, Link as LinkIcon } from "lucide-react";
 import { clientSchema, ClientFormData, useCreateClient, useUpdateClient } from "@/hooks/useClients";
+import { useClientPostStatuses, useBulkUpsertClientPostStatuses, DEFAULT_POST_STATUSES, type ClientPostStatusInsert } from "@/hooks/useClientPostStatuses";
+import { ClientStatusConfig } from "./ClientStatusConfig";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -61,6 +63,10 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
   const [tagInput, setTagInput] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [customStatuses, setCustomStatuses] = useState<Omit<ClientPostStatusInsert, 'client_id' | 'tenant_id'>[]>([]);
+
+  const { data: existingStatuses = [] } = useClientPostStatuses(client?.id);
+  const bulkUpsertStatuses = useBulkUpsertClientPostStatuses();
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -98,6 +104,15 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         important_links: (client.important_links as { label: string; url: string }[]) || [],
         notes: client.notes || "",
       });
+      // Load existing custom statuses
+      setCustomStatuses(existingStatuses.map(s => ({
+        name: s.name,
+        slug: s.slug,
+        color: s.color,
+        icon: s.icon,
+        display_order: s.display_order,
+        is_final: s.is_final,
+      })));
     } else {
       form.reset({
         name: "",
@@ -115,14 +130,20 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         notes: "",
       });
     }
-  }, [client, form]);
+  }, [client, form, existingStatuses]);
 
   const onSubmit = async (data: ClientFormData) => {
     try {
       if (isEditing && client) {
         await updateClient.mutateAsync({ id: client.id, data });
+        // Save custom statuses
+        await bulkUpsertStatuses.mutateAsync({ clientId: client.id, statuses: customStatuses });
       } else {
-        await createClient.mutateAsync(data);
+        const newClient = await createClient.mutateAsync(data);
+        // Save custom statuses for new client
+        if (customStatuses.length > 0) {
+          await bulkUpsertStatuses.mutateAsync({ clientId: newClient.id, statuses: customStatuses });
+        }
       }
       onOpenChange(false);
     } catch (error) {
@@ -176,11 +197,12 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="basic">Dados</TabsTrigger>
                 <TabsTrigger value="contact">Contato</TabsTrigger>
                 <TabsTrigger value="marketing">Marketing</TabsTrigger>
                 <TabsTrigger value="links">Links</TabsTrigger>
+                <TabsTrigger value="statuses">Status</TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4 mt-4">
@@ -504,6 +526,13 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+              </TabsContent>
+
+              <TabsContent value="statuses" className="space-y-4 mt-4">
+                <ClientStatusConfig
+                  statuses={customStatuses}
+                  onChange={setCustomStatuses}
                 />
               </TabsContent>
             </Tabs>

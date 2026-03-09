@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +48,7 @@ interface GroupPostDetailsProps {
 }
 
 export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPostDetailsProps) {
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
@@ -132,7 +135,13 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     onOpenChange(false);
   };
 
-  const handleStatusChange = async (status: PostStatus) => {
+  const handleStatusChange = async (status: PostStatus, customStatusId?: string) => {
+    if (customStatusId !== undefined) {
+      await supabase.from('posts').update({ custom_status_id: customStatusId, status }).eq('id', activePost.id);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      return;
+    }
     await updateStatus.mutateAsync({ id: activePost.id, status });
   };
 
@@ -384,9 +393,11 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                 <div className="flex items-center justify-between mb-2">
                   <PostStatusDropdown 
                     status={activePost.status} 
+                    customStatusId={(activePost as any).custom_status_id}
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
                     channel={activePost.channel}
+                    clientId={activePost.client_id}
                   />
                   <span className="text-xs text-muted-foreground">
                     {activePost.clients?.name}

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -43,6 +45,7 @@ interface PostDetailsProps {
 }
 
 export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsProps) {
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
@@ -77,7 +80,14 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
     onOpenChange(false);
   };
 
-  const handleStatusChange = async (status: PostStatus) => {
+  const handleStatusChange = async (status: PostStatus, customStatusId?: string) => {
+    const updateData: Record<string, any> = { id: post.id, status };
+    if (customStatusId !== undefined) {
+      await supabase.from('posts').update({ custom_status_id: customStatusId, status }).eq('id', post.id);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      return;
+    }
     await updateStatus.mutateAsync({ id: post.id, status });
   };
 
@@ -274,9 +284,11 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                 <div className="flex items-center justify-between">
                   <PostStatusDropdown 
                     status={post.status} 
+                    customStatusId={(post as any).custom_status_id}
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
                     channel={post.channel}
+                    clientId={post.client_id}
                   />
                   <span className="text-xs text-muted-foreground">
                     {post.clients?.name}

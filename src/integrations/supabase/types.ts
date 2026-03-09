@@ -55,6 +55,60 @@ export type Database = {
           },
         ]
       }
+      client_post_statuses: {
+        Row: {
+          client_id: string
+          color: string
+          created_at: string
+          display_order: number
+          icon: string
+          id: string
+          is_final: boolean
+          name: string
+          slug: string
+          tenant_id: string
+        }
+        Insert: {
+          client_id: string
+          color?: string
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_final?: boolean
+          name: string
+          slug: string
+          tenant_id: string
+        }
+        Update: {
+          client_id?: string
+          color?: string
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_final?: boolean
+          name?: string
+          slug?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_post_statuses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_post_statuses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           channels: Database["public"]["Enums"]["social_channel"][] | null
@@ -309,6 +363,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at: string
+          custom_status_id: string | null
           group_id: string | null
           id: string
           project_type: Database["public"]["Enums"]["project_type"] | null
@@ -326,6 +381,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           created_at?: string
+          custom_status_id?: string | null
           group_id?: string | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"] | null
@@ -343,6 +399,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["social_channel"]
           client_id?: string
           created_at?: string
+          custom_status_id?: string | null
           group_id?: string | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"] | null
@@ -359,6 +416,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_custom_status_id_fkey"
+            columns: ["custom_status_id"]
+            isOneToOne: false
+            referencedRelation: "client_post_statuses"
             referencedColumns: ["id"]
           },
           {

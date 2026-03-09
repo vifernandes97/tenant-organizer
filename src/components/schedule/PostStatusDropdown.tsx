@@ -5,8 +5,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Check, Clock, CheckCircle, ChevronDown, Loader2, Sparkles, Eye } from 'lucide-react';
+import { FileText, Check, Clock, CheckCircle, ChevronDown, Loader2, Sparkles, Eye, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useClientPostStatuses, type ClientPostStatus } from '@/hooks/useClientPostStatuses';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -14,10 +15,22 @@ type SocialChannel = Database['public']['Enums']['social_channel'];
 
 interface PostStatusDropdownProps {
   status: PostStatus;
-  onStatusChange: (status: PostStatus) => void;
+  customStatusId?: string | null;
+  onStatusChange: (status: PostStatus, customStatusId?: string) => void;
   isLoading?: boolean;
   channel?: SocialChannel;
+  clientId?: string;
 }
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  'file-text': FileText,
+  'check': Check,
+  'clock': Clock,
+  'check-circle': CheckCircle,
+  'sparkles': Sparkles,
+  'eye': Eye,
+  'circle': Circle,
+};
 
 const statusConfig: Record<PostStatus, { 
   label: string; 
@@ -78,7 +91,70 @@ const STATUS_OPTIONS_DEFAULT: Array<{ value: PostStatus; label: string; icon: Re
   { value: 'published', label: 'Publicado', icon: CheckCircle },
 ];
 
-export function PostStatusDropdown({ status, onStatusChange, isLoading = false, channel }: PostStatusDropdownProps) {
+function getContrastColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+export function PostStatusDropdown({ status, customStatusId, onStatusChange, isLoading = false, channel, clientId }: PostStatusDropdownProps) {
+  const { data: customStatuses = [] } = useClientPostStatuses(clientId);
+  const hasCustomStatuses = customStatuses.length > 0;
+
+  // Find current custom status
+  const currentCustomStatus = hasCustomStatuses
+    ? customStatuses.find(s => s.id === customStatusId) || customStatuses[0]
+    : null;
+
+  if (hasCustomStatuses) {
+    const activeStatus = currentCustomStatus || customStatuses[0];
+    const IconComponent = ICON_MAP[activeStatus.icon] || Circle;
+    const textColor = getContrastColor(activeStatus.color);
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button 
+            className="group inline-flex cursor-pointer items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+            disabled={isLoading}
+          >
+            <Badge 
+              className={cn('pr-1.5 transition-all', !isLoading && 'hover:opacity-80')}
+              style={{ backgroundColor: activeStatus.color, color: textColor, borderColor: activeStatus.color }}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <IconComponent className="mr-1 h-3 w-3" />
+              )}
+              {activeStatus.name}
+              <ChevronDown className="ml-1 h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+            </Badge>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="z-50 bg-popover">
+          {customStatuses.map((cs) => {
+            const OptionIcon = ICON_MAP[cs.icon] || Circle;
+            return (
+              <DropdownMenuItem
+                key={cs.id}
+                onClick={() => onStatusChange('draft', cs.id)}
+                className={cn('cursor-pointer', customStatusId === cs.id && 'bg-accent')}
+              >
+                <span className="mr-2 inline-block h-3 w-3 rounded-full" style={{ backgroundColor: cs.color }} />
+                <OptionIcon className="mr-2 h-4 w-4" />
+                {cs.name}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // Fallback: default system statuses
   const config = statusConfig[status];
   const Icon = config.icon;
 
