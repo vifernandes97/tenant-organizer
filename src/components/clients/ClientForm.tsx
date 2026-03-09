@@ -130,7 +130,7 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         notes: "",
       });
     }
-  }, [client, form]);
+  }, [client, form, existingStatuses]);
 
   const onSubmit = async (data: ClientFormData) => {
     try {
