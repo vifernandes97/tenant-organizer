@@ -528,6 +528,13 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                   )}
                 />
               </TabsContent>
+
+              <TabsContent value="statuses" className="space-y-4 mt-4">
+                <ClientStatusConfig
+                  statuses={customStatuses}
+                  onChange={setCustomStatuses}
+                />
+              </TabsContent>
             </Tabs>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
