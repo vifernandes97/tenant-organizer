@@ -393,9 +393,11 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                 <div className="flex items-center justify-between mb-2">
                   <PostStatusDropdown 
                     status={activePost.status} 
+                    customStatusId={(activePost as any).custom_status_id}
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
                     channel={activePost.channel}
+                    clientId={activePost.client_id}
                   />
                   <span className="text-xs text-muted-foreground">
                     {activePost.clients?.name}
