@@ -77,7 +77,14 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
     onOpenChange(false);
   };
 
-  const handleStatusChange = async (status: PostStatus) => {
+  const handleStatusChange = async (status: PostStatus, customStatusId?: string) => {
+    const updateData: Record<string, any> = { id: post.id, status };
+    if (customStatusId !== undefined) {
+      await supabase.from('posts').update({ custom_status_id: customStatusId, status }).eq('id', post.id);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      return;
+    }
     await updateStatus.mutateAsync({ id: post.id, status });
   };
 
