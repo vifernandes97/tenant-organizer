@@ -1,26 +1,58 @@
 
-# Exibir o texto completo do comentário
 
-## Problema
+# Configuração de status do post por cliente
 
-No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
+## Banco de dados
 
-## Solução
+### Nova tabela `client_post_statuses`
+- `id` (uuid, PK)
+- `client_id` (uuid, FK clients)
+- `tenant_id` (uuid, FK tenants)
+- `name` (text) — nome exibido (ex: "Em revisão")
+- `slug` (text) — identificador interno (ex: "em_revisao")
+- `color` (text) — cor hex (ex: "#f59e0b")
+- `icon` (text) — nome do ícone Lucide (ex: "eye", "check")
+- `display_order` (integer) — ordem de exibição
+- `is_final` (boolean, default false) — indica se é status final (equivalente a "publicado")
+- `created_at` (timestamptz)
 
-Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
+RLS: mesmas regras de `clients` (tenant isolation + client access).
 
-## Arquivo alterado
+### Migração da coluna `posts.status`
+- Adicionar coluna `custom_status_id` (uuid, nullable, FK para `client_post_statuses`) na tabela `posts`
+- Manter `status` (enum) existente para retrocompatibilidade
+- Quando o cliente tem status customizados, usar `custom_status_id`; caso contrário, usar o enum `status` existente
 
-### `src/components/comments/CommentItem.tsx` — linha 153
+### Seed de status padrão
+- Ao criar um cliente, inserir automaticamente os status padrão: Rascunho, Aprovado, Agendado, Publicado (via lógica no frontend ao salvar)
 
-**Antes:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-```
+## Frontend
 
-**Depois:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
-```
+### 1. Hook `src/hooks/useClientPostStatuses.ts`
+- CRUD para status customizados do cliente
+- Query por `client_id`
+- Mutations: criar, atualizar, reordenar, deletar
 
-Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
+### 2. Seção no formulário do cliente (`ClientForm.tsx`)
+- Nova aba "Status" (ou seção dentro de aba existente)
+- Lista ordenável dos status com nome, cor (color picker), e ícone
+- Botão para adicionar novo status
+- Opção de deletar (exceto se houver posts usando aquele status)
+
+### 3. Atualizar `PostStatusDropdown`
+- Receber `clientId` como prop
+- Buscar status customizados do cliente
+- Se o cliente tem status customizados, exibir esses; senão, fallback para os status padrão (comportamento atual)
+- Renderizar badges com cores dinâmicas
+
+### 4. Atualizar `PostDetails` e `GroupPostDetails`
+- Passar `clientId` para o `PostStatusDropdown`
+
+### 5. Atualizar `ScheduleFilters`
+- Quando um cliente está selecionado, mostrar os status daquele cliente no filtro
+
+## Fluxo
+1. Owner cria/edita cliente → configura os status na aba "Status"
+2. Ao criar posts para esse cliente, o dropdown mostra os status customizados
+3. Se nenhum status customizado, mantém comportamento atual com os status fixos
+
