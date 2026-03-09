@@ -136,8 +136,14 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
     try {
       if (isEditing && client) {
         await updateClient.mutateAsync({ id: client.id, data });
+        // Save custom statuses
+        await bulkUpsertStatuses.mutateAsync({ clientId: client.id, statuses: customStatuses });
       } else {
-        await createClient.mutateAsync(data);
+        const newClient = await createClient.mutateAsync(data);
+        // Save custom statuses for new client
+        if (customStatuses.length > 0) {
+          await bulkUpsertStatuses.mutateAsync({ clientId: newClient.id, statuses: customStatuses });
+        }
       }
       onOpenChange(false);
     } catch (error) {
