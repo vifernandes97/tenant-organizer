@@ -135,7 +135,13 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     onOpenChange(false);
   };
 
-  const handleStatusChange = async (status: PostStatus) => {
+  const handleStatusChange = async (status: PostStatus, customStatusId?: string) => {
+    if (customStatusId !== undefined) {
+      await supabase.from('posts').update({ custom_status_id: customStatusId, status }).eq('id', activePost.id);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post'] });
+      return;
+    }
     await updateStatus.mutateAsync({ id: activePost.id, status });
   };
 
