@@ -48,6 +48,7 @@ interface GroupPostDetailsProps {
 }
 
 export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPostDetailsProps) {
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
