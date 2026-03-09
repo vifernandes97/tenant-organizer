@@ -45,6 +45,7 @@ interface PostDetailsProps {
 }
 
 export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsProps) {
+  const queryClient = useQueryClient();
   const deletePost = useDeletePost();
   const updatePost = useUpdatePost();
   const updateStatus = useUpdatePostStatus();
