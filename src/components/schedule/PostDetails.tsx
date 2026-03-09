@@ -284,9 +284,11 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                 <div className="flex items-center justify-between">
                   <PostStatusDropdown 
                     status={post.status} 
+                    customStatusId={(post as any).custom_status_id}
                     onStatusChange={handleStatusChange}
                     isLoading={updateStatus.isPending}
                     channel={post.channel}
+                    clientId={post.client_id}
                   />
                   <span className="text-xs text-muted-foreground">
                     {post.clients?.name}
