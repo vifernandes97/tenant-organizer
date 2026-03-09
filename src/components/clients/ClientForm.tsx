@@ -30,6 +30,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Loader2, Link as LinkIcon } from "lucide-react";
 import { clientSchema, ClientFormData, useCreateClient, useUpdateClient } from "@/hooks/useClients";
+import { useClientPostStatuses, useBulkUpsertClientPostStatuses, DEFAULT_POST_STATUSES, type ClientPostStatusInsert } from "@/hooks/useClientPostStatuses";
+import { ClientStatusConfig } from "./ClientStatusConfig";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
