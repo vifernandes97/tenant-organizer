@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Filter, X } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
+import { useClientPostStatuses } from '@/hooks/useClientPostStatuses';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -20,7 +21,7 @@ interface ScheduleFiltersProps {
   onClear: () => void;
 }
 
-const statusOptions: { value: PostStatus; label: string }[] = [
+const defaultStatusOptions: { value: PostStatus; label: string }[] = [
   { value: 'draft', label: 'Rascunho' },
   { value: 'ai_generated', label: 'Gerado por IA' },
   { value: 'reviewed', label: 'Revisado' },
@@ -51,7 +52,10 @@ export function ScheduleFilters({
   onClear,
 }: ScheduleFiltersProps) {
   const { data: clients = [] } = useClients();
+  const { data: customStatuses = [] } = useClientPostStatuses(clientId);
   const hasFilters = clientId || status.length > 0 || channel.length > 0;
+
+  const hasCustomStatuses = customStatuses.length > 0;
 
   const toggleStatus = (value: PostStatus) => {
     if (status.includes(value)) {
@@ -101,18 +105,27 @@ export function ScheduleFilters({
         </PopoverTrigger>
         <PopoverContent className="w-48" align="start">
           <div className="space-y-2">
-            {statusOptions.map((option) => (
-              <div key={option.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`status-${option.value}`}
-                  checked={status.includes(option.value)}
-                  onCheckedChange={() => toggleStatus(option.value)}
-                />
-                <Label htmlFor={`status-${option.value}`} className="cursor-pointer">
-                  {option.label}
-                </Label>
-              </div>
-            ))}
+            {hasCustomStatuses ? (
+              customStatuses.map((cs) => (
+                <div key={cs.id} className="flex items-center space-x-2">
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: cs.color }} />
+                  <span className="text-sm cursor-pointer">{cs.name}</span>
+                </div>
+              ))
+            ) : (
+              defaultStatusOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`status-${option.value}`}
+                    checked={status.includes(option.value)}
+                    onCheckedChange={() => toggleStatus(option.value)}
+                  />
+                  <Label htmlFor={`status-${option.value}`} className="cursor-pointer">
+                    {option.label}
+                  </Label>
+                </div>
+              ))
+            )}
           </div>
         </PopoverContent>
       </Popover>
