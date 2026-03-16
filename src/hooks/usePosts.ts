@@ -88,9 +88,10 @@ const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 
 export const postSchema = z.object({
   client_id: z.string().uuid('Selecione um cliente'),
   channels: z.array(z.enum(socialChannels)).min(1, 'Selecione pelo menos um canal'),
-  scheduled_at: z.string().min(1, 'Selecione data e hora'),
+  scheduled_at: z.string().optional().default(''),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
+  is_backlog: z.boolean().optional().default(false),
 });
 
 // Schema for editing (single channel)
@@ -99,10 +100,11 @@ export const postEditSchema = z.object({
   channel: z.enum(socialChannels, {
     required_error: 'Selecione um canal',
   }),
-  scheduled_at: z.string().min(1, 'Selecione data e hora'),
+  scheduled_at: z.string().optional().default(''),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
   title: z.string().optional(),
+  is_backlog: z.boolean().optional().default(false),
 });
 
 export type PostFormData = z.infer<typeof postSchema>;
