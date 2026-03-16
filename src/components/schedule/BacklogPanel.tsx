@@ -70,12 +70,50 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
   );
 }
 
-export function BacklogPanel({ posts, isLoading, onPostClick }: BacklogPanelProps) {
+export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: BacklogPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const groups = groupPosts(posts);
 
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    // Only set false if leaving the container itself
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data?.posts && onUnschedule) {
+        const postIds = data.posts.map((p: { id: string }) => p.id);
+        onUnschedule(postIds);
+      }
+    } catch {}
+  };
+
   return (
-    <div className="flex w-64 shrink-0 flex-col rounded-lg border bg-card">
+    <div
+      className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-colors ${
+        isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+      }`}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
