@@ -1,26 +1,23 @@
 
-# Exibir o texto completo do comentário
+
+# Backlog panel ocupa muito espaço — tornar colapsável horizontalmente
 
 ## Problema
-
-No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
+O BacklogPanel fixo com `w-64` (256px) reduz o espaço do calendário, prejudicando a visualização.
 
 ## Solução
+Transformar o painel em uma barra lateral colapsável que, quando recolhida, mostra apenas um botão vertical fino com ícone + badge de contagem. O usuário expande/recolhe clicando nesse botão.
 
-Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
+## Mudanças
 
-## Arquivo alterado
+### `src/components/schedule/BacklogPanel.tsx`
+- Substituir o estado `collapsed` atual (que esconde o conteúdo mas mantém a largura) por um modo recolhido que reduz a largura total para ~40px
+- Quando recolhido: exibir apenas um botão vertical com ícone `Inbox` + badge de contagem
+- Quando expandido: manter o layout atual com `w-64`
+- Manter o suporte a drop zone mesmo quando recolhido (arrastar post sobre o botão colapsado também deve funcionar)
+- Iniciar colapsado por padrão para maximizar o espaço do calendário
+- Transição suave com `transition-all`
 
-### `src/components/comments/CommentItem.tsx` — linha 153
+### `src/pages/Schedule.tsx`
+- Nenhuma mudança necessária (o layout flex já se adapta ao tamanho do BacklogPanel)
 
-**Antes:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-```
-
-**Depois:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
-```
-
-Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
