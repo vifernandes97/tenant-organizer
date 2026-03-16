@@ -230,28 +230,40 @@ export default function Schedule() {
         />
       </div>
 
-      {/* Calendar */}
-      {isLoading ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <div className="text-muted-foreground">Carregando...</div>
+      {/* Calendar + Backlog */}
+      <div className="flex gap-4">
+        {/* Backlog Panel */}
+        <BacklogPanel
+          posts={backlogPosts}
+          isLoading={isBacklogLoading}
+          onPostClick={handlePostClick}
+        />
+
+        {/* Calendar */}
+        <div className="flex-1 min-w-0">
+          {isLoading ? (
+            <div className="flex h-[400px] items-center justify-center">
+              <div className="text-muted-foreground">Carregando...</div>
+            </div>
+          ) : viewMode === 'month' ? (
+            <ScheduleCalendar
+              month={currentMonth}
+              posts={posts}
+              onPostClick={handlePostClick}
+              onDayClick={handleDayClick}
+              onReschedule={handleReschedule}
+            />
+          ) : (
+            <ScheduleWeekView
+              week={currentWeek}
+              posts={posts}
+              onPostClick={handlePostClick}
+              onDayClick={handleDayClick}
+              onReschedule={handleReschedule}
+            />
+          )}
         </div>
-      ) : viewMode === 'month' ? (
-        <ScheduleCalendar
-          month={currentMonth}
-          posts={posts}
-          onPostClick={handlePostClick}
-          onDayClick={handleDayClick}
-          onReschedule={handleReschedule}
-        />
-      ) : (
-        <ScheduleWeekView
-          week={currentWeek}
-          posts={posts}
-          onPostClick={handlePostClick}
-          onDayClick={handleDayClick}
-          onReschedule={handleReschedule}
-        />
-      )}
+      </div>
 
       {/* Post Form Dialog */}
       <PostForm
