@@ -54,6 +54,12 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+  const { data: backlogPosts = [], isLoading: isBacklogLoading } = useBacklogPosts({
+    clientId: clientFilter,
+    status: statusFilter.length > 0 ? statusFilter : undefined,
+    channel: channelFilter.length > 0 ? channelFilter : undefined,
+  });
+
   const rescheduleGroup = useRescheduleGroup();
 
   const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
