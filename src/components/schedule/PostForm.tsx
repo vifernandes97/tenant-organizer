@@ -128,26 +128,32 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     if (!open) return;
 
     if (post) {
+      const hasDate = !!post.scheduled_at;
       editForm.reset({
         client_id: post.client_id,
         channel: post.channel,
-        scheduled_at: new Date(post.scheduled_at).toISOString().slice(0, 16),
+        scheduled_at: hasDate ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '',
         caption: post.caption || '',
         status: post.status,
+        is_backlog: !hasDate,
       });
+      setIsBacklog(!hasDate);
       setExistingImages(
         post.post_images?.map((img) => ({ id: img.id, image_url: img.image_url })) || [],
       );
     } else {
+      const hasDefaultDate = !!defaultDate;
       form.reset({
         client_id: '',
         channels: [],
-        scheduled_at: defaultDate
+        scheduled_at: hasDefaultDate
           ? new Date(defaultDate).toISOString().slice(0, 16)
-          : new Date().toISOString().slice(0, 16),
+          : '',
         caption: '',
         status: 'draft',
+        is_backlog: !hasDefaultDate,
       });
+      setIsBacklog(!hasDefaultDate);
       setExistingImages([]);
     }
 
