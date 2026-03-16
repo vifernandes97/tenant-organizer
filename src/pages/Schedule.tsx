@@ -63,6 +63,7 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+  const queryClient = useQueryClient();
   const rescheduleGroup = useRescheduleGroup();
 
   const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
