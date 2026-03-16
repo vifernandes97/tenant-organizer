@@ -182,6 +182,10 @@ export default function Brainstorm() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setBacklogIdea(idea)}>
+                      <Send className="mr-2 h-4 w-4" />
+                      Enviar para backlog
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openEdit(idea)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Editar
