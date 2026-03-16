@@ -42,8 +42,10 @@ const FILTER_OPTIONS: { value: 'all' | BrainstormIdeaStatus; label: string }[] =
 
 export default function Brainstorm() {
   const { ideas, isLoading, createIdea, updateIdea, updateIdeaStatus, deleteIdea } = useBrainstormIdeas();
+  const createPost = useCreatePost();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<BrainstormIdea | null>(null);
+  const [backlogIdea, setBacklogIdea] = useState<BrainstormIdea | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | BrainstormIdeaStatus>('all');
