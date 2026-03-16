@@ -118,7 +118,7 @@ export default function Schedule() {
   };
 
   const handleNewPost = () => {
-    setDefaultDate(new Date());
+    setDefaultDate(undefined);
     setSelectedGroup(null);
     setIsFormOpen(true);
   };
