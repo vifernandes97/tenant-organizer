@@ -372,7 +372,11 @@ export function useUpdatePost() {
       const postUpdate: PostUpdate = {};
       if (post.client_id) postUpdate.client_id = post.client_id;
       if (post.channel) postUpdate.channel = post.channel;
-      if (post.scheduled_at) postUpdate.scheduled_at = post.scheduled_at;
+      if (post.is_backlog) {
+        postUpdate.scheduled_at = null;
+      } else if (post.scheduled_at) {
+        postUpdate.scheduled_at = post.scheduled_at;
+      }
       if (post.caption !== undefined) postUpdate.caption = post.caption || null;
       if (post.status) postUpdate.status = post.status;
       if (post.title !== undefined) postUpdate.title = post.title || null;
