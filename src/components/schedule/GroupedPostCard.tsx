@@ -54,7 +54,7 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
       
       {/* Status + Comments */}
       <div className="mt-1.5 flex items-center justify-between">
-        <PostStatusBadge status={primaryPost.status} showIcon={false} />
+        <PostStatusBadge status={primaryPost.status} showIcon={false} customStatusId={primaryPost.custom_status_id} clientId={group.clientId} />
         
         {totalOpenComments > 0 && (
           <div className="flex items-center gap-1 text-primary">

@@ -1,12 +1,15 @@
 import { Badge } from '@/components/ui/badge';
 import { FileText, Check, Clock, CheckCircle, Sparkles, Eye } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
+import { useClientPostStatuses } from '@/hooks/useClientPostStatuses';
 
 type PostStatus = Database['public']['Enums']['post_status'];
 
 interface PostStatusBadgeProps {
   status: PostStatus;
   showIcon?: boolean;
+  customStatusId?: string | null;
+  clientId?: string | null;
 }
 
 const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | 'outline' | 'default'; className: string; icon: React.ElementType }> = {
@@ -48,7 +51,28 @@ const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | '
   },
 };
 
-export function PostStatusBadge({ status, showIcon = true }: PostStatusBadgeProps) {
+export function PostStatusBadge({ status, showIcon = true, customStatusId, clientId }: PostStatusBadgeProps) {
+  const { data: customStatuses } = useClientPostStatuses(clientId);
+
+  // If client has custom statuses, use them
+  if (customStatuses && customStatuses.length > 0) {
+    const customStatus = customStatusId
+      ? customStatuses.find(s => s.id === customStatusId)
+      : customStatuses[0];
+
+    if (customStatus) {
+      return (
+        <Badge
+          variant="outline"
+          className="border-transparent text-white"
+          style={{ backgroundColor: customStatus.color }}
+        >
+          {customStatus.name}
+        </Badge>
+      );
+    }
+  }
+
   const config = statusConfig[status];
   const Icon = config.icon;
 

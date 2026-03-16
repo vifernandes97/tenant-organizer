@@ -29,7 +29,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
       
       {/* Status + Comments */}
       <div className="mt-1.5 flex items-center justify-between">
-        <PostStatusBadge status={post.status} showIcon={false} />
+        <PostStatusBadge status={post.status} showIcon={false} customStatusId={post.custom_status_id} clientId={post.client_id} />
         
         {openCommentsCount > 0 && (
           <div className="flex items-center gap-1 text-primary">
