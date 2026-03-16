@@ -241,6 +241,7 @@ export default function Schedule() {
           posts={backlogPosts}
           isLoading={isBacklogLoading}
           onPostClick={handlePostClick}
+          onUnschedule={handleUnschedule}
         />
 
         {/* Calendar */}
