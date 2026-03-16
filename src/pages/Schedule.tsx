@@ -139,7 +139,7 @@ export default function Schedule() {
 
   const handleNewPost = () => {
     setDefaultDate(undefined);
-    setSelectedGroup(null);
+    setSelectedGroupId(null);
     setIsFormOpen(true);
   };
 
