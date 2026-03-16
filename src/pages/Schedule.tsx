@@ -64,6 +64,14 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+
+  // Derive selectedGroup from fresh data
+  const allGroups = useMemo(() => groupPosts([...posts, ...backlogPosts]), [posts, backlogPosts]);
+  const selectedGroup = useMemo(() => {
+    if (!selectedGroupId) return null;
+    return allGroups.find(g => g.groupId === selectedGroupId) || null;
+  }, [selectedGroupId, allGroups]);
+
   const queryClient = useQueryClient();
   const rescheduleGroup = useRescheduleGroup();
 
