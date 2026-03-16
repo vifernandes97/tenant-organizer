@@ -367,7 +367,7 @@ export type Database = {
           group_id: string | null
           id: string
           project_type: Database["public"]["Enums"]["project_type"] | null
-          scheduled_at: string
+          scheduled_at: string | null
           seo_keyword: string | null
           status: Database["public"]["Enums"]["post_status"]
           tenant_id: string
@@ -385,7 +385,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"] | null
-          scheduled_at: string
+          scheduled_at?: string | null
           seo_keyword?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id: string
@@ -403,7 +403,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"] | null
-          scheduled_at?: string
+          scheduled_at?: string | null
           seo_keyword?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id?: string
