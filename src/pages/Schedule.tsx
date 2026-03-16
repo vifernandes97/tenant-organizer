@@ -63,15 +63,16 @@ export default function Schedule() {
   const rescheduleGroup = useRescheduleGroup();
 
   const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
-    // Map dragged post stubs to full PostWithImages from the loaded posts
+    // Check in both scheduled and backlog posts
+    const allPosts = [...posts, ...backlogPosts];
     const fullPosts = draggedPosts
-      .map(dp => posts.find(p => p.id === dp.id))
+      .map(dp => allPosts.find(p => p.id === dp.id))
       .filter(Boolean) as PostWithImages[];
     
     if (fullPosts.length > 0) {
       rescheduleGroup.mutate({ posts: fullPosts, newDate });
     }
-  }, [posts, rescheduleGroup]);
+  }, [posts, backlogPosts, rescheduleGroup]);
 
   const stats = useMemo(() => {
     return {
