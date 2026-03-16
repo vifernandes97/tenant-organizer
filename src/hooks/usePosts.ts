@@ -193,6 +193,57 @@ export function usePosts(filters?: PostFilters) {
   });
 }
 
+export function useBacklogPosts(filters?: { clientId?: string; status?: PostStatus[]; channel?: SocialChannel[] }) {
+  const { profile } = useAuth();
+
+  return useQuery({
+    queryKey: ['posts', 'backlog', filters, profile?.tenant_id],
+    queryFn: async () => {
+      if (!profile?.tenant_id) return [];
+
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          post_images (id, image_url, display_order, media_type, alt_text),
+          clients (name)
+        `)
+        .eq('tenant_id', profile.tenant_id)
+        .is('scheduled_at', null)
+        .order('created_at', { ascending: false })
+        .order('display_order', { ascending: true, referencedTable: 'post_images' });
+
+      if (filters?.clientId) query = query.eq('client_id', filters.clientId);
+      if (filters?.status && filters.status.length > 0) query = query.in('status', filters.status);
+      if (filters?.channel && filters.channel.length > 0) query = query.in('channel', filters.channel);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const postsWithSignedUrls = await transformPostImagesWithSignedUrls(data as PostWithImages[]);
+      const postIds = postsWithSignedUrls.map(p => p.id);
+      if (postIds.length > 0) {
+        const { data: commentCounts } = await supabase
+          .from('post_comments')
+          .select('post_id')
+          .in('post_id', postIds)
+          .eq('status', 'open')
+          .is('parent_id', null);
+        const countByPost = new Map<string, number>();
+        for (const c of commentCounts || []) {
+          countByPost.set(c.post_id, (countByPost.get(c.post_id) || 0) + 1);
+        }
+        return postsWithSignedUrls.map(p => ({
+          ...p,
+          open_comments_count: countByPost.get(p.id) || 0
+        }));
+      }
+      return postsWithSignedUrls;
+    },
+    enabled: !!profile?.tenant_id,
+  });
+}
+
 export function usePost(id: string | null) {
   const { profile } = useAuth();
 
