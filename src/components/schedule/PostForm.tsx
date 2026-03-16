@@ -165,16 +165,25 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   }, [open, post, defaultDate]);
 
   const onSubmit = async (data: PostFormData | PostEditFormData) => {
+    // Inject backlog flag
+    const submitData = { ...data, is_backlog: isBacklog };
+    if (isBacklog) {
+      submitData.scheduled_at = '';
+    }
+    if (!isBacklog && !submitData.scheduled_at) {
+      toast.error('Selecione uma data ou marque como Backlog');
+      return;
+    }
     if (isEditing && post) {
       await updatePost.mutateAsync({
         id: post.id,
-        post: data as PostEditFormData,
+        post: submitData as PostEditFormData,
         newImages: images,
         removedImageIds,
       });
     } else {
       await createPost.mutateAsync({
-        post: data as PostFormData,
+        post: submitData as PostFormData,
         images,
       });
     }
