@@ -554,9 +554,13 @@ export function useRescheduleGroup() {
   return useMutation({
     mutationFn: async ({ posts, newDate }: { posts: PostWithImages[]; newDate: Date }) => {
       for (const post of posts) {
-        const oldDate = new Date(post.scheduled_at);
+        const oldDate = post.scheduled_at ? new Date(post.scheduled_at) : null;
         const updated = new Date(newDate);
-        updated.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+        if (oldDate) {
+          updated.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+        } else {
+          updated.setHours(9, 0, 0); // Default 9am for backlog posts
+        }
 
         const { error } = await supabase
           .from('posts')

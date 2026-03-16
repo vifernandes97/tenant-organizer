@@ -378,20 +378,41 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                   </div>
                 )}
 
+                {/* Backlog toggle */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is-backlog"
+                    checked={isBacklog}
+                    onChange={(e) => {
+                      setIsBacklog(e.target.checked);
+                      if (e.target.checked) {
+                        activeForm.setValue('scheduled_at', '');
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-input bg-background text-primary accent-primary"
+                  />
+                  <Label htmlFor="is-backlog" className="cursor-pointer text-sm font-normal">
+                    Sem data (Backlog)
+                  </Label>
+                </div>
+
                 {/* Data e Hora */}
-                <FormField
-                  control={activeForm.control}
-                  name="scheduled_at"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data e Hora *</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {!isBacklog && (
+                  <FormField
+                    control={activeForm.control}
+                    name="scheduled_at"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data e Hora *</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Status */}
                 <FormField
