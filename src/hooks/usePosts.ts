@@ -295,7 +295,7 @@ export function useCreatePost() {
           tenant_id: profile.tenant_id,
           client_id: post.client_id,
           channel: channel,
-          scheduled_at: post.scheduled_at,
+          scheduled_at: post.is_backlog || !post.scheduled_at ? null : post.scheduled_at,
           caption: post.caption || null,
           status: post.status,
           title: generatedTitle,
