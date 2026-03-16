@@ -18,7 +18,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Lightbulb, Plus, MoreVertical, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Lightbulb, Plus, MoreVertical, Pencil, Trash2, Loader2, Send } from 'lucide-react';
+import { useCreatePost } from '@/hooks/usePosts';
+import { SendToBacklogDialog } from '@/components/brainstorm/SendToBacklogDialog';
+import type { Database } from '@/integrations/supabase/types';
+
+type SocialChannel = Database['public']['Enums']['social_channel'];
 
 const STATUS_CONFIG: Record<BrainstormIdeaStatus, { label: string; className: string }> = {
   nova: { label: 'Nova', className: 'bg-secondary text-secondary-foreground hover:bg-secondary/80' },
