@@ -31,8 +31,7 @@ export default function Schedule() {
   const [channelFilter, setChannelFilter] = useState<SocialChannel[]>([]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<PostGroup | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
   // Calculate date range based on view mode
