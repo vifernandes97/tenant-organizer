@@ -133,7 +133,7 @@ export default function Schedule() {
 
   const handleDayClick = (date: Date) => {
     setDefaultDate(date);
-    setSelectedGroup(null);
+    setSelectedGroupId(null);
     setIsFormOpen(true);
   };
 
