@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
+import { groupPosts } from '@/hooks/useGroupedPosts';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,7 +31,7 @@ export default function Schedule() {
   const [channelFilter, setChannelFilter] = useState<SocialChannel[]>([]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<PostGroup | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
@@ -62,6 +63,14 @@ export default function Schedule() {
     status: statusFilter.length > 0 ? statusFilter : undefined,
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
+
+
+  // Derive selectedGroup from fresh data
+  const allGroups = useMemo(() => groupPosts([...posts, ...backlogPosts]), [posts, backlogPosts]);
+  const selectedGroup = useMemo(() => {
+    if (!selectedGroupId) return null;
+    return allGroups.find(g => g.groupId === selectedGroupId) || null;
+  }, [selectedGroupId, allGroups]);
 
   const queryClient = useQueryClient();
   const rescheduleGroup = useRescheduleGroup();
@@ -127,19 +136,19 @@ export default function Schedule() {
   };
 
   const handlePostClick = (group: PostGroup) => {
-    setSelectedGroup(group);
+    setSelectedGroupId(group.groupId);
     setIsDetailsOpen(true);
   };
 
   const handleDayClick = (date: Date) => {
     setDefaultDate(date);
-    setSelectedGroup(null);
+    setSelectedGroupId(null);
     setIsFormOpen(true);
   };
 
   const handleNewPost = () => {
     setDefaultDate(undefined);
-    setSelectedGroup(null);
+    setSelectedGroupId(null);
     setIsFormOpen(true);
   };
 

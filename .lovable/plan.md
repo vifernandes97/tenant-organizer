@@ -1,18 +1,26 @@
 
-
-# Fix: Status do post não atualiza no /cronogramas
+# Exibir o texto completo do comentário
 
 ## Problema
-Quando o status é alterado no modal `GroupPostDetails`, a mutação invalida as queries e os dados frescos são buscados. Porém, o `selectedGroup` em `Schedule.tsx` é um **snapshot estático** definido no momento do clique — ele nunca se atualiza com os dados novos. O modal continua exibindo o status antigo.
+
+No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
 
 ## Solução
-Em `Schedule.tsx`, armazenar apenas o `groupId` selecionado (em vez do objeto `PostGroup` inteiro). Derivar o grupo real a partir dos dados frescos de `posts` e `backlogPosts` usando `useMemo`. Assim, quando as queries são invalidadas e os dados atualizam, o grupo exibido no modal também atualiza automaticamente.
 
-## Mudanças
+Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
 
-### `src/pages/Schedule.tsx`
-- Substituir `selectedGroup: PostGroup | null` por `selectedGroupId: string | null`
-- Adicionar `useMemo` que busca o grupo correspondente ao `selectedGroupId` a partir dos posts agrupados (usando `groupPosts` de `useGroupedPosts`)
-- No `handlePostClick`, salvar `group.groupId` em vez do objeto inteiro
-- Passar o grupo derivado (sempre fresco) para `GroupPostDetails`
+## Arquivo alterado
 
+### `src/components/comments/CommentItem.tsx` — linha 153
+
+**Antes:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
+```
+
+**Depois:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
+```
+
+Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
