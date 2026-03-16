@@ -241,6 +241,14 @@ export default function Brainstorm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SendToBacklogDialog
+        open={!!backlogIdea}
+        onOpenChange={(open) => !open && setBacklogIdea(null)}
+        onConfirm={handleSendToBacklog}
+        ideaTitle={backlogIdea?.title ?? ''}
+        isSaving={createPost.isPending}
+      />
     </div>
   );
 }
