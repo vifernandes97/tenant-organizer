@@ -71,7 +71,7 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
 }
 
 export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: BacklogPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
   const groups = groupPosts(posts);
 
@@ -86,7 +86,6 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
   };
 
   const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    // Only set false if leaving the container itself
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
     }
@@ -104,6 +103,33 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
     } catch {}
   };
 
+  if (collapsed) {
+    return (
+      <div
+        className={`flex w-10 shrink-0 flex-col items-center rounded-lg border bg-card transition-colors ${
+          isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+        }`}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <button
+          onClick={() => setCollapsed(false)}
+          className="flex flex-col items-center gap-2 py-3 w-full"
+          title="Expandir backlog"
+        >
+          <Inbox className="h-4 w-4 text-muted-foreground" />
+          {posts.length > 0 && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+              {posts.length}
+            </Badge>
+          )}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-colors ${
@@ -116,7 +142,7 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
     >
       {/* Header */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => setCollapsed(true)}
         className="flex items-center justify-between border-b px-3 py-2.5"
       >
         <div className="flex items-center gap-2">
@@ -128,35 +154,29 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
             </Badge>
           )}
         </div>
-        {collapsed ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        )}
+        <ChevronUp className="h-4 w-4 text-muted-foreground rotate-90" />
       </button>
 
       {/* Content */}
-      {!collapsed && (
-        <ScrollArea className="flex-1">
-          <div className="space-y-2 p-2">
-            {isLoading ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">Carregando...</p>
-            ) : groups.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                Nenhum post em backlog
-              </p>
-            ) : (
-              groups.map((group) => (
-                <BacklogCard
-                  key={group.groupId}
-                  group={group}
-                  onClick={() => onPostClick(group)}
-                />
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      )}
+      <ScrollArea className="flex-1">
+        <div className="space-y-2 p-2">
+          {isLoading ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">Carregando...</p>
+          ) : groups.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              Nenhum post em backlog
+            </p>
+          ) : (
+            groups.map((group) => (
+              <BacklogCard
+                key={group.groupId}
+                group={group}
+                onClick={() => onPostClick(group)}
+              />
+            ))
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }
