@@ -33,16 +33,6 @@ export default function Schedule() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-
-  // Derive selectedGroup from fresh data
-  const allGroups = useMemo(() => {
-    return groupPosts([...posts, ...backlogPosts]);
-  }, [posts, backlogPosts]);
-
-  const selectedGroup = useMemo(() => {
-    if (!selectedGroupId) return null;
-    return allGroups.find(g => g.groupId === selectedGroupId) || null;
-  }, [selectedGroupId, allGroups]);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
 
   // Calculate date range based on view mode
