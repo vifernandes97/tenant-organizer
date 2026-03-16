@@ -71,6 +71,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
   const [channelSectionOpen, setChannelSectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
+  const [isBacklog, setIsBacklog] = useState(false);
 
   const isEditing = !!post;
   const isLoading = createPost.isPending || updatePost.isPending;
