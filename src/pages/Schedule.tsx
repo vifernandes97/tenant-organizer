@@ -1,6 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -60,6 +63,7 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+  const queryClient = useQueryClient();
   const rescheduleGroup = useRescheduleGroup();
 
   const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
@@ -73,6 +77,22 @@ export default function Schedule() {
       rescheduleGroup.mutate({ posts: fullPosts, newDate });
     }
   }, [posts, backlogPosts, rescheduleGroup]);
+
+  const handleUnschedule = useCallback(async (postIds: string[]) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({ scheduled_at: null })
+      .in('id', postIds);
+
+    if (error) {
+      toast.error('Erro ao mover para backlog');
+      return;
+    }
+
+    toast.success('Post movido para o backlog');
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+    queryClient.invalidateQueries({ queryKey: ['backlog-posts'] });
+  }, [queryClient]);
 
   const stats = useMemo(() => {
     return {
@@ -237,6 +257,7 @@ export default function Schedule() {
           posts={backlogPosts}
           isLoading={isBacklogLoading}
           onPostClick={handlePostClick}
+          onUnschedule={handleUnschedule}
         />
 
         {/* Calendar */}

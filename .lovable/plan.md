@@ -1,19 +1,26 @@
 
+# Exibir o texto completo do comentário
 
-# Arrastar posts do calendário para o backlog
+## Problema
 
-## Resumo
-Permitir que posts já agendados no calendário sejam arrastados de volta para o painel de backlog, removendo a data de agendamento (`scheduled_at = null`).
+No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
 
-## Mudanças
+## Solução
 
-### 1. `src/components/schedule/BacklogPanel.tsx`
-- Adicionar suporte a `onDragOver`, `onDragEnter`, `onDragLeave` e `onDrop` no container do painel
-- Ao receber um drop, chamar callback `onUnschedule` com os IDs dos posts
-- Feedback visual (highlight) quando um item está sendo arrastado sobre o painel
+Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
 
-### 2. `src/pages/Schedule.tsx`
-- Passar novo prop `onUnschedule` ao `BacklogPanel`
-- No handler, chamar `supabase.from('posts').update({ scheduled_at: null })` para cada post do grupo
-- Invalidar queries de posts e backlog após a operação
+## Arquivo alterado
 
+### `src/components/comments/CommentItem.tsx` — linha 153
+
+**Antes:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
+```
+
+**Depois:**
+```tsx
+<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
+```
+
+Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
