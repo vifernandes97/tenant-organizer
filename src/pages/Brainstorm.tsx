@@ -18,7 +18,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Lightbulb, Plus, MoreVertical, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Lightbulb, Plus, MoreVertical, Pencil, Trash2, Loader2, Send } from 'lucide-react';
+import { useCreatePost } from '@/hooks/usePosts';
+import { SendToBacklogDialog } from '@/components/brainstorm/SendToBacklogDialog';
+import type { Database } from '@/integrations/supabase/types';
+
+type SocialChannel = Database['public']['Enums']['social_channel'];
 
 const STATUS_CONFIG: Record<BrainstormIdeaStatus, { label: string; className: string }> = {
   nova: { label: 'Nova', className: 'bg-secondary text-secondary-foreground hover:bg-secondary/80' },
@@ -37,8 +42,10 @@ const FILTER_OPTIONS: { value: 'all' | BrainstormIdeaStatus; label: string }[] =
 
 export default function Brainstorm() {
   const { ideas, isLoading, createIdea, updateIdea, updateIdeaStatus, deleteIdea } = useBrainstormIdeas();
+  const createPost = useCreatePost();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<BrainstormIdea | null>(null);
+  const [backlogIdea, setBacklogIdea] = useState<BrainstormIdea | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | BrainstormIdeaStatus>('all');
@@ -75,6 +82,22 @@ export default function Brainstorm() {
 
   const handleStatusChange = (id: string, status: BrainstormIdeaStatus) => {
     updateIdeaStatus.mutate({ id, status });
+  };
+
+  const handleSendToBacklog = async (clientId: string, channels: SocialChannel[]) => {
+    if (!backlogIdea) return;
+    await createPost.mutateAsync({
+      post: {
+        client_id: clientId,
+        channels,
+        caption: backlogIdea.description || backlogIdea.title,
+        status: 'draft',
+        is_backlog: true,
+      },
+      images: [],
+    });
+    updateIdeaStatus.mutate({ id: backlogIdea.id, status: 'dar_sequencia' });
+    setBacklogIdea(null);
   };
 
   const isSaving = createIdea.isPending || updateIdea.isPending;
@@ -159,6 +182,10 @@ export default function Brainstorm() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setBacklogIdea(idea)}>
+                      <Send className="mr-2 h-4 w-4" />
+                      Enviar para backlog
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openEdit(idea)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Editar
@@ -214,6 +241,14 @@ export default function Brainstorm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SendToBacklogDialog
+        open={!!backlogIdea}
+        onOpenChange={(open) => !open && setBacklogIdea(null)}
+        onConfirm={handleSendToBacklog}
+        ideaTitle={backlogIdea?.title ?? ''}
+        isSaving={createPost.isPending}
+      />
     </div>
   );
 }
