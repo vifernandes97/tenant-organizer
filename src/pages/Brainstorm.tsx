@@ -84,6 +84,22 @@ export default function Brainstorm() {
     updateIdeaStatus.mutate({ id, status });
   };
 
+  const handleSendToBacklog = async (clientId: string, channels: SocialChannel[]) => {
+    if (!backlogIdea) return;
+    await createPost.mutateAsync({
+      post: {
+        client_id: clientId,
+        channels,
+        caption: backlogIdea.description || backlogIdea.title,
+        status: 'draft',
+        is_backlog: true,
+      },
+      images: [],
+    });
+    updateIdeaStatus.mutate({ id: backlogIdea.id, status: 'dar_sequencia' });
+    setBacklogIdea(null);
+  };
+
   const isSaving = createIdea.isPending || updateIdea.isPending;
 
   return (
