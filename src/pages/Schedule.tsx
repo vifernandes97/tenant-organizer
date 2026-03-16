@@ -127,7 +127,7 @@ export default function Schedule() {
   };
 
   const handlePostClick = (group: PostGroup) => {
-    setSelectedGroup(group);
+    setSelectedGroupId(group.groupId);
     setIsDetailsOpen(true);
   };
 
