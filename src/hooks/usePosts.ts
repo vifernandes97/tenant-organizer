@@ -133,6 +133,7 @@ export function usePosts(filters?: PostFilters) {
           clients (name)
         `)
         .eq('tenant_id', profile.tenant_id)
+        .not('scheduled_at', 'is', null)
         .order('scheduled_at', { ascending: true })
         .order('display_order', { ascending: true, referencedTable: 'post_images' });
 
