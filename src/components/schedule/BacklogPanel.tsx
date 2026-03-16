@@ -13,6 +13,7 @@ interface BacklogPanelProps {
   posts: PostWithImages[];
   isLoading: boolean;
   onPostClick: (group: PostGroup) => void;
+  onUnschedule?: (postIds: string[]) => void;
 }
 
 function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void }) {
