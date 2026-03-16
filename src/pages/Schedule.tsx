@@ -4,13 +4,14 @@ import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { usePosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
+import { usePosts, useBacklogPosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
 import { PostForm } from '@/components/schedule/PostForm';
 import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
+import { BacklogPanel } from '@/components/schedule/BacklogPanel';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
