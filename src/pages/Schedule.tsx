@@ -78,6 +78,22 @@ export default function Schedule() {
     }
   }, [posts, backlogPosts, rescheduleGroup]);
 
+  const handleUnschedule = useCallback(async (postIds: string[]) => {
+    const { error } = await supabase
+      .from('posts')
+      .update({ scheduled_at: null })
+      .in('id', postIds);
+
+    if (error) {
+      toast.error('Erro ao mover para backlog');
+      return;
+    }
+
+    toast.success('Post movido para o backlog');
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+    queryClient.invalidateQueries({ queryKey: ['backlog-posts'] });
+  }, [queryClient]);
+
   const stats = useMemo(() => {
     return {
       total: posts.length,
