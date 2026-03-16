@@ -88,9 +88,10 @@ const socialChannels = ['instagram_feed', 'instagram_reels', 'instagram_story', 
 export const postSchema = z.object({
   client_id: z.string().uuid('Selecione um cliente'),
   channels: z.array(z.enum(socialChannels)).min(1, 'Selecione pelo menos um canal'),
-  scheduled_at: z.string().min(1, 'Selecione data e hora'),
+  scheduled_at: z.string().optional().default(''),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
+  is_backlog: z.boolean().optional().default(false),
 });
 
 // Schema for editing (single channel)
@@ -99,10 +100,11 @@ export const postEditSchema = z.object({
   channel: z.enum(socialChannels, {
     required_error: 'Selecione um canal',
   }),
-  scheduled_at: z.string().min(1, 'Selecione data e hora'),
+  scheduled_at: z.string().optional().default(''),
   caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
   status: z.enum(['draft', 'ai_generated', 'reviewed', 'approved', 'scheduled', 'published'] as const).default('draft'),
   title: z.string().optional(),
+  is_backlog: z.boolean().optional().default(false),
 });
 
 export type PostFormData = z.infer<typeof postSchema>;
@@ -131,6 +133,7 @@ export function usePosts(filters?: PostFilters) {
           clients (name)
         `)
         .eq('tenant_id', profile.tenant_id)
+        .not('scheduled_at', 'is', null)
         .order('scheduled_at', { ascending: true })
         .order('display_order', { ascending: true, referencedTable: 'post_images' });
 
@@ -184,6 +187,57 @@ export function usePosts(filters?: PostFilters) {
         }));
       }
       
+      return postsWithSignedUrls;
+    },
+    enabled: !!profile?.tenant_id,
+  });
+}
+
+export function useBacklogPosts(filters?: { clientId?: string; status?: PostStatus[]; channel?: SocialChannel[] }) {
+  const { profile } = useAuth();
+
+  return useQuery({
+    queryKey: ['posts', 'backlog', filters, profile?.tenant_id],
+    queryFn: async () => {
+      if (!profile?.tenant_id) return [];
+
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          post_images (id, image_url, display_order, media_type, alt_text),
+          clients (name)
+        `)
+        .eq('tenant_id', profile.tenant_id)
+        .is('scheduled_at', null)
+        .order('created_at', { ascending: false })
+        .order('display_order', { ascending: true, referencedTable: 'post_images' });
+
+      if (filters?.clientId) query = query.eq('client_id', filters.clientId);
+      if (filters?.status && filters.status.length > 0) query = query.in('status', filters.status);
+      if (filters?.channel && filters.channel.length > 0) query = query.in('channel', filters.channel);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const postsWithSignedUrls = await transformPostImagesWithSignedUrls(data as PostWithImages[]);
+      const postIds = postsWithSignedUrls.map(p => p.id);
+      if (postIds.length > 0) {
+        const { data: commentCounts } = await supabase
+          .from('post_comments')
+          .select('post_id')
+          .in('post_id', postIds)
+          .eq('status', 'open')
+          .is('parent_id', null);
+        const countByPost = new Map<string, number>();
+        for (const c of commentCounts || []) {
+          countByPost.set(c.post_id, (countByPost.get(c.post_id) || 0) + 1);
+        }
+        return postsWithSignedUrls.map(p => ({
+          ...p,
+          open_comments_count: countByPost.get(p.id) || 0
+        }));
+      }
       return postsWithSignedUrls;
     },
     enabled: !!profile?.tenant_id,
@@ -293,7 +347,7 @@ export function useCreatePost() {
           tenant_id: profile.tenant_id,
           client_id: post.client_id,
           channel: channel,
-          scheduled_at: post.scheduled_at,
+          scheduled_at: post.is_backlog || !post.scheduled_at ? null : post.scheduled_at,
           caption: post.caption || null,
           status: post.status,
           title: generatedTitle,
@@ -370,7 +424,11 @@ export function useUpdatePost() {
       const postUpdate: PostUpdate = {};
       if (post.client_id) postUpdate.client_id = post.client_id;
       if (post.channel) postUpdate.channel = post.channel;
-      if (post.scheduled_at) postUpdate.scheduled_at = post.scheduled_at;
+      if (post.is_backlog) {
+        postUpdate.scheduled_at = null;
+      } else if (post.scheduled_at) {
+        postUpdate.scheduled_at = post.scheduled_at;
+      }
       if (post.caption !== undefined) postUpdate.caption = post.caption || null;
       if (post.status) postUpdate.status = post.status;
       if (post.title !== undefined) postUpdate.title = post.title || null;
@@ -547,9 +605,13 @@ export function useRescheduleGroup() {
   return useMutation({
     mutationFn: async ({ posts, newDate }: { posts: PostWithImages[]; newDate: Date }) => {
       for (const post of posts) {
-        const oldDate = new Date(post.scheduled_at);
+        const oldDate = post.scheduled_at ? new Date(post.scheduled_at) : null;
         const updated = new Date(newDate);
-        updated.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+        if (oldDate) {
+          updated.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds());
+        } else {
+          updated.setHours(9, 0, 0); // Default 9am for backlog posts
+        }
 
         const { error } = await supabase
           .from('posts')

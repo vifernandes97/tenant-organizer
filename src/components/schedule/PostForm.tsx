@@ -71,6 +71,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
   const [channelSectionOpen, setChannelSectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
+  const [isBacklog, setIsBacklog] = useState(false);
 
   const isEditing = !!post;
   const isLoading = createPost.isPending || updatePost.isPending;
@@ -127,26 +128,32 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     if (!open) return;
 
     if (post) {
+      const hasDate = !!post.scheduled_at;
       editForm.reset({
         client_id: post.client_id,
         channel: post.channel,
-        scheduled_at: new Date(post.scheduled_at).toISOString().slice(0, 16),
+        scheduled_at: hasDate ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '',
         caption: post.caption || '',
         status: post.status,
+        is_backlog: !hasDate,
       });
+      setIsBacklog(!hasDate);
       setExistingImages(
         post.post_images?.map((img) => ({ id: img.id, image_url: img.image_url })) || [],
       );
     } else {
+      const hasDefaultDate = !!defaultDate;
       form.reset({
         client_id: '',
         channels: [],
-        scheduled_at: defaultDate
+        scheduled_at: hasDefaultDate
           ? new Date(defaultDate).toISOString().slice(0, 16)
-          : new Date().toISOString().slice(0, 16),
+          : '',
         caption: '',
         status: 'draft',
+        is_backlog: !hasDefaultDate,
       });
+      setIsBacklog(!hasDefaultDate);
       setExistingImages([]);
     }
 
@@ -158,16 +165,25 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
   }, [open, post, defaultDate]);
 
   const onSubmit = async (data: PostFormData | PostEditFormData) => {
+    // Inject backlog flag
+    const submitData = { ...data, is_backlog: isBacklog };
+    if (isBacklog) {
+      submitData.scheduled_at = '';
+    }
+    if (!isBacklog && !submitData.scheduled_at) {
+      toast.error('Selecione uma data ou marque como Backlog');
+      return;
+    }
     if (isEditing && post) {
       await updatePost.mutateAsync({
         id: post.id,
-        post: data as PostEditFormData,
+        post: submitData as PostEditFormData,
         newImages: images,
         removedImageIds,
       });
     } else {
       await createPost.mutateAsync({
-        post: data as PostFormData,
+        post: submitData as PostFormData,
         images,
       });
     }
@@ -362,20 +378,41 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                   </div>
                 )}
 
+                {/* Backlog toggle */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is-backlog"
+                    checked={isBacklog}
+                    onChange={(e) => {
+                      setIsBacklog(e.target.checked);
+                      if (e.target.checked) {
+                        activeForm.setValue('scheduled_at', '');
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-input bg-background text-primary accent-primary"
+                  />
+                  <Label htmlFor="is-backlog" className="cursor-pointer text-sm font-normal">
+                    Sem data (Backlog)
+                  </Label>
+                </div>
+
                 {/* Data e Hora */}
-                <FormField
-                  control={activeForm.control}
-                  name="scheduled_at"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data e Hora *</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {!isBacklog && (
+                  <FormField
+                    control={activeForm.control}
+                    name="scheduled_at"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data e Hora *</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Status */}
                 <FormField

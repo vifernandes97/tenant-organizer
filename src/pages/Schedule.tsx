@@ -4,13 +4,14 @@ import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { usePosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
+import { usePosts, useBacklogPosts, useRescheduleGroup, PostWithImages } from '@/hooks/usePosts';
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
 import { PostForm } from '@/components/schedule/PostForm';
 import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
+import { BacklogPanel } from '@/components/schedule/BacklogPanel';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -53,18 +54,25 @@ export default function Schedule() {
     channel: channelFilter.length > 0 ? channelFilter : undefined,
   });
 
+  const { data: backlogPosts = [], isLoading: isBacklogLoading } = useBacklogPosts({
+    clientId: clientFilter,
+    status: statusFilter.length > 0 ? statusFilter : undefined,
+    channel: channelFilter.length > 0 ? channelFilter : undefined,
+  });
+
   const rescheduleGroup = useRescheduleGroup();
 
   const handleReschedule = useCallback((draggedPosts: { id: string; scheduled_at: string }[], newDate: Date) => {
-    // Map dragged post stubs to full PostWithImages from the loaded posts
+    // Check in both scheduled and backlog posts
+    const allPosts = [...posts, ...backlogPosts];
     const fullPosts = draggedPosts
-      .map(dp => posts.find(p => p.id === dp.id))
+      .map(dp => allPosts.find(p => p.id === dp.id))
       .filter(Boolean) as PostWithImages[];
     
     if (fullPosts.length > 0) {
       rescheduleGroup.mutate({ posts: fullPosts, newDate });
     }
-  }, [posts, rescheduleGroup]);
+  }, [posts, backlogPosts, rescheduleGroup]);
 
   const stats = useMemo(() => {
     return {
@@ -110,7 +118,7 @@ export default function Schedule() {
   };
 
   const handleNewPost = () => {
-    setDefaultDate(new Date());
+    setDefaultDate(undefined);
     setSelectedGroup(null);
     setIsFormOpen(true);
   };
@@ -222,28 +230,40 @@ export default function Schedule() {
         />
       </div>
 
-      {/* Calendar */}
-      {isLoading ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <div className="text-muted-foreground">Carregando...</div>
+      {/* Calendar + Backlog */}
+      <div className="flex gap-4">
+        {/* Backlog Panel */}
+        <BacklogPanel
+          posts={backlogPosts}
+          isLoading={isBacklogLoading}
+          onPostClick={handlePostClick}
+        />
+
+        {/* Calendar */}
+        <div className="flex-1 min-w-0">
+          {isLoading ? (
+            <div className="flex h-[400px] items-center justify-center">
+              <div className="text-muted-foreground">Carregando...</div>
+            </div>
+          ) : viewMode === 'month' ? (
+            <ScheduleCalendar
+              month={currentMonth}
+              posts={posts}
+              onPostClick={handlePostClick}
+              onDayClick={handleDayClick}
+              onReschedule={handleReschedule}
+            />
+          ) : (
+            <ScheduleWeekView
+              week={currentWeek}
+              posts={posts}
+              onPostClick={handlePostClick}
+              onDayClick={handleDayClick}
+              onReschedule={handleReschedule}
+            />
+          )}
         </div>
-      ) : viewMode === 'month' ? (
-        <ScheduleCalendar
-          month={currentMonth}
-          posts={posts}
-          onPostClick={handlePostClick}
-          onDayClick={handleDayClick}
-          onReschedule={handleReschedule}
-        />
-      ) : (
-        <ScheduleWeekView
-          week={currentWeek}
-          posts={posts}
-          onPostClick={handlePostClick}
-          onDayClick={handleDayClick}
-          onReschedule={handleReschedule}
-        />
-      )}
+      </div>
 
       {/* Post Form Dialog */}
       <PostForm

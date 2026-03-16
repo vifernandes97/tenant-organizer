@@ -11,7 +11,7 @@ export type PostGroup = {
   // Shared data from the first post
   clientId: string;
   clientName: string;
-  scheduledAt: string;
+  scheduledAt: string | null;
   title: string | null;
   firstImage: string | null;
   channels: SocialChannel[];
