@@ -378,40 +378,6 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="channels"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Canais</FormLabel>
-                      <div className="grid grid-cols-3 gap-2">
-                        {channels.map((channel) => (
-                          <div key={channel.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={channel.value}
-                              checked={field.value.includes(channel.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, channel.value]);
-                                } else {
-                                  field.onChange(field.value.filter((v) => v !== channel.value));
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={channel.value}
-                              className="text-sm cursor-pointer"
-                            >
-                              {channel.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="tags"
                   render={({ field }) => (
                     <FormItem>
