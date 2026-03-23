@@ -417,6 +417,58 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                 />
               </TabsContent>
 
+              <TabsContent value="channels" className="space-y-4 mt-4">
+                <FormField
+                  control={form.control}
+                  name="channels"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Canais ativos</FormLabel>
+                      <p className="text-sm text-muted-foreground mb-3">Selecione os canais em que este cliente publica conteúdo.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {channelOptions.map((channel) => (
+                          <div
+                            key={channel.value}
+                            className={`flex items-center space-x-3 rounded-md border p-3 cursor-pointer transition-colors ${
+                              field.value.includes(channel.value)
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:bg-muted/50"
+                            }`}
+                            onClick={() => {
+                              if (field.value.includes(channel.value)) {
+                                field.onChange(field.value.filter((v) => v !== channel.value));
+                              } else {
+                                field.onChange([...field.value, channel.value]);
+                              }
+                            }}
+                          >
+                            <Checkbox
+                              id={`channel-${channel.value}`}
+                              checked={field.value.includes(channel.value)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...field.value, channel.value]);
+                                } else {
+                                  field.onChange(field.value.filter((v) => v !== channel.value));
+                                }
+                              }}
+                            />
+                            <span className={channel.colorClass}>{channel.icon}</span>
+                            <label
+                              htmlFor={`channel-${channel.value}`}
+                              className="text-sm font-medium cursor-pointer flex-1"
+                            >
+                              {channel.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
               <TabsContent value="links" className="space-y-4 mt-4">
                 <FormField
                   control={form.control}
