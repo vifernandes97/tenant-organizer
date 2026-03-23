@@ -1,26 +1,19 @@
 
-# Exibir o texto completo do comentário
+
+# Tornar a configuração de canais mais visível no cadastro do cliente
 
 ## Problema
-
-No `CommentItem`, o parágrafo com o conteúdo do comentário tem a classe `line-clamp-2`, que limita o texto a 2 linhas e adiciona "..." no final — como mostrado na imagem enviada.
+A seção de canais está escondida dentro da aba "Marketing", junto com Persona, Tom de voz e Tags. O usuário não encontrou a opção.
 
 ## Solução
+Criar uma aba dedicada "Canais" no formulário do cliente, separando os canais da aba Marketing para maior visibilidade.
 
-Remover a classe `line-clamp-2` do parágrafo do conteúdo do comentário em `src/components/comments/CommentItem.tsx` (linha 153), permitindo que o texto seja exibido integralmente.
+## Mudanças
 
-## Arquivo alterado
+### `src/components/clients/ClientForm.tsx`
+- Adicionar nova aba "Canais" no `TabsList` (6 abas: Dados, Contato, Marketing, Canais, Links, Status)
+- Mover o `FormField` de `channels` (linhas 378-410) da aba "Marketing" para a nova aba "Canais"
+- Na aba "Canais", exibir os checkboxes com ícones coloridos (reutilizando o visual do `ChannelBadges`) para melhor identificação
+- Manter Persona, Tom de voz e Tags na aba "Marketing"
+- Ajustar `grid-cols` do `TabsList` de 5 para 6
 
-### `src/components/comments/CommentItem.tsx` — linha 153
-
-**Antes:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-```
-
-**Depois:**
-```tsx
-<p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">
-```
-
-Nenhuma alteração de banco de dados necessária — é uma mudança puramente visual de CSS.
