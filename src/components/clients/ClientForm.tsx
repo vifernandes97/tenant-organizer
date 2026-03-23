@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Loader2, Link as LinkIcon } from "lucide-react";
+import { X, Plus, Loader2, Link as LinkIcon, Instagram, Linkedin, Facebook, Twitter, Youtube, Globe } from "lucide-react";
 import { clientSchema, ClientFormData, useCreateClient, useUpdateClient } from "@/hooks/useClients";
 import { useClientPostStatuses, useBulkUpsertClientPostStatuses, DEFAULT_POST_STATUSES, type ClientPostStatusInsert } from "@/hooks/useClientPostStatuses";
 import { ClientStatusConfig } from "./ClientStatusConfig";
@@ -43,16 +43,16 @@ interface ClientFormProps {
   client?: Client | null;
 }
 
-const channels: { value: SocialChannel; label: string }[] = [
-  { value: "instagram_feed", label: "Instagram Feed" },
-  { value: "instagram_reels", label: "Instagram Reels" },
-  { value: "instagram_story", label: "Instagram Story" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "facebook", label: "Facebook" },
-  { value: "twitter", label: "Twitter" },
-  { value: "youtube", label: "YouTube" },
-  { value: "wordpress", label: "WordPress" },
+const channelOptions: { value: SocialChannel; label: string; icon: React.ReactNode; colorClass: string }[] = [
+  { value: "instagram_feed", label: "Instagram Feed", icon: <Instagram className="h-4 w-4" />, colorClass: "text-pink-600" },
+  { value: "instagram_reels", label: "Instagram Reels", icon: <Instagram className="h-4 w-4" />, colorClass: "text-pink-600" },
+  { value: "instagram_story", label: "Instagram Story", icon: <Instagram className="h-4 w-4" />, colorClass: "text-pink-600" },
+  { value: "tiktok", label: "TikTok", icon: <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" /></svg>, colorClass: "text-cyan-600" },
+  { value: "linkedin", label: "LinkedIn", icon: <Linkedin className="h-4 w-4" />, colorClass: "text-blue-600" },
+  { value: "facebook", label: "Facebook", icon: <Facebook className="h-4 w-4" />, colorClass: "text-blue-700" },
+  { value: "twitter", label: "Twitter", icon: <Twitter className="h-4 w-4" />, colorClass: "text-sky-600" },
+  { value: "youtube", label: "YouTube", icon: <Youtube className="h-4 w-4" />, colorClass: "text-red-600" },
+  { value: "wordpress", label: "WordPress", icon: <Globe className="h-4 w-4" />, colorClass: "text-slate-600" },
 ];
 
 export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
@@ -197,10 +197,11 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="basic">Dados</TabsTrigger>
                 <TabsTrigger value="contact">Contato</TabsTrigger>
                 <TabsTrigger value="marketing">Marketing</TabsTrigger>
+                <TabsTrigger value="channels">Canais</TabsTrigger>
                 <TabsTrigger value="links">Links</TabsTrigger>
                 <TabsTrigger value="statuses">Status</TabsTrigger>
               </TabsList>
@@ -377,40 +378,6 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="channels"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Canais</FormLabel>
-                      <div className="grid grid-cols-3 gap-2">
-                        {channels.map((channel) => (
-                          <div key={channel.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={channel.value}
-                              checked={field.value.includes(channel.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, channel.value]);
-                                } else {
-                                  field.onChange(field.value.filter((v) => v !== channel.value));
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={channel.value}
-                              className="text-sm cursor-pointer"
-                            >
-                              {channel.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="tags"
                   render={({ field }) => (
                     <FormItem>
@@ -444,6 +411,58 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                           ))}
                         </div>
                       )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value="channels" className="space-y-4 mt-4">
+                <FormField
+                  control={form.control}
+                  name="channels"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Canais ativos</FormLabel>
+                      <p className="text-sm text-muted-foreground mb-3">Selecione os canais em que este cliente publica conteúdo.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {channelOptions.map((channel) => (
+                          <div
+                            key={channel.value}
+                            className={`flex items-center space-x-3 rounded-md border p-3 cursor-pointer transition-colors ${
+                              field.value.includes(channel.value)
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:bg-muted/50"
+                            }`}
+                            onClick={() => {
+                              if (field.value.includes(channel.value)) {
+                                field.onChange(field.value.filter((v) => v !== channel.value));
+                              } else {
+                                field.onChange([...field.value, channel.value]);
+                              }
+                            }}
+                          >
+                            <Checkbox
+                              id={`channel-${channel.value}`}
+                              checked={field.value.includes(channel.value)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...field.value, channel.value]);
+                                } else {
+                                  field.onChange(field.value.filter((v) => v !== channel.value));
+                                }
+                              }}
+                            />
+                            <span className={channel.colorClass}>{channel.icon}</span>
+                            <label
+                              htmlFor={`channel-${channel.value}`}
+                              className="text-sm font-medium cursor-pointer flex-1"
+                            >
+                              {channel.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
