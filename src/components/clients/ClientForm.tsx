@@ -426,42 +426,38 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                       <FormLabel>Canais ativos</FormLabel>
                       <p className="text-sm text-muted-foreground mb-3">Selecione os canais em que este cliente publica conteúdo.</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {channelOptions.map((channel) => (
-                          <div
-                            key={channel.value}
-                            className={`flex items-center space-x-3 rounded-md border p-3 cursor-pointer transition-colors ${
-                              field.value.includes(channel.value)
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:bg-muted/50"
-                            }`}
-                            onClick={() => {
-                              if (field.value.includes(channel.value)) {
-                                field.onChange(field.value.filter((v) => v !== channel.value));
-                              } else {
-                                field.onChange([...field.value, channel.value]);
-                              }
-                            }}
-                          >
-                            <Checkbox
-                              id={`channel-${channel.value}`}
-                              checked={field.value.includes(channel.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, channel.value]);
-                                } else {
-                                  field.onChange(field.value.filter((v) => v !== channel.value));
-                                }
-                              }}
-                            />
-                            <span className={channel.colorClass}>{channel.icon}</span>
+                        {channelOptions.map((channel) => {
+                          const isChecked = field.value.includes(channel.value);
+                          return (
                             <label
+                              key={channel.value}
                               htmlFor={`channel-${channel.value}`}
-                              className="text-sm font-medium cursor-pointer flex-1"
+                              className={`flex items-center space-x-3 rounded-md border p-3 cursor-pointer transition-colors ${
+                                isChecked
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:bg-muted/50"
+                              }`}
                             >
-                              {channel.label}
+                              <input
+                                type="checkbox"
+                                id={`channel-${channel.value}`}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    field.onChange([...field.value, channel.value]);
+                                  } else {
+                                    field.onChange(field.value.filter((v) => v !== channel.value));
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-input accent-primary"
+                              />
+                              <span className={channel.colorClass}>{channel.icon}</span>
+                              <span className="text-sm font-medium flex-1">
+                                {channel.label}
+                              </span>
                             </label>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <FormMessage />
                     </FormItem>
