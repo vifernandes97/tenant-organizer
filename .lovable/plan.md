@@ -1,54 +1,31 @@
 
 
-# Exclusão de arquivos de mídia de postagens anteriores a 23/03/2026
+# Fix: Mensagem de erro genérica esconde o erro real de validação
 
-## Escopo identificado
+## Problema
+Quando o formulário falha na validação (ex: legenda com 3752/2200 caracteres), a função `handleValidationError` exibe sempre a mensagem genérica "Preencha todos os campos obrigatórios", mesmo quando o problema real é outro (como exceder o limite de caracteres). O usuário fica confuso porque todos os campos obrigatórios estão preenchidos.
 
-- **Usuário**: viniciusfernandesnegocios@gmail.com
-- **Tenant**: `2acf7ead-cb63-4883-ac77-4d8fd39cf65c`
-- **93 registros** em `post_images` vinculados a **27 postagens** com `scheduled_at < 2026-03-23`
-- **68 arquivos únicos** no bucket `post-images` a serem removidos
+## Solução
+Melhorar `handleValidationError` para exibir a mensagem de erro específica da validação que falhou, em vez de uma mensagem genérica.
 
-## Plano de execução
+## Mudanças
 
-### 1. Criar edge function temporária para deletar arquivos do storage
-Uma edge function que:
-- Recebe o `tenant_id` e a data limite como parâmetros
-- Usa o service role key para listar e deletar os arquivos do bucket `post-images`
-- Busca os `image_url` distintos das `post_images` vinculadas a posts antes da data
-- Remove os arquivos do storage bucket usando `supabase.storage.from('post-images').remove(paths)`
+### `src/components/schedule/PostForm.tsx`
+- Alterar `handleValidationError` para receber os erros do formulário e exibir a primeira mensagem de erro específica
+- Exemplo: se a legenda excede 2200 caracteres, exibir "Máximo 2200 caracteres" em vez de "Preencha todos os campos obrigatórios"
 
-### 2. Criar migration para deletar os registros do banco
-SQL migration que:
-- Deleta registros de `post_images` onde o `post_id` pertence a posts do tenant com `scheduled_at < '2026-03-23'`
-- Deleta os `post_comments` associados a essas postagens (para não deixar comentários órfãos)
-
-### 3. Executar e limpar
-- Deploy da edge function, executá-la via curl
-- Deletar a edge function após uso
-
-## Detalhes técnicos
-
-**Edge function** (`cleanup-old-media/index.ts`):
 ```typescript
-// Busca image_urls distintas, remove do bucket, depois deleta registros
-const { data: images } = await supabaseAdmin
-  .from('post_images')
-  .select('image_url, post_id, posts!inner(scheduled_at, tenant_id)')
-  .eq('posts.tenant_id', tenantId)
-  .lt('posts.scheduled_at', '2026-03-23');
-
-// Remove arquivos do storage
-await supabaseAdmin.storage.from('post-images').remove(uniquePaths);
-```
-
-**Migration SQL**:
-```sql
-DELETE FROM post_images 
-WHERE post_id IN (
-  SELECT id FROM posts 
-  WHERE tenant_id = '2acf7ead-cb63-4883-ac77-4d8fd39cf65c' 
-  AND scheduled_at < '2026-03-23'
-);
+const handleValidationError = (errors: any) => {
+  // Find the first error message to show
+  const firstError = Object.values(errors).find((e: any) => e?.message) as any;
+  const message = firstError?.message || 'Preencha todos os campos obrigatórios';
+  
+  // Switch to content tab if error is there
+  if (errors.client_id || errors.channels || errors.channel || errors.scheduled_at || errors.caption) {
+    setActiveTab('content');
+  }
+  
+  toast.error(message);
+};
 ```
 
