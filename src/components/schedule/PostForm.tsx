@@ -190,9 +190,15 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
     onOpenChange(false);
   };
 
-  const handleValidationError = () => {
-    setActiveTab('content');
-    toast.error('Preencha todos os campos obrigatórios');
+  const handleValidationError = (errors: any) => {
+    const firstError = Object.values(errors).find((e: any) => e?.message) as any;
+    const message = firstError?.message || 'Preencha todos os campos obrigatórios';
+
+    if (errors.client_id || errors.channels || errors.channel || errors.scheduled_at || errors.caption) {
+      setActiveTab('content');
+    }
+
+    toast.error(message);
   };
 
   const handleExistingImageRemove = (id: string) => {
