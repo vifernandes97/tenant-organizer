@@ -108,13 +108,39 @@ export default function Schedule() {
 
   const stats = useMemo(() => {
     return {
-      total: posts.length,
+      pending: posts.filter((p) => p.status === 'draft' || p.status === 'ai_generated' || p.status === 'reviewed').length,
       draft: posts.filter((p) => p.status === 'draft').length,
       approved: posts.filter((p) => p.status === 'approved').length,
       scheduled: posts.filter((p) => p.status === 'scheduled').length,
       published: posts.filter((p) => p.status === 'published').length,
     };
   }, [posts]);
+
+  // Toggle a status set as the only filter (acts like "show only X")
+  const toggleStatusOnly = useCallback((targets: PostStatus[]) => {
+    const isActive =
+      statusFilter.length === targets.length &&
+      targets.every((s) => statusFilter.includes(s));
+    setStatusFilter(isActive ? [] : targets);
+  }, [statusFilter]);
+
+  const isStatusActive = (targets: PostStatus[]) =>
+    statusFilter.length === targets.length &&
+    targets.every((s) => statusFilter.includes(s));
+
+  // Period shortcuts
+  const goToThisWeek = () => {
+    const today = new Date();
+    setViewMode('week');
+    setCurrentWeek(today);
+    setCurrentMonth(today);
+  };
+
+  const goToNext30Days = () => {
+    const today = new Date();
+    setViewMode('month');
+    setCurrentMonth(today);
+  };
 
   const goToPrevious = () => {
     if (viewMode === 'month') {
