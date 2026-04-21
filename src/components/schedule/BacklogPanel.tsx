@@ -4,7 +4,7 @@ import { PostWithImages } from '@/hooks/usePosts';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { PostStatusBadge } from './PostStatusBadge';
 import { extractPlainText } from '@/lib/textUtils';
-import { MessageSquare, Inbox, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, Inbox, ChevronUp, Video, FileText, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
