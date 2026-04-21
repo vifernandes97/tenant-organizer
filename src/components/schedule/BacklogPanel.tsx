@@ -23,6 +23,13 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
   const displayTitle = title || extractPlainText(primaryPost.caption || '').substring(0, 50);
   const channels = posts.map(p => p.channel);
 
+  const firstMedia = primaryPost.post_images?.[0];
+  const mediaType = firstMedia?.media_type;
+  const isImage = !!group.firstImage && (!mediaType || mediaType.startsWith('image'));
+  const isVideo = mediaType?.startsWith('video');
+  const isPdf = mediaType?.includes('pdf');
+  const hasMedia = isImage || isVideo || isPdf;
+
   const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
       groupId: group.groupId,
@@ -47,6 +54,24 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
       }`}
     >
       <div className="flex items-center gap-1.5">
+        {hasMedia && (
+          <div className="h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted flex items-center justify-center">
+            {isImage ? (
+              <img
+                src={group.firstImage!}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            ) : isVideo ? (
+              <Video className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : isPdf ? (
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </div>
+        )}
         <ChannelBadges channels={channels} iconOnly size="sm" />
         <p className="truncate text-sm text-foreground font-medium flex-1">
           {displayTitle || 'Sem título'}
