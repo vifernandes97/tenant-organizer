@@ -4,7 +4,7 @@ import { PostWithImages } from '@/hooks/usePosts';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { PostStatusBadge } from './PostStatusBadge';
 import { extractPlainText } from '@/lib/textUtils';
-import { MessageSquare, Inbox, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, Inbox, ChevronUp, Video, FileText, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,13 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
   const [isDragging, setIsDragging] = useState(false);
   const displayTitle = title || extractPlainText(primaryPost.caption || '').substring(0, 50);
   const channels = posts.map(p => p.channel);
+
+  const firstMedia = primaryPost.post_images?.[0];
+  const mediaType = firstMedia?.media_type;
+  const isImage = !!group.firstImage && (!mediaType || mediaType.startsWith('image'));
+  const isVideo = mediaType?.startsWith('video');
+  const isPdf = mediaType?.includes('pdf');
+  const hasMedia = isImage || isVideo || isPdf;
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -47,6 +54,24 @@ function BacklogCard({ group, onClick }: { group: PostGroup; onClick: () => void
       }`}
     >
       <div className="flex items-center gap-1.5">
+        {hasMedia && (
+          <div className="h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted flex items-center justify-center">
+            {isImage ? (
+              <img
+                src={group.firstImage!}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            ) : isVideo ? (
+              <Video className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : isPdf ? (
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </div>
+        )}
         <ChannelBadges channels={channels} iconOnly size="sm" />
         <p className="truncate text-sm text-foreground font-medium flex-1">
           {displayTitle || 'Sem título'}
@@ -106,8 +131,8 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
   if (collapsed) {
     return (
       <div
-        className={`flex w-10 shrink-0 flex-col items-center rounded-lg border bg-card transition-colors ${
-          isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+        className={`flex w-10 shrink-0 flex-col items-center rounded-lg border bg-card transition-all ${
+          isDragOver ? 'scale-[1.02] animate-pulse border-primary bg-primary/15 ring-2 ring-primary shadow-lg' : ''
         }`}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
@@ -132,8 +157,8 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
 
   return (
     <div
-      className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-colors ${
-        isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+      className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-all ${
+        isDragOver ? 'scale-[1.02] animate-pulse border-primary bg-primary/15 ring-2 ring-primary shadow-lg' : ''
       }`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}

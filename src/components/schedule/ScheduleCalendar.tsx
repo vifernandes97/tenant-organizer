@@ -116,9 +116,9 @@ export function ScheduleCalendar({ month, posts, onPostClick, onDayClick, onResc
               onDragEnter={() => handleDragEnter(date)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, date)}
-              className={`group relative min-h-[140px] border-b border-r p-1 transition-colors last:border-r-0 hover:bg-muted/30 ${
+              className={`group relative min-h-[140px] border-b border-r p-1 transition-all last:border-r-0 hover:bg-muted/30 ${
                 isToday(date) ? 'bg-primary/5' : ''
-              } ${isDragOver ? 'border-primary bg-primary/10' : ''}`}
+              } ${isDragOver ? 'z-10 scale-[1.02] animate-pulse bg-primary/15 ring-2 ring-primary ring-inset shadow-lg' : ''}`}
             >
               {/* Day Number */}
               <div className="mb-1 flex items-center justify-between px-1">

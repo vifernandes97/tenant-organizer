@@ -90,9 +90,9 @@ export function ScheduleWeekView({ week, posts, onPostClick, onDayClick, onResch
               onDragEnter={() => handleDragEnter(day)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, day)}
-              className={`group relative min-h-[450px] border-r p-2 transition-colors last:border-r-0 hover:bg-muted/30 ${
+              className={`group relative min-h-[450px] border-r p-2 transition-all last:border-r-0 hover:bg-muted/30 ${
                 isToday(day) ? 'bg-primary/5' : ''
-              } ${isDragOver ? 'border-primary bg-primary/10' : ''}`}
+              } ${isDragOver ? 'z-10 scale-[1.02] animate-pulse bg-primary/15 ring-2 ring-primary ring-inset shadow-lg' : ''}`}
             >
               {/* Day Number */}
               <div className="mb-2 flex items-center justify-between">
