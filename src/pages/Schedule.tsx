@@ -13,9 +13,12 @@ import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
+import { ActiveFilterChips } from '@/components/schedule/ActiveFilterChips';
 import { PostForm } from '@/components/schedule/PostForm';
 import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
 import { BacklogPanel } from '@/components/schedule/BacklogPanel';
+import { STATUS_ACCENT_CLASS } from '@/components/schedule/statusStyles';
+import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
@@ -105,13 +108,39 @@ export default function Schedule() {
 
   const stats = useMemo(() => {
     return {
-      total: posts.length,
+      pending: posts.filter((p) => p.status === 'draft' || p.status === 'ai_generated' || p.status === 'reviewed').length,
       draft: posts.filter((p) => p.status === 'draft').length,
       approved: posts.filter((p) => p.status === 'approved').length,
       scheduled: posts.filter((p) => p.status === 'scheduled').length,
       published: posts.filter((p) => p.status === 'published').length,
     };
   }, [posts]);
+
+  // Toggle a status set as the only filter (acts like "show only X")
+  const toggleStatusOnly = useCallback((targets: PostStatus[]) => {
+    const isActive =
+      statusFilter.length === targets.length &&
+      targets.every((s) => statusFilter.includes(s));
+    setStatusFilter(isActive ? [] : targets);
+  }, [statusFilter]);
+
+  const isStatusActive = (targets: PostStatus[]) =>
+    statusFilter.length === targets.length &&
+    targets.every((s) => statusFilter.includes(s));
+
+  // Period shortcuts
+  const goToThisWeek = () => {
+    const today = new Date();
+    setViewMode('week');
+    setCurrentWeek(today);
+    setCurrentMonth(today);
+  };
+
+  const goToNext30Days = () => {
+    const today = new Date();
+    setViewMode('month');
+    setCurrentMonth(today);
+  };
 
   const goToPrevious = () => {
     if (viewMode === 'month') {
@@ -197,34 +226,39 @@ export default function Schedule() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — clickable as quick status filters */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Total</p>
-          <p className="text-2xl font-bold">{stats.total}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Rascunhos</p>
-          <p className="text-2xl font-bold text-muted-foreground">{stats.draft}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Aprovados</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.approved}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Agendados</p>
-          <p className="text-2xl font-bold text-amber-500">{stats.scheduled}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Publicados</p>
-          <p className="text-2xl font-bold text-green-500">{stats.published}</p>
-        </div>
+        {([
+          { key: 'pending', label: 'Pend. aprovação', value: stats.pending, accent: STATUS_ACCENT_CLASS.pending, valueClass: 'text-orange-600', targets: ['draft', 'ai_generated', 'reviewed'] as PostStatus[] },
+          { key: 'draft', label: 'Rascunhos', value: stats.draft, accent: STATUS_ACCENT_CLASS.draft, valueClass: 'text-muted-foreground', targets: ['draft'] as PostStatus[] },
+          { key: 'approved', label: 'Aprovados', value: stats.approved, accent: STATUS_ACCENT_CLASS.approved, valueClass: 'text-blue-600', targets: ['approved'] as PostStatus[] },
+          { key: 'scheduled', label: 'Agendados', value: stats.scheduled, accent: STATUS_ACCENT_CLASS.scheduled, valueClass: 'text-amber-500', targets: ['scheduled'] as PostStatus[] },
+          { key: 'published', label: 'Publicados', value: stats.published, accent: STATUS_ACCENT_CLASS.published, valueClass: 'text-green-500', targets: ['published'] as PostStatus[] },
+        ]).map((card) => {
+          const active = isStatusActive(card.targets);
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => toggleStatusOnly(card.targets)}
+              aria-pressed={active}
+              className={cn(
+                'group relative overflow-hidden rounded-lg border bg-card p-3 text-left transition-all hover:shadow-md hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                active && 'border-primary ring-2 ring-primary/30 shadow-sm',
+              )}
+            >
+              <p className="text-xs text-muted-foreground">{card.label}</p>
+              <p className={cn('text-2xl font-bold', card.valueClass)}>{card.value}</p>
+              <span className={cn('absolute bottom-0 left-0 right-0 h-1', card.accent)} />
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters and Navigation */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="icon" onClick={goToPrevious}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -245,6 +279,16 @@ export default function Schedule() {
               Mês
             </ToggleGroupItem>
           </ToggleGroup>
+
+          {/* Period shortcuts */}
+          <div className="ml-2 flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={goToThisWeek} className="h-8 px-2 text-xs">
+              Esta semana
+            </Button>
+            <Button variant="ghost" size="sm" onClick={goToNext30Days} className="h-8 px-2 text-xs">
+              Próx. 30 dias
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -258,6 +302,18 @@ export default function Schedule() {
           onClear={clearFilters}
         />
       </div>
+
+      {/* Active filter chips */}
+      <ActiveFilterChips
+        clientId={clientFilter}
+        status={statusFilter}
+        channel={channelFilter}
+        onClientChange={setClientFilter}
+        onStatusChange={setStatusFilter}
+        onChannelChange={setChannelFilter}
+        onClear={clearFilters}
+      />
+
 
       {/* Calendar + Backlog */}
       <div className="flex gap-4">
