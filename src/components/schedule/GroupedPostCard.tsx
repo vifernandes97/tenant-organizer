@@ -4,6 +4,7 @@ import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare, Video, FileText, Image as ImageIcon } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
+import { STATUS_BORDER_CLASS } from './statusStyles';
 
 interface GroupedPostCardProps {
   group: PostGroup;
@@ -48,7 +49,7 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onClick}
-      className={`cursor-grab rounded-md border bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${
+      className={`cursor-grab rounded-md border border-l-[3px] bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${STATUS_BORDER_CLASS[primaryPost.status]} ${
         isDragging ? 'opacity-50 cursor-grabbing' : ''
       }`}
     >
