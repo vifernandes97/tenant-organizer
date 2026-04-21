@@ -106,8 +106,8 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
   if (collapsed) {
     return (
       <div
-        className={`flex w-10 shrink-0 flex-col items-center rounded-lg border bg-card transition-colors ${
-          isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+        className={`flex w-10 shrink-0 flex-col items-center rounded-lg border bg-card transition-all ${
+          isDragOver ? 'scale-[1.02] animate-pulse border-primary bg-primary/15 ring-2 ring-primary shadow-lg' : ''
         }`}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
@@ -132,8 +132,8 @@ export function BacklogPanel({ posts, isLoading, onPostClick, onUnschedule }: Ba
 
   return (
     <div
-      className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-colors ${
-        isDragOver ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+      className={`flex w-64 shrink-0 flex-col rounded-lg border bg-card transition-all ${
+        isDragOver ? 'scale-[1.02] animate-pulse border-primary bg-primary/15 ring-2 ring-primary shadow-lg' : ''
       }`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
