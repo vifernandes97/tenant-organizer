@@ -182,6 +182,7 @@ function AppSidebar() {
         </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
+    </div>
   );
 }
 
