@@ -5,6 +5,8 @@ import { MessageSquare, Video, FileText, Image as ImageIcon } from 'lucide-react
 import { extractPlainText } from '@/lib/textUtils';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { STATUS_BORDER_CLASS } from './statusStyles';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { PostHoverPreview } from './PostHoverPreview';
 
 interface GroupedPostCardProps {
   group: PostGroup;
@@ -44,6 +46,8 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   };
 
   return (
+    <HoverCard openDelay={300} closeDelay={100}>
+      <HoverCardTrigger asChild>
     <div
       draggable
       onDragStart={handleDragStart}
@@ -91,5 +95,23 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
         )}
       </div>
     </div>
+      </HoverCardTrigger>
+      <HoverCardContent side="right" align="start" className="w-80 p-0">
+        <PostHoverPreview
+          title={title}
+          caption={primaryPost.caption}
+          image={group.firstImage}
+          mediaType={firstMedia?.media_type}
+          channels={channels}
+          status={primaryPost.status}
+          customStatusId={primaryPost.custom_status_id}
+          clientId={group.clientId}
+          clientName={group.clientName}
+          scheduledAt={group.scheduledAt}
+          openComments={totalOpenComments}
+          postsCount={posts.length}
+        />
+      </HoverCardContent>
+    </HoverCard>
   );
 }
