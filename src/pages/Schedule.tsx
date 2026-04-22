@@ -106,16 +106,6 @@ export default function Schedule() {
     queryClient.invalidateQueries({ queryKey: ['backlog-posts'] });
   }, [queryClient]);
 
-  const stats = useMemo(() => {
-    return {
-      pending: posts.filter((p) => p.status === 'draft' || p.status === 'ai_generated' || p.status === 'reviewed').length,
-      draft: posts.filter((p) => p.status === 'draft').length,
-      approved: posts.filter((p) => p.status === 'approved').length,
-      scheduled: posts.filter((p) => p.status === 'scheduled').length,
-      published: posts.filter((p) => p.status === 'published').length,
-    };
-  }, [posts]);
-
   // Toggle a status set as the only filter (acts like "show only X")
   const toggleStatusOnly = useCallback((targets: PostStatus[]) => {
     const isActive =
@@ -224,35 +214,6 @@ export default function Schedule() {
           <Plus className="mr-2 h-4 w-4" />
           Novo Post
         </Button>
-      </div>
-
-      {/* Stats — clickable as quick status filters */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {([
-          { key: 'pending', label: 'Pend. aprovação', value: stats.pending, accent: STATUS_ACCENT_CLASS.pending, valueClass: 'text-orange-600', targets: ['draft', 'ai_generated', 'reviewed'] as PostStatus[] },
-          { key: 'draft', label: 'Rascunhos', value: stats.draft, accent: STATUS_ACCENT_CLASS.draft, valueClass: 'text-muted-foreground', targets: ['draft'] as PostStatus[] },
-          { key: 'approved', label: 'Aprovados', value: stats.approved, accent: STATUS_ACCENT_CLASS.approved, valueClass: 'text-blue-600', targets: ['approved'] as PostStatus[] },
-          { key: 'scheduled', label: 'Agendados', value: stats.scheduled, accent: STATUS_ACCENT_CLASS.scheduled, valueClass: 'text-amber-500', targets: ['scheduled'] as PostStatus[] },
-          { key: 'published', label: 'Publicados', value: stats.published, accent: STATUS_ACCENT_CLASS.published, valueClass: 'text-green-500', targets: ['published'] as PostStatus[] },
-        ]).map((card) => {
-          const active = isStatusActive(card.targets);
-          return (
-            <button
-              key={card.key}
-              type="button"
-              onClick={() => toggleStatusOnly(card.targets)}
-              aria-pressed={active}
-              className={cn(
-                'group relative overflow-hidden rounded-lg border bg-card p-3 text-left transition-all hover:shadow-md hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                active && 'border-primary ring-2 ring-primary/30 shadow-sm',
-              )}
-            >
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-              <p className={cn('text-2xl font-bold', card.valueClass)}>{card.value}</p>
-              <span className={cn('absolute bottom-0 left-0 right-0 h-1', card.accent)} />
-            </button>
-          );
-        })}
       </div>
 
       {/* Filters and Navigation */}
