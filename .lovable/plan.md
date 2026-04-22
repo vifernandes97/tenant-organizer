@@ -1,64 +1,69 @@
 
 
-# Hover preview nos cards de post do cronograma
+# Visualização do cronograma em modo Lista
 
 ## Comportamento
-Ao passar o mouse sobre um card de post no calendário (`PostCard` ou `GroupedPostCard`), abrir um **HoverCard** lateral mostrando uma prévia rica:
-- Imagem/mídia em tamanho maior (ou ícone se for vídeo/PDF)
-- Título completo (sem truncar)
-- Cliente
-- Canais (badges com nome)
-- Status
-- Horário agendado (ou "Backlog")
-- Trecho da legenda (primeiras ~150 chars em texto plano)
-- Contagem de comentários abertos (se houver)
-- No caso de grupo: lista de canais e quantidade de posts
+Adicionar um terceiro modo de visualização (além de **Mês** e **Semana**) chamado **Lista**, que mostra todos os posts do período em formato denso e cronológico — ideal para revisar muitos posts rápido sem perder informação.
 
-O clique continua abrindo o modal de detalhes — o hover é puramente informativo.
+## UI
+
+### Toggle de visualização
+Em `src/pages/Schedule.tsx`, adicionar `"list"` ao `ToggleGroup` existente:
+```text
+[ Semana ] [ Mês ] [ Lista ]
+```
+
+### Layout da Lista
+Posts agrupados por dia, ordem cronológica ascendente. Cada dia tem um cabeçalho sticky e abaixo as linhas dos posts.
+
+```text
+┌─ Segunda, 22 de abril ──────────────────────────────────┐
+│ ⏰ 09:00  [img] Título do post   Cliente  IG FB ●Aprovado  💬2 │
+│ ⏰ 14:30  [img] Outro post       Cliente  LI    ●Rascunho      │
+├─ Terça, 23 de abril ────────────────────────────────────┤
+│ ⏰ 10:00  [img] Post da terça    Cliente  IG    ●Agendado      │
+└─────────────────────────────────────────────────────────┘
+```
+
+Colunas por linha (agrupadas por `groupId`, igual às outras views):
+- Thumbnail 40x40 (imagem ou ícone do tipo de mídia)
+- Horário (HH:mm) ou "Sem hora"
+- Título (truncado)
+- Cliente
+- Badges de canais (compactos)
+- `PostStatusBadge`
+- Indicador "+N posts" se for grupo com múltiplos canais
+
+Linha inteira clicável → abre `GroupPostDetails` (mesmo handler `onPostClick`).
+HoverCard com `PostHoverPreview` (já existente) também na linha.
+
+### Período exibido
+- Usa o mesmo `currentMonth` da navegação
+- Botões `< >` avançam/retrocedem 1 mês
+- Empty state: "Nenhum post agendado neste período"
 
 ## Implementação
 
-### 1. Novo componente `src/components/schedule/PostHoverPreview.tsx`
-Conteúdo reutilizável renderizado dentro de um `HoverCardContent`:
-- Props: `{ title, caption, image, mediaType, channels, status, customStatusId, clientId, clientName, scheduledAt, openComments, postsCount? }`
-- Layout: ~320px de largura, imagem no topo (aspect 16:9, `object-cover`) ou placeholder com ícone, depois bloco de metadados
-- Usa `ChannelBadges` (sem `iconOnly`) para mostrar nomes dos canais
-- Usa `PostStatusBadge` para o status
-- Formata `scheduledAt` com `date-fns` (já presente no projeto)
-- Trecho da legenda via `extractPlainText(caption).substring(0, 150)`
+### 1. Novo componente `src/components/schedule/ScheduleListView.tsx`
+- Props: `{ month: Date; posts: PostWithImages[]; onPostClick: (group: PostGroup) => void }`
+- Reusa `groupPosts()` de `useGroupedPosts.ts`
+- Agrupa groups por data (chave `yyyy-MM-dd`), ordena dias e horários ascendente
+- Header sticky por dia (`sticky top-0 bg-background z-10 border-b`) com data em pt-BR e contagem
+- Sem drag-and-drop nesta view (foco em leitura)
 
-### 2. `src/components/schedule/PostCard.tsx`
-Envolver o `<div>` principal em `<HoverCard openDelay={300} closeDelay={100}>`:
-```tsx
-<HoverCard openDelay={300} closeDelay={100}>
-  <HoverCardTrigger asChild>
-    <div onClick={onClick} className="...">...</div>
-  </HoverCardTrigger>
-  <HoverCardContent side="right" align="start" className="w-80 p-0">
-    <PostHoverPreview ... />
-  </HoverCardContent>
-</HoverCard>
-```
-
-### 3. `src/components/schedule/GroupedPostCard.tsx`
-Mesma estrutura. Importante: o `draggable` deve continuar no `<div>` interno (trigger), não no HoverCard wrapper. Adicionar `postsCount={posts.length}` e lista completa de canais.
-
-### Detalhes UX
-- `openDelay={300}` evita abrir ao só atravessar o card — só quando o usuário pausa
-- `closeDelay={100}` para não fechar bruscamente
-- `side="right"` por padrão (Radix faz collision detection automático e flipa pra esquerda se não couber)
-- `w-80` (320px) — largura confortável sem ocupar a tela
-- Conteúdo com `p-0` para a imagem encostar nas bordas; padding interno só no bloco de texto
-- Não interfere com drag-and-drop: o HoverCard não captura eventos de mouse-down/drag
+### 2. `src/pages/Schedule.tsx`
+- Estender `ViewMode` para `'month' | 'week' | 'list'`
+- Adicionar `<ToggleGroupItem value="list">Lista</ToggleGroupItem>`
+- Renderização condicional: se `viewMode === 'list'` → `<ScheduleListView ... />`
+- `dateLabel` em modo lista usa o nome do mês (mesma lógica do mês)
+- BacklogPanel à esquerda continua aparecendo nas três views
 
 ## Notas técnicas
-- `HoverCard` do shadcn já existe em `src/components/ui/hover-card.tsx` — só importar
-- Sem mudanças em hooks, schema, ou validação
-- Sem novas dependências
-- Funciona nas duas views (mês e semana) automaticamente, pois ambos os componentes são reusados nelas
+- Reusa `PostHoverPreview`, `PostStatusBadge`, `ChannelBadges`, `extractPlainText` — zero novas dependências
+- Sem mudanças em hooks de dados, schema ou validação
+- Filtros (cliente/status/canal) já se aplicam via `usePosts({ ... })` no parent — funciona automaticamente
 
 ## Arquivos editados/criados
-- **Criado**: `src/components/schedule/PostHoverPreview.tsx`
-- **Editado**: `src/components/schedule/PostCard.tsx`
-- **Editado**: `src/components/schedule/GroupedPostCard.tsx`
+- **Criado**: `src/components/schedule/ScheduleListView.tsx`
+- **Editado**: `src/pages/Schedule.tsx`
 
