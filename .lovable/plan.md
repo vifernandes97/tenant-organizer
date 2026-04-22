@@ -1,27 +1,29 @@
 
 
-# Fix: limite de 2200 caracteres bloqueando edição de legendas
+# Fix: validação Zod ainda bloqueia em 2200 caracteres no save
 
 ## Problema
-A imagem mostra `Legenda 5215/2200` com `Máximo 2200 caracteres` em vermelho — o usuário conseguiu colar 5215 caracteres num ponto, mas o `FullscreenViewer` (visualização em tela cheia ao clicar no botão de expandir da imagem) está limitando a edição a 2200 e impedindo o salvamento. Há também um contador `/2200` no `PostForm` que mostra o número errado no label, mesmo o campo aceitando 5000.
+Mesmo após o fix anterior na UI, ao salvar um post o toast **"Máximo 2200 caracteres"** ainda aparece. A causa é que a validação Zod em `src/hooks/usePosts.ts` (que roda no submit do formulário via React Hook Form) tem `max(2200)` hardcoded em **dois schemas**:
 
-O limite real do projeto é **5000 caracteres** (definido no `RichTextEditor` e `ExpandableTextarea`). O 2200 é o limite específico do **Instagram**, que estava sendo aplicado de forma global por engano.
+- Linha 92 — `postSchema` (criação multi-canal)
+- Linha 104 — `postEditSchema` (edição de canal único)
 
-## Correções
+Esses schemas validam o caption antes de qualquer chamada ao banco, então o limite de UI (5000) e o `maxLength` do textarea ficam inertes — o Zod barra antes.
 
-### 1. `src/components/schedule/FullscreenViewer.tsx`
-- Trocar `const maxChars = 2200` por `const maxChars = 5000`
-- O `<Textarea maxLength={maxChars}>` e o contador `{caption.length}/{maxChars}` passam a usar 5000 automaticamente
+## Correção
 
-### 2. `src/components/schedule/PostForm.tsx` (linha 458)
-- Trocar `{field.value?.length || 0}/2200` por `{field.value?.length || 0}/5000`
-- Mantém consistência com o `maxLength={5000}` real do `ExpandableTextarea` logo abaixo
+### `src/hooks/usePosts.ts`
+Trocar nas duas linhas (92 e 104):
+```ts
+caption: z.string().max(2200, 'Máximo 2200 caracteres').optional(),
+```
+por:
+```ts
+caption: z.string().max(5000, 'Máximo 5000 caracteres').optional(),
+```
 
 ## Notas técnicas
-- Não há nenhum outro ponto no código que aplique 2200 como limite — verificado com `rg "2200"` em todo `src/`
-- A regra de 5000 caracteres já está documentada na memória do projeto (`mem://features/rich-text-editor`)
-- Sem mudanças de schema, hooks, ou validação Zod — é apenas correção de constantes hardcoded
-
-## Sugestão futura (não incluída neste fix)
-Se quiser indicar limites por canal (Instagram 2200, Twitter 280, LinkedIn 3000, etc.), podemos adicionar contadores informativos por canal selecionado no `PostForm` — mas como **aviso** e não bloqueio, mantendo o limite técnico em 5000.
+- `rg "2200" src/` confirma que estes são os **únicos** dois pontos restantes no código de aplicação (os outros matches são apenas valores hex `#422006` no Tailwind config — irrelevantes)
+- A regra de 5000 caracteres do projeto (memória `mem://features/rich-text-editor`) agora fica refletida em UI **e** validação
+- Sem mudanças de schema do banco, hook signature, ou tipos — só os literais Zod
 
