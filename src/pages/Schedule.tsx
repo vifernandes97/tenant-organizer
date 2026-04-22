@@ -12,6 +12,7 @@ import { usePosts, useBacklogPosts, useRescheduleGroup, PostWithImages } from '@
 import { PostGroup } from '@/hooks/useGroupedPosts';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { ScheduleWeekView } from '@/components/schedule/ScheduleWeekView';
+import { ScheduleListView } from '@/components/schedule/ScheduleListView';
 import { ScheduleFilters } from '@/components/schedule/ScheduleFilters';
 import { ActiveFilterChips } from '@/components/schedule/ActiveFilterChips';
 import { PostForm } from '@/components/schedule/PostForm';
@@ -22,7 +23,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
 type SocialChannel = Database['public']['Enums']['social_channel'];
-type ViewMode = 'month' | 'week';
+type ViewMode = 'month' | 'week' | 'list';
 
 export default function Schedule() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -183,14 +184,14 @@ export default function Schedule() {
   };
 
   const handleViewModeChange = (value: string) => {
-    if (value === 'month' || value === 'week') {
+    if (value === 'month' || value === 'week' || value === 'list') {
       setViewMode(value);
     }
   };
 
   // Display label based on view mode
   const dateLabel = useMemo(() => {
-    if (viewMode === 'month') {
+    if (viewMode === 'month' || viewMode === 'list') {
       return format(currentMonth, 'MMMM yyyy', { locale: ptBR });
     } else {
       const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
@@ -237,6 +238,9 @@ export default function Schedule() {
             </ToggleGroupItem>
             <ToggleGroupItem value="month" aria-label="Visualização mensal" className="text-xs">
               Mês
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="Visualização em lista" className="text-xs">
+              Lista
             </ToggleGroupItem>
           </ToggleGroup>
 
@@ -299,13 +303,19 @@ export default function Schedule() {
               onDayClick={handleDayClick}
               onReschedule={handleReschedule}
             />
-          ) : (
+          ) : viewMode === 'week' ? (
             <ScheduleWeekView
               week={currentWeek}
               posts={posts}
               onPostClick={handlePostClick}
               onDayClick={handleDayClick}
               onReschedule={handleReschedule}
+            />
+          ) : (
+            <ScheduleListView
+              month={currentMonth}
+              posts={posts}
+              onPostClick={handlePostClick}
             />
           )}
         </div>
