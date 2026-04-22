@@ -94,7 +94,21 @@ function AppSidebar() {
   // (not the gap div) so the main content doesn't shift.
   const hoverExpandClass =
     isRealCollapsed && isHovering
-      ? '[&_[data-sidebar=sidebar]]:!w-[--sidebar-width] [&>div:first-child>div]:!w-[--sidebar-width] [&>div:first-child]:shadow-lg [&>div:first-child]:transition-[width] [&>div:first-child]:duration-200'
+      ? [
+          // expandir largura
+          '[&_[data-sidebar=sidebar]]:!w-[--sidebar-width]',
+          '[&>div:first-child>div]:!w-[--sidebar-width]',
+          '[&>div:first-child]:shadow-lg',
+          '[&>div:first-child]:transition-[width]',
+          '[&>div:first-child]:duration-200',
+          // revelar labels escondidos pelo CSS interno do shadcn no modo icon
+          '[&_[data-sidebar=menu-button]>span:last-child]:!opacity-100',
+          '[&_[data-sidebar=menu-button]>span:last-child]:!inline',
+          '[&_[data-sidebar=menu-button]]:!w-full',
+          '[&_[data-sidebar=menu-button]]:!justify-start',
+          '[&_[data-sidebar=menu-button]]:!p-2',
+          '[&_[data-sidebar=menu-button]]:!h-8',
+        ].join(' ')
       : '';
 
   return (
