@@ -17,7 +17,7 @@ import { ActiveFilterChips } from '@/components/schedule/ActiveFilterChips';
 import { PostForm } from '@/components/schedule/PostForm';
 import { GroupPostDetails } from '@/components/schedule/GroupPostDetails';
 import { BacklogPanel } from '@/components/schedule/BacklogPanel';
-import { cn } from '@/lib/utils';
+
 import type { Database } from '@/integrations/supabase/types';
 
 type PostStatus = Database['public']['Enums']['post_status'];
