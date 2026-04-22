@@ -71,7 +71,7 @@ export function FullscreenViewer({ post, open, onOpenChange, onSaved }: Fullscre
   };
 
   const hasChanges = caption !== (post.caption || '');
-  const maxChars = 2200;
+  const maxChars = 5000;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
