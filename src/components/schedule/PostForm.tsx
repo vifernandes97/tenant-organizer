@@ -455,7 +455,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                         <FormLabel>
                           Legenda
                           <span className="ml-2 text-xs text-muted-foreground">
-                            {field.value?.length || 0}/2200
+                            {field.value?.length || 0}/5000
                           </span>
                         </FormLabel>
                         <FormControl>
