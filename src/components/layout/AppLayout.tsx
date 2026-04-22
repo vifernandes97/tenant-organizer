@@ -47,7 +47,25 @@ function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useSidebar();
-  const isCollapsed = state === 'collapsed';
+  const [isHovering, setIsHovering] = useState(false);
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isRealCollapsed = state === 'collapsed';
+  const showLabels = !isRealCollapsed || isHovering;
+  const isCollapsed = !showLabels;
+
+  const handleMouseEnter = () => {
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
+    }
+    if (isRealCollapsed) setIsHovering(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+    leaveTimeoutRef.current = setTimeout(() => setIsHovering(false), 150);
+  };
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -72,7 +90,15 @@ function AppSidebar() {
       .slice(0, 2);
   };
 
+  // When real state is collapsed and hovering, expand only the fixed inner panel
+  // (not the gap div) so the main content doesn't shift.
+  const hoverExpandClass =
+    isRealCollapsed && isHovering
+      ? '[&_[data-sidebar=sidebar]]:!w-[--sidebar-width] [&>div:first-child>div]:!w-[--sidebar-width] [&>div:first-child]:shadow-lg [&>div:first-child]:transition-[width] [&>div:first-child]:duration-200'
+      : '';
+
   return (
+    <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} className={hoverExpandClass}>
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex h-12 items-center px-2">
