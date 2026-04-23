@@ -399,7 +399,10 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     channel={activePost.channel}
                     clientId={activePost.client_id}
                   />
-                  <span className="text-xs text-muted-foreground">
+                  <span
+                    className="text-xs text-muted-foreground truncate max-w-[200px] pr-8"
+                    title={activePost.clients?.name}
+                  >
                     {activePost.clients?.name}
                   </span>
                 </div>
