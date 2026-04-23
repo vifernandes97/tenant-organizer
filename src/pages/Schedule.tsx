@@ -118,20 +118,6 @@ export default function Schedule() {
     statusFilter.length === targets.length &&
     targets.every((s) => statusFilter.includes(s));
 
-  // Period shortcuts
-  const goToThisWeek = () => {
-    const today = new Date();
-    setViewMode('week');
-    setCurrentWeek(today);
-    setCurrentMonth(today);
-  };
-
-  const goToNext30Days = () => {
-    const today = new Date();
-    setViewMode('month');
-    setCurrentMonth(today);
-  };
-
   const goToPrevious = () => {
     if (viewMode === 'month') {
       setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -243,16 +229,6 @@ export default function Schedule() {
               Lista
             </ToggleGroupItem>
           </ToggleGroup>
-
-          {/* Period shortcuts */}
-          <div className="ml-2 flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={goToThisWeek} className="h-8 px-2 text-xs">
-              Esta semana
-            </Button>
-            <Button variant="ghost" size="sm" onClick={goToNext30Days} className="h-8 px-2 text-xs">
-              Próx. 30 dias
-            </Button>
-          </div>
         </div>
 
         {/* Filters */}
