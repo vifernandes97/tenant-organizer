@@ -465,62 +465,115 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                       />
                     </div>
 
-                    {/* Channel (individual - only show if single channel) */}
-                    {!isMultiChannel && (
+                    {/* Caption (individual per channel) - hide for WordPress - PROMOTED TO TOP */}
+                    {!isWordPress && (
                       <div className="mb-4">
-                        <h4 className="mb-1 text-xs font-medium text-muted-foreground">Canal</h4>
-                        <InlineEditable
-                          type="select"
-                          value={activePost.channel}
-                          displayValue={getChannelLabel(activePost.channel)}
-                          options={CHANNEL_OPTIONS}
-                          onSave={(value) => handleFieldUpdate('channel', value)}
-                          isLoading={savingField === 'channel'}
-                        />
+                        <div className="mb-2 flex items-center justify-between">
+                          <h4 className="text-xs font-medium text-muted-foreground">
+                            Legenda
+                            {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
+                          </h4>
+                          {activePost.caption && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setCaptionDialogOpen(true)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Maximize2 className="mr-1 h-3 w-3" />
+                              Expandir
+                            </Button>
+                          )}
+                        </div>
+                        <div className="[&_.ProseMirror]:min-h-[280px] [&_.prose]:min-h-[260px]">
+                          <InlineRichTextEditor
+                            value={activePost.caption || ''}
+                            onSave={(value) => handleFieldUpdate('caption', value)}
+                            isLoading={savingField === 'caption'}
+                            placeholder="Clique para adicionar legenda..."
+                          />
+                        </div>
                       </div>
                     )}
-                    
-                    {/* Client (shared) */}
-                    <div className="mb-4">
-                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">
-                        Cliente
-                        {isMultiChannel && <span className="ml-1 text-primary">(todos os canais)</span>}
-                      </h4>
-                      <InlineEditable
-                        type="select"
-                        value={activePost.client_id}
-                        displayValue={activePost.clients?.name || 'Selecione'}
-                        options={clientOptions}
-                        onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('client_id', value) : handleFieldUpdate('client_id', value)}
-                        isLoading={savingField === 'client_id'}
-                      />
-                    </div>
-
-                    {/* Schedule Info (shared) */}
-                    <div className="mb-4">
-                      <h4 className="mb-1 text-xs font-medium text-muted-foreground">
-                        Data e Hora
-                        {isMultiChannel && <span className="ml-1 text-primary">(todos os canais)</span>}
-                      </h4>
-                      <InlineEditable
-                        type="datetime"
-                        value={formatDateTimeForInput(scheduledDate)}
-                        displayValue={`${scheduledDate.toLocaleDateString('pt-BR', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })} às ${scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
-                        onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('scheduled_at', value) : handleFieldUpdate('scheduled_at', value)}
-                        isLoading={savingField === 'scheduled_at'}
-                      />
-                    </div>
 
                     <Separator className="my-4" />
+
+                    {/* Metadata grid: Client | Date, Channel | Status */}
+                    <div className="mb-3 grid grid-cols-2 gap-3">
+                      {/* Client (shared) */}
+                      <div>
+                        <h4 className="mb-1 text-xs font-medium text-muted-foreground">
+                          Cliente
+                          {isMultiChannel && <span className="ml-1 text-primary">(todos)</span>}
+                        </h4>
+                        <InlineEditable
+                          type="select"
+                          value={activePost.client_id}
+                          displayValue={activePost.clients?.name || 'Selecione'}
+                          options={clientOptions}
+                          onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('client_id', value) : handleFieldUpdate('client_id', value)}
+                          isLoading={savingField === 'client_id'}
+                        />
+                      </div>
+
+                      {/* Schedule Info (shared) */}
+                      <div>
+                        <h4 className="mb-1 text-xs font-medium text-muted-foreground">
+                          Data e Hora
+                          {isMultiChannel && <span className="ml-1 text-primary">(todos)</span>}
+                        </h4>
+                        <InlineEditable
+                          type="datetime"
+                          value={formatDateTimeForInput(scheduledDate)}
+                          displayValue={`${scheduledDate.toLocaleDateString('pt-BR', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })} às ${scheduledDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                          onSave={(value) => isMultiChannel ? handleSharedFieldUpdate('scheduled_at', value) : handleFieldUpdate('scheduled_at', value)}
+                          isLoading={savingField === 'scheduled_at'}
+                        />
+                      </div>
+
+                      {/* Channel (individual - only show if single channel) */}
+                      {!isMultiChannel && (
+                        <div>
+                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Canal</h4>
+                          <InlineEditable
+                            type="select"
+                            value={activePost.channel}
+                            displayValue={getChannelLabel(activePost.channel)}
+                            options={CHANNEL_OPTIONS}
+                            onSave={(value) => handleFieldUpdate('channel', value)}
+                            isLoading={savingField === 'channel'}
+                          />
+                        </div>
+                      )}
+
+                      {/* Status (individual per channel) */}
+                      <div>
+                        <h4 className="mb-1 text-xs font-medium text-muted-foreground">
+                          Status
+                          {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
+                        </h4>
+                        <Select value={activePost.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">Rascunho</SelectItem>
+                            <SelectItem value="approved">Aprovado</SelectItem>
+                            <SelectItem value="scheduled">Agendado</SelectItem>
+                            <SelectItem value="published">Publicado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
                     {/* WordPress-specific fields */}
                     {isWordPress && (
                       <>
+                        <Separator className="my-4" />
                         <div className="mb-4 flex items-center justify-between">
                           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">WordPress</h4>
                           <Button
@@ -592,60 +645,8 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                             maxHeight="300px"
                           />
                         </div>
-
-                        <Separator className="my-4" />
                       </>
                     )}
-
-                    {/* Caption (individual per channel) - hide for WordPress */}
-                    {!isWordPress && (
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <h4 className="text-xs font-medium text-muted-foreground">
-                            Legenda
-                            {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
-                          </h4>
-                          {activePost.caption && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setCaptionDialogOpen(true)}
-                              className="h-6 px-2 text-xs"
-                            >
-                              <Maximize2 className="mr-1 h-3 w-3" />
-                              Expandir
-                            </Button>
-                          )}
-                        </div>
-                        <InlineRichTextEditor
-                          value={activePost.caption || ''}
-                          onSave={(value) => handleFieldUpdate('caption', value)}
-                          isLoading={savingField === 'caption'}
-                          placeholder="Clique para adicionar legenda..."
-                        />
-                      </div>
-                    )}
-
-                    <Separator className="my-4" />
-
-                    {/* Status (individual per channel) */}
-                    <div>
-                      <h4 className="mb-2 text-xs font-medium text-muted-foreground">
-                        Status
-                        {isMultiChannel && <span className="ml-1 text-muted-foreground/60">(apenas {getChannelLabel(activePost.channel)})</span>}
-                      </h4>
-                      <Select value={activePost.status} onValueChange={(v) => handleStatusChange(v as PostStatus)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">Rascunho</SelectItem>
-                          <SelectItem value="approved">Aprovado</SelectItem>
-                          <SelectItem value="scheduled">Agendado</SelectItem>
-                          <SelectItem value="published">Publicado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
                   {/* Footer */}
