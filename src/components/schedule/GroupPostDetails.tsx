@@ -151,7 +151,11 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
       await updatePost.mutateAsync({
         id: activePost.id,
         post: { [field]: value },
+        silent: true,
       });
+    } catch (error) {
+      console.error(`Erro ao salvar ${field}:`, error);
+      toast.error('Erro ao salvar alteração');
     } finally {
       setSavingField(null);
     }
@@ -165,8 +169,12 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
         await updatePost.mutateAsync({
           id: post.id,
           post: { [field]: value },
+          silent: true,
         });
       }
+    } catch (error) {
+      console.error(`Erro ao salvar ${field}:`, error);
+      toast.error('Erro ao salvar alteração');
     } finally {
       setSavingField(null);
     }
