@@ -528,14 +528,14 @@ export function useUpdatePost() {
 
       return updatedPost;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars: any) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post'] });
-      toast.success('Post atualizado com sucesso!');
+      if (!vars?.silent) toast.success('Post atualizado com sucesso!');
     },
-    onError: (error) => {
+    onError: (error, vars: any) => {
       console.error('Erro ao atualizar post:', error);
-      toast.error('Erro ao atualizar post');
+      if (!vars?.silent) toast.error('Erro ao atualizar post');
     },
   });
 }
