@@ -104,7 +104,6 @@ function ListPostRow({ group, onClick }: ListPostRowProps) {
   const displayTitle =
     group.title || extractPlainText(primary.caption || '').substring(0, 60) || 'Sem título';
 
-  const time = group.scheduledAt ? format(parseISO(group.scheduledAt), 'HH:mm') : '--:--';
   const postsCount = group.posts.length;
 
   return (
@@ -114,9 +113,6 @@ function ListPostRow({ group, onClick }: ListPostRowProps) {
           onClick={onClick}
           className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50"
         >
-          {/* Time */}
-          <div className="w-12 shrink-0 font-mono text-xs text-muted-foreground">{time}</div>
-
           {/* Thumbnail */}
           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
             {isImage ? (
