@@ -26,12 +26,12 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const N8N_WEBHOOK_URL = Deno.env.get("N8N_WEBHOOK_URL");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Supabase configuration is missing");
-    }
-
-    if (!N8N_WEBHOOK_URL) {
-      throw new Error("N8N_WEBHOOK_URL is not configured");
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !N8N_WEBHOOK_URL) {
+      console.error("wordpress-webhook: missing required configuration");
+      return new Response(
+        JSON.stringify({ error: "Service unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -149,7 +149,10 @@ serve(async (req) => {
     if (!n8nResponse.ok) {
       const errorText = await n8nResponse.text();
       console.error("n8n webhook error:", n8nResponse.status, errorText);
-      throw new Error(`n8n webhook error: ${n8nResponse.status}`);
+      return new Response(
+        JSON.stringify({ error: "Service unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const n8nRaw = await n8nResponse.json();
@@ -194,7 +197,10 @@ serve(async (req) => {
 
       if (updateError) {
         console.error("Error updating post:", updateError);
-        throw new Error("Failed to update post with n8n response");
+        return new Response(
+          JSON.stringify({ error: "An error occurred" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
@@ -205,7 +211,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in wordpress-webhook:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

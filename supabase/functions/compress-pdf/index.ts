@@ -26,7 +26,11 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Supabase configuration is missing");
+      console.error("compress-pdf: missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ error: "Service unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -78,7 +82,11 @@ serve(async (req) => {
       .download(file_path);
 
     if (downloadError || !fileData) {
-      throw new Error(`Failed to download file: ${downloadError?.message}`);
+      console.error("compress-pdf: download failed", downloadError);
+      return new Response(
+        JSON.stringify({ error: "An error occurred" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const originalSize = fileData.size;
@@ -108,7 +116,11 @@ serve(async (req) => {
         });
 
       if (uploadError) {
-        throw new Error(`Failed to upload compressed file: ${uploadError.message}`);
+        console.error("compress-pdf: upload failed", uploadError);
+        return new Response(
+          JSON.stringify({ error: "An error occurred" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       console.log(`Compressed ${file_path}: ${originalSize} -> ${compressedSize} (${Math.round((1 - compressedSize / originalSize) * 100)}% reduction)`);
@@ -128,7 +140,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error compressing PDF:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

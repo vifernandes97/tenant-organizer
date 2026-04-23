@@ -1,7 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+const commentContentSchema = z
+  .string()
+  .trim()
+  .min(1, 'O comentário não pode ficar vazio')
+  .max(2000, 'O comentário deve ter no máximo 2000 caracteres');
 
 export type CommentStatus = 'open' | 'resolved';
 
@@ -181,6 +188,11 @@ export function useCreateComment() {
     mutationFn: async (input: CreateCommentInput) => {
       if (!profile?.tenant_id || !user) throw new Error('Não autenticado');
 
+      const parsed = commentContentSchema.safeParse(input.content);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? 'Conteúdo inválido');
+      }
+
       const { data, error } = await supabase
         .from('post_comments')
         .insert({
@@ -188,7 +200,7 @@ export function useCreateComment() {
           image_id: input.image_id || null,
           tenant_id: profile.tenant_id,
           author_id: user.id,
-          content: input.content,
+          content: parsed.data,
           x_position: input.x_position ?? null,
           y_position: input.y_position ?? null,
           parent_id: input.parent_id || null,
