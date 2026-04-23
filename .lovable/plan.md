@@ -1,15 +1,15 @@
 
 
-# Remover botões "Esta semana" e "Próx. 30 dias" do cronograma
+# Remover coluna de horário da visualização em Lista
 
 ## Mudança
-Retirar os dois atalhos de período (`Esta semana` e `Próx. 30 dias`) da barra de navegação do cronograma. A navegação principal (botões `< >`, toggle Semana/Mês/Lista e clique no label da data para voltar a "hoje") continua funcionando normalmente.
+Retirar a coluna de horário (`HH:mm`) que aparece à esquerda de cada linha na visualização em Lista do cronograma. O horário continua disponível no `PostHoverPreview` (ao passar o mouse) e no modal de detalhes.
 
 ## Arquivo editado
-- `src/pages/Schedule.tsx` — remover o bloco JSX dos dois botões (linhas ~228-235) e as funções `goToThisWeek` e `goToNext30Days` que ficam órfãs.
+- `src/components/schedule/ScheduleListView.tsx` — remover a `<div>` com a classe `w-12 shrink-0 font-mono ...` que renderiza `{time}` (linhas ~120-121) e a constante `time` calculada logo acima (linha ~114).
 
 ## Notas
 - Sem mudanças em hooks, schema ou outros componentes
-- O usuário ainda volta para "hoje" clicando no label central da data (`goToToday` já existe)
-- Navegação por mês/semana segue via setas `< >`
+- O agrupamento por dia e a ordenação cronológica continuam funcionando normalmente
+- Ganho de espaço horizontal para título e cliente
 
