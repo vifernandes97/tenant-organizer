@@ -103,7 +103,7 @@ export function InlineRichTextEditor({
     if (!editor) return;
     if (isEditing || editor.isFocused) return;
     if (value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value, isEditing]);
 
