@@ -412,12 +412,13 @@ export function useUpdatePost() {
       id, 
       post, 
       newImages, 
-      removedImageIds 
+      removedImageIds,
     }: { 
       id: string; 
       post: Partial<PostEditFormData>; 
       newImages?: File[]; 
-      removedImageIds?: string[] 
+      removedImageIds?: string[];
+      silent?: boolean;
     }) => {
       if (!profile?.tenant_id) throw new Error('Tenant não encontrado');
 
