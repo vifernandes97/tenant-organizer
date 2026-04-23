@@ -229,9 +229,14 @@ export function useUpdateComment() {
 
   return useMutation({
     mutationFn: async ({ id, content }: UpdateCommentInput) => {
+      const parsed = commentContentSchema.safeParse(content);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? 'Conteúdo inválido');
+      }
+
       const { data, error } = await supabase
         .from('post_comments')
-        .update({ content })
+        .update({ content: parsed.data })
         .eq('id', id)
         .select()
         .single();
