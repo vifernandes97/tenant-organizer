@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -151,7 +152,11 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
       await updatePost.mutateAsync({
         id: activePost.id,
         post: { [field]: value },
+        silent: true,
       });
+    } catch (error) {
+      console.error(`Erro ao salvar ${field}:`, error);
+      toast.error('Erro ao salvar alteração');
     } finally {
       setSavingField(null);
     }
@@ -165,8 +170,12 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
         await updatePost.mutateAsync({
           id: post.id,
           post: { [field]: value },
+          silent: true,
         });
       }
+    } catch (error) {
+      console.error(`Erro ao salvar ${field}:`, error);
+      toast.error('Erro ao salvar alteração');
     } finally {
       setSavingField(null);
     }
@@ -759,17 +768,74 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
             </h2>
           </div>
           <div className="min-h-0 flex-1">
-            <RichTextEditor
+            <DebouncedCaptionEditor
               value={activePost.caption || ''}
-              onChange={(value) => handleFieldUpdate('caption', value)}
-              placeholder="Digite a legenda..."
-              maxLength={5000}
-              className="h-full"
+              onSave={(value) => handleFieldUpdate('caption', value)}
               maxHeight="calc(85vh - 180px)"
             />
           </div>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// Wrapper around RichTextEditor that debounces auto-save to avoid
+// firing a save on every keystroke.
+function DebouncedCaptionEditor({
+  value,
+  onSave,
+  maxHeight,
+}: {
+  value: string;
+  onSave: (html: string) => void | Promise<void>;
+  maxHeight?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const lastSavedRef = useRef(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync external changes only when they differ from what we last saved
+  useEffect(() => {
+    if (value !== lastSavedRef.current) {
+      lastSavedRef.current = value;
+      setLocal(value);
+    }
+  }, [value]);
+
+  const handleChange = (html: string) => {
+    setLocal(html);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (html !== lastSavedRef.current) {
+        lastSavedRef.current = html;
+        void onSave(html);
+      }
+    }, 800);
+  };
+
+  // Flush pending save on unmount / close
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        if (local !== lastSavedRef.current) {
+          lastSavedRef.current = local;
+          void onSave(local);
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <RichTextEditor
+      value={local}
+      onChange={handleChange}
+      placeholder="Digite a legenda..."
+      maxLength={5000}
+      className="h-full"
+      maxHeight={maxHeight}
+    />
   );
 }

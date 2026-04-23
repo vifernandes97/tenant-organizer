@@ -97,10 +97,13 @@ export function InlineRichTextEditor({
     },
   });
 
-  // Sync external value changes
+  // Sync external value changes — only when editor is not focused/editing,
+  // to avoid resetting the user's caret/content while they're typing.
   useEffect(() => {
-    if (editor && value !== editor.getHTML() && !isEditing) {
-      editor.commands.setContent(value);
+    if (!editor) return;
+    if (isEditing || editor.isFocused) return;
+    if (value !== editor.getHTML()) {
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value, isEditing]);
 
