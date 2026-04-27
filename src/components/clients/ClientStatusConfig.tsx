@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { DEFAULT_POST_STATUSES, type ClientPostStatusInsert } from '@/hooks/useClientPostStatuses';
 
-type StatusItem = Omit<ClientPostStatusInsert, 'client_id' | 'tenant_id'>;
+type StatusItem = Omit<ClientPostStatusInsert, 'client_id' | 'tenant_id' | 'channel'>;
 
 const COLOR_OPTIONS = [
   '#6b7280', // gray
