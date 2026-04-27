@@ -100,7 +100,7 @@ function getContrastColor(hex: string): string {
 }
 
 export function PostStatusDropdown({ status, customStatusId, onStatusChange, isLoading = false, channel, clientId }: PostStatusDropdownProps) {
-  const { data: customStatuses = [] } = useClientPostStatuses(clientId);
+  const { data: customStatuses = [] } = useClientPostStatuses(clientId, channel);
   const hasCustomStatuses = customStatuses.length > 0;
 
   // Find current custom status

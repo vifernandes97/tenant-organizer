@@ -4,12 +4,14 @@ import type { Database } from '@/integrations/supabase/types';
 import { useClientPostStatuses } from '@/hooks/useClientPostStatuses';
 
 type PostStatus = Database['public']['Enums']['post_status'];
+type SocialChannel = Database['public']['Enums']['social_channel'];
 
 interface PostStatusBadgeProps {
   status: PostStatus;
   showIcon?: boolean;
   customStatusId?: string | null;
   clientId?: string | null;
+  channel?: SocialChannel;
 }
 
 const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | 'outline' | 'default'; className: string; icon: React.ElementType }> = {
@@ -51,8 +53,8 @@ const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | '
   },
 };
 
-export function PostStatusBadge({ status, showIcon = true, customStatusId, clientId }: PostStatusBadgeProps) {
-  const { data: customStatuses } = useClientPostStatuses(clientId);
+export function PostStatusBadge({ status, showIcon = true, customStatusId, clientId, channel }: PostStatusBadgeProps) {
+  const { data: customStatuses } = useClientPostStatuses(clientId, channel);
 
   // If client has custom statuses, use them
   if (customStatuses && customStatuses.length > 0) {

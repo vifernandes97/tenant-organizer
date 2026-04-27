@@ -1,14 +1,37 @@
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamList } from '@/components/settings/TeamList';
 import { InviteDialog } from '@/components/settings/InviteDialog';
 import { PendingInvites } from '@/components/settings/PendingInvites';
+import { ChannelStatusManager } from '@/components/settings/ChannelStatusManager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Settings2 } from 'lucide-react';
+import { Users, Building2, Settings2, Tag } from 'lucide-react';
 
 export default function Settings() {
   const { tenant, userRole } = useAuth();
   const isOwner = userRole?.role === 'owner';
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialTab = (() => {
+    const requested = searchParams.get('tab');
+    if (requested === 'statuses' && isOwner) return 'statuses';
+    if (requested === 'team' && isOwner) return 'team';
+    if (requested === 'organization') return 'organization';
+    return isOwner ? 'team' : 'organization';
+  })();
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (searchParams.get('tab') !== activeTab) {
+      const next = new URLSearchParams(searchParams);
+      next.set('tab', activeTab);
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   return (
     <div className="space-y-6">
@@ -22,7 +45,7 @@ export default function Settings() {
         {isOwner && <InviteDialog />}
       </div>
 
-      <Tabs defaultValue={isOwner ? "team" : "organization"} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           {isOwner && (
             <TabsTrigger value="team" className="gap-2">
@@ -34,6 +57,12 @@ export default function Settings() {
             <Building2 className="h-4 w-4" />
             Organização
           </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="statuses" className="gap-2">
+              <Tag className="h-4 w-4" />
+              Status de Posts
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {isOwner && (
@@ -84,6 +113,12 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="statuses" className="space-y-6">
+            <ChannelStatusManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

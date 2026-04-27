@@ -30,8 +30,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Loader2, Link as LinkIcon, Instagram, Linkedin, Facebook, Twitter, Youtube, Globe } from "lucide-react";
 import { clientSchema, ClientFormData, useCreateClient, useUpdateClient } from "@/hooks/useClients";
-import { useClientPostStatuses, useBulkUpsertClientPostStatuses, DEFAULT_POST_STATUSES, type ClientPostStatusInsert } from "@/hooks/useClientPostStatuses";
-import { ClientStatusConfig } from "./ClientStatusConfig";
+import { Link as RouterLink } from "react-router-dom";
+import { Settings2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -63,10 +63,6 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
   const [tagInput, setTagInput] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [customStatuses, setCustomStatuses] = useState<Omit<ClientPostStatusInsert, 'client_id' | 'tenant_id'>[]>([]);
-
-  const { data: existingStatuses = [] } = useClientPostStatuses(client?.id);
-  const bulkUpsertStatuses = useBulkUpsertClientPostStatuses();
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -104,15 +100,6 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         important_links: (client.important_links as { label: string; url: string }[]) || [],
         notes: client.notes || "",
       });
-      // Load existing custom statuses
-      setCustomStatuses(existingStatuses.map(s => ({
-        name: s.name,
-        slug: s.slug,
-        color: s.color,
-        icon: s.icon,
-        display_order: s.display_order,
-        is_final: s.is_final,
-      })));
     } else {
       form.reset({
         name: "",
@@ -130,20 +117,14 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         notes: "",
       });
     }
-  }, [client, form, existingStatuses]);
+  }, [client, form]);
 
   const onSubmit = async (data: ClientFormData) => {
     try {
       if (isEditing && client) {
         await updateClient.mutateAsync({ id: client.id, data });
-        // Save custom statuses
-        await bulkUpsertStatuses.mutateAsync({ clientId: client.id, statuses: customStatuses });
       } else {
-        const newClient = await createClient.mutateAsync(data);
-        // Save custom statuses for new client
-        if (customStatuses.length > 0) {
-          await bulkUpsertStatuses.mutateAsync({ clientId: newClient.id, statuses: customStatuses });
-        }
+        await createClient.mutateAsync(data);
       }
       onOpenChange(false);
     } catch (error) {
@@ -197,13 +178,12 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="basic">Dados</TabsTrigger>
                 <TabsTrigger value="contact">Contato</TabsTrigger>
                 <TabsTrigger value="marketing">Marketing</TabsTrigger>
                 <TabsTrigger value="channels">Canais</TabsTrigger>
                 <TabsTrigger value="links">Links</TabsTrigger>
-                <TabsTrigger value="statuses">Status</TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4 mt-4">
@@ -544,13 +524,27 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                 />
               </TabsContent>
 
-              <TabsContent value="statuses" className="space-y-4 mt-4">
-                <ClientStatusConfig
-                  statuses={customStatuses}
-                  onChange={setCustomStatuses}
-                />
-              </TabsContent>
             </Tabs>
+
+            {isEditing && (
+              <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/40 p-3 text-sm">
+                <Settings2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="font-medium">Status de posts agora são por canal</p>
+                  <p className="text-muted-foreground">
+                    Configure os status de cada canal social deste cliente em{' '}
+                    <RouterLink
+                      to="/configuracoes?tab=statuses"
+                      className="text-primary underline-offset-2 hover:underline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Configurações → Status de Posts
+                    </RouterLink>
+                    .
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
