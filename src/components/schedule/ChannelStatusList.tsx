@@ -56,6 +56,7 @@ export function ChannelStatusList({ items, clientId, showLabel = false }: Channe
               showIcon={false}
               customStatusId={item.customStatusId}
               clientId={clientId}
+              channel={item.channel}
             />
           </div>
         );
