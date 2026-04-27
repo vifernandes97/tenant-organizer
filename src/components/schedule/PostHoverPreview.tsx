@@ -4,10 +4,17 @@ import { ptBR } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { PostStatusBadge } from './PostStatusBadge';
+import { ChannelStatusList } from './ChannelStatusList';
 import { extractPlainText } from '@/lib/textUtils';
 
 type SocialChannel = Database['public']['Enums']['social_channel'];
 type PostStatus = Database['public']['Enums']['post_status'];
+
+interface ChannelStatusItem {
+  channel: SocialChannel;
+  status: PostStatus;
+  customStatusId?: string | null;
+}
 
 interface PostHoverPreviewProps {
   title?: string | null;
@@ -22,6 +29,7 @@ interface PostHoverPreviewProps {
   scheduledAt?: string | null;
   openComments?: number;
   postsCount?: number;
+  channelStatuses?: ChannelStatusItem[];
 }
 
 export function PostHoverPreview({
