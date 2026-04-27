@@ -51,8 +51,8 @@ const statusConfig: Record<PostStatus, { label: string; variant: 'secondary' | '
   },
 };
 
-export function PostStatusBadge({ status, showIcon = true, customStatusId, clientId }: PostStatusBadgeProps) {
-  const { data: customStatuses } = useClientPostStatuses(clientId);
+export function PostStatusBadge({ status, showIcon = true, customStatusId, clientId, channel }: PostStatusBadgeProps) {
+  const { data: customStatuses } = useClientPostStatuses(clientId, channel);
 
   // If client has custom statuses, use them
   if (customStatuses && customStatuses.length > 0) {
