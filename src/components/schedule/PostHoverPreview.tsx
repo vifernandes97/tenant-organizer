@@ -92,7 +92,9 @@ export function PostHoverPreview({
         )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <PostStatusBadge status={status} customStatusId={customStatusId} clientId={clientId} />
+          {!hasDivergentStatuses && (
+            <PostStatusBadge status={status} customStatusId={customStatusId} clientId={clientId} />
+          )}
           {postsCount && postsCount > 1 && (
             <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
               <Layers className="h-3 w-3" />
@@ -101,7 +103,11 @@ export function PostHoverPreview({
           )}
         </div>
 
-        <ChannelBadges channels={channels} />
+        {hasDivergentStatuses ? (
+          <ChannelStatusList items={channelStatuses!} clientId={clientId} showLabel />
+        ) : (
+          <ChannelBadges channels={channels} />
+        )}
 
         {captionSnippet && (
           <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
