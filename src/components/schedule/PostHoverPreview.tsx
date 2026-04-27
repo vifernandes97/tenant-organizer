@@ -45,6 +45,7 @@ export function PostHoverPreview({
   scheduledAt,
   openComments = 0,
   postsCount,
+  channelStatuses,
 }: PostHoverPreviewProps) {
   const isImage = !!image && (!mediaType || mediaType.startsWith('image'));
   const isVideo = mediaType?.startsWith('video');
@@ -52,6 +53,16 @@ export function PostHoverPreview({
 
   const displayTitle = title || extractPlainText(caption || '').substring(0, 60) || 'Sem título';
   const captionSnippet = extractPlainText(caption || '').substring(0, 150);
+
+  // Detect divergent statuses across channels
+  const hasDivergentStatuses =
+    !!channelStatuses &&
+    channelStatuses.length > 1 &&
+    channelStatuses.some(
+      cs =>
+        cs.status !== channelStatuses[0].status ||
+        (cs.customStatusId || null) !== (channelStatuses[0].customStatusId || null),
+    );
 
   const formattedDate = scheduledAt
     ? format(new Date(scheduledAt), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })
