@@ -4,10 +4,17 @@ import { ptBR } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
 import { PostStatusBadge } from './PostStatusBadge';
+import { ChannelStatusList } from './ChannelStatusList';
 import { extractPlainText } from '@/lib/textUtils';
 
 type SocialChannel = Database['public']['Enums']['social_channel'];
 type PostStatus = Database['public']['Enums']['post_status'];
+
+interface ChannelStatusItem {
+  channel: SocialChannel;
+  status: PostStatus;
+  customStatusId?: string | null;
+}
 
 interface PostHoverPreviewProps {
   title?: string | null;
@@ -22,6 +29,7 @@ interface PostHoverPreviewProps {
   scheduledAt?: string | null;
   openComments?: number;
   postsCount?: number;
+  channelStatuses?: ChannelStatusItem[];
 }
 
 export function PostHoverPreview({
@@ -37,6 +45,7 @@ export function PostHoverPreview({
   scheduledAt,
   openComments = 0,
   postsCount,
+  channelStatuses,
 }: PostHoverPreviewProps) {
   const isImage = !!image && (!mediaType || mediaType.startsWith('image'));
   const isVideo = mediaType?.startsWith('video');
@@ -44,6 +53,16 @@ export function PostHoverPreview({
 
   const displayTitle = title || extractPlainText(caption || '').substring(0, 60) || 'Sem título';
   const captionSnippet = extractPlainText(caption || '').substring(0, 150);
+
+  // Detect divergent statuses across channels
+  const hasDivergentStatuses =
+    !!channelStatuses &&
+    channelStatuses.length > 1 &&
+    channelStatuses.some(
+      cs =>
+        cs.status !== channelStatuses[0].status ||
+        (cs.customStatusId || null) !== (channelStatuses[0].customStatusId || null),
+    );
 
   const formattedDate = scheduledAt
     ? format(new Date(scheduledAt), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })
@@ -73,7 +92,9 @@ export function PostHoverPreview({
         )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <PostStatusBadge status={status} customStatusId={customStatusId} clientId={clientId} />
+          {!hasDivergentStatuses && (
+            <PostStatusBadge status={status} customStatusId={customStatusId} clientId={clientId} />
+          )}
           {postsCount && postsCount > 1 && (
             <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
               <Layers className="h-3 w-3" />
@@ -82,7 +103,11 @@ export function PostHoverPreview({
           )}
         </div>
 
-        <ChannelBadges channels={channels} />
+        {hasDivergentStatuses ? (
+          <ChannelStatusList items={channelStatuses!} clientId={clientId} showLabel />
+        ) : (
+          <ChannelBadges channels={channels} />
+        )}
 
         {captionSnippet && (
           <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">

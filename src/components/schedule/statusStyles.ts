@@ -27,3 +27,26 @@ export const STATUS_ACCENT_CLASS: Record<PostStatus | 'pending', string> = {
   published: 'bg-green-500',
   pending: 'bg-orange-500',
 };
+
+/**
+ * Publication progress order — lowest = least progressed.
+ * Used to pick the "weakest" status across multi-channel groups.
+ */
+export const STATUS_PROGRESS_ORDER: Record<PostStatus, number> = {
+  draft: 0,
+  ai_generated: 1,
+  reviewed: 2,
+  approved: 3,
+  scheduled: 4,
+  published: 5,
+};
+
+/**
+ * Returns the least-progressed status from a list (most "behind").
+ */
+export function getMinStatus(statuses: PostStatus[]): PostStatus {
+  if (statuses.length === 0) return 'draft';
+  return statuses.reduce((min, s) =>
+    STATUS_PROGRESS_ORDER[s] < STATUS_PROGRESS_ORDER[min] ? s : min
+  );
+}

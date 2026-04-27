@@ -4,9 +4,10 @@ import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare, Video, FileText, Image as ImageIcon } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { STATUS_BORDER_CLASS } from './statusStyles';
+import { STATUS_BORDER_CLASS, getMinStatus } from './statusStyles';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { PostHoverPreview } from './PostHoverPreview';
+import { ChannelStatusList } from './ChannelStatusList';
 
 interface GroupedPostCardProps {
   group: PostGroup;
@@ -23,6 +24,20 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   
   // Collect all unique channels from the group
   const channels = posts.map(p => p.channel);
+
+  // Per-channel status logic
+  const isMultiChannel = posts.length > 1;
+  const allSameStatus =
+    posts.every(
+      p =>
+        p.status === primaryPost.status &&
+        (p.custom_status_id || null) === (primaryPost.custom_status_id || null),
+    );
+  // Border reflects the "weakest" status so a partially-published group
+  // doesn't visually claim to be fully published.
+  const borderStatus = isMultiChannel
+    ? getMinStatus(posts.map(p => p.status))
+    : primaryPost.status;
 
   // Determine media for thumbnail
   const firstMedia = primaryPost.post_images?.[0];
@@ -53,7 +68,7 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onClick}
-      className={`cursor-grab rounded-md border border-l-[3px] bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${STATUS_BORDER_CLASS[primaryPost.status]} ${
+      className={`cursor-grab rounded-md border border-l-[3px] bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${STATUS_BORDER_CLASS[borderStatus]} ${
         isDragging ? 'opacity-50 cursor-grabbing' : ''
       }`}
     >
@@ -77,18 +92,34 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
             )}
           </div>
         )}
-        <ChannelBadges channels={channels} iconOnly size="sm" />
+        {allSameStatus && <ChannelBadges channels={channels} iconOnly size="sm" />}
         <p className="truncate text-sm text-foreground font-medium flex-1">
           {displayTitle || 'Sem título'}
         </p>
       </div>
       
       {/* Status + Comments */}
-      <div className="mt-1.5 flex items-center justify-between">
-        <PostStatusBadge status={primaryPost.status} showIcon={false} customStatusId={primaryPost.custom_status_id} clientId={group.clientId} />
-        
+      <div className="mt-1.5 flex items-start justify-between gap-2">
+        {allSameStatus ? (
+          <PostStatusBadge
+            status={primaryPost.status}
+            showIcon={false}
+            customStatusId={primaryPost.custom_status_id}
+            clientId={group.clientId}
+          />
+        ) : (
+          <ChannelStatusList
+            items={posts.map(p => ({
+              channel: p.channel,
+              status: p.status,
+              customStatusId: p.custom_status_id,
+            }))}
+            clientId={group.clientId}
+          />
+        )}
+
         {totalOpenComments > 0 && (
-          <div className="flex items-center gap-1 text-primary">
+          <div className="flex items-center gap-1 text-primary shrink-0">
             <MessageSquare className="h-3.5 w-3.5" />
             <span className="text-xs font-medium">{totalOpenComments}</span>
           </div>
@@ -110,6 +141,11 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
           scheduledAt={group.scheduledAt}
           openComments={totalOpenComments}
           postsCount={posts.length}
+          channelStatuses={posts.map(p => ({
+            channel: p.channel,
+            status: p.status,
+            customStatusId: p.custom_status_id,
+          }))}
         />
       </HoverCardContent>
     </HoverCard>
