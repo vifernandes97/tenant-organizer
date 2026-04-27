@@ -57,6 +57,7 @@ export type Database = {
       }
       client_post_statuses: {
         Row: {
+          channel: Database["public"]["Enums"]["social_channel"]
           client_id: string
           color: string
           created_at: string
@@ -69,6 +70,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          channel?: Database["public"]["Enums"]["social_channel"]
           client_id: string
           color?: string
           created_at?: string
@@ -81,6 +83,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          channel?: Database["public"]["Enums"]["social_channel"]
           client_id?: string
           color?: string
           created_at?: string
