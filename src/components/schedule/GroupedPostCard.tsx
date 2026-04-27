@@ -68,7 +68,7 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onClick}
-      className={`cursor-grab rounded-md border border-l-[3px] bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${STATUS_BORDER_CLASS[primaryPost.status]} ${
+      className={`cursor-grab rounded-md border border-l-[3px] bg-card p-2 shadow-sm transition-all hover:shadow-md hover:border-primary/50 ${STATUS_BORDER_CLASS[borderStatus]} ${
         isDragging ? 'opacity-50 cursor-grabbing' : ''
       }`}
     >
@@ -92,18 +92,34 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
             )}
           </div>
         )}
-        <ChannelBadges channels={channels} iconOnly size="sm" />
+        {allSameStatus && <ChannelBadges channels={channels} iconOnly size="sm" />}
         <p className="truncate text-sm text-foreground font-medium flex-1">
           {displayTitle || 'Sem título'}
         </p>
       </div>
       
       {/* Status + Comments */}
-      <div className="mt-1.5 flex items-center justify-between">
-        <PostStatusBadge status={primaryPost.status} showIcon={false} customStatusId={primaryPost.custom_status_id} clientId={group.clientId} />
-        
+      <div className="mt-1.5 flex items-start justify-between gap-2">
+        {allSameStatus ? (
+          <PostStatusBadge
+            status={primaryPost.status}
+            showIcon={false}
+            customStatusId={primaryPost.custom_status_id}
+            clientId={group.clientId}
+          />
+        ) : (
+          <ChannelStatusList
+            items={posts.map(p => ({
+              channel: p.channel,
+              status: p.status,
+              customStatusId: p.custom_status_id,
+            }))}
+            clientId={group.clientId}
+          />
+        )}
+
         {totalOpenComments > 0 && (
-          <div className="flex items-center gap-1 text-primary">
+          <div className="flex items-center gap-1 text-primary shrink-0">
             <MessageSquare className="h-3.5 w-3.5" />
             <span className="text-xs font-medium">{totalOpenComments}</span>
           </div>
@@ -125,6 +141,11 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
           scheduledAt={group.scheduledAt}
           openComments={totalOpenComments}
           postsCount={posts.length}
+          channelStatuses={posts.map(p => ({
+            channel: p.channel,
+            status: p.status,
+            customStatusId: p.custom_status_id,
+          }))}
         />
       </HoverCardContent>
     </HoverCard>
