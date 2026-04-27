@@ -4,9 +4,10 @@ import { PostStatusBadge } from './PostStatusBadge';
 import { MessageSquare, Video, FileText, Image as ImageIcon } from 'lucide-react';
 import { extractPlainText } from '@/lib/textUtils';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { STATUS_BORDER_CLASS } from './statusStyles';
+import { STATUS_BORDER_CLASS, getMinStatus } from './statusStyles';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { PostHoverPreview } from './PostHoverPreview';
+import { ChannelStatusList } from './ChannelStatusList';
 
 interface GroupedPostCardProps {
   group: PostGroup;
