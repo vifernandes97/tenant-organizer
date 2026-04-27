@@ -63,10 +63,6 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
   const [tagInput, setTagInput] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [customStatuses, setCustomStatuses] = useState<Omit<ClientPostStatusInsert, 'client_id' | 'tenant_id'>[]>([]);
-
-  const { data: existingStatuses = [] } = useClientPostStatuses(client?.id);
-  const bulkUpsertStatuses = useBulkUpsertClientPostStatuses();
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
