@@ -25,6 +25,20 @@ export function GroupedPostCard({ group, onClick }: GroupedPostCardProps) {
   // Collect all unique channels from the group
   const channels = posts.map(p => p.channel);
 
+  // Per-channel status logic
+  const isMultiChannel = posts.length > 1;
+  const allSameStatus =
+    posts.every(
+      p =>
+        p.status === primaryPost.status &&
+        (p.custom_status_id || null) === (primaryPost.custom_status_id || null),
+    );
+  // Border reflects the "weakest" status so a partially-published group
+  // doesn't visually claim to be fully published.
+  const borderStatus = isMultiChannel
+    ? getMinStatus(posts.map(p => p.status))
+    : primaryPost.status;
+
   // Determine media for thumbnail
   const firstMedia = primaryPost.post_images?.[0];
   const mediaType = firstMedia?.media_type;
