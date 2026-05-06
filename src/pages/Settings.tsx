@@ -65,6 +65,12 @@ export default function Settings() {
               Status de Posts
             </TabsTrigger>
           )}
+          {isOwner && (
+            <TabsTrigger value="integrations" className="gap-2">
+              <Plug className="h-4 w-4" />
+              API & MCP
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {isOwner && (
