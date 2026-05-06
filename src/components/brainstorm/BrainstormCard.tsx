@@ -14,7 +14,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Pencil, Trash2, Send } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, Send, ArchiveRestore } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,12 @@ export const STATUS_CONFIG: Record<
     badgeClass: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
     borderClass: 'border-l-destructive',
     dotClass: 'bg-destructive',
+  },
+  arquivada: {
+    label: 'Arquivada',
+    badgeClass: 'bg-muted text-muted-foreground hover:bg-muted/80',
+    borderClass: 'border-l-muted-foreground/30',
+    dotClass: 'bg-muted-foreground/40',
   },
 };
 
@@ -158,15 +164,27 @@ export function BrainstormCard({
             className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => onSendToBacklog(idea)}
-            >
-              <Send className="mr-1 h-3 w-3" />
-              Backlog
-            </Button>
+            {idea.status === 'arquivada' ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => onStatusChange(idea.id, 'nova')}
+              >
+                <ArchiveRestore className="mr-1 h-3 w-3" />
+                Restaurar
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => onSendToBacklog(idea)}
+              >
+                <Send className="mr-1 h-3 w-3" />
+                Backlog
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

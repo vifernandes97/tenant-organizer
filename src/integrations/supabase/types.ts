@@ -649,6 +649,7 @@ export type Database = {
         | "dar_sequencia"
         | "reformular"
         | "abandonar"
+        | "arquivada"
       client_status: "active" | "paused"
       comment_status: "open" | "resolved"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
@@ -809,6 +810,7 @@ export const Constants = {
         "dar_sequencia",
         "reformular",
         "abandonar",
+        "arquivada",
       ],
       client_status: ["active", "paused"],
       comment_status: ["open", "resolved"],
