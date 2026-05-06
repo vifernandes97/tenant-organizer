@@ -25,9 +25,17 @@ async function sha256Hex(input: string): Promise<string> {
 type AuthContext = { tenant_id: string; created_by: string };
 
 async function authenticate(req: Request): Promise<AuthContext | null> {
+  let token: string | null = null;
   const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (!auth?.toLowerCase().startsWith("bearer ")) return null;
-  const token = auth.slice(7).trim();
+  if (auth?.toLowerCase().startsWith("bearer ")) {
+    token = auth.slice(7).trim();
+  }
+  if (!token) {
+    try {
+      const url = new URL(req.url);
+      token = url.searchParams.get("token") || url.searchParams.get("api_key");
+    } catch (_) {}
+  }
   if (!token) return null;
 
   const tokenHash = await sha256Hex(token);
