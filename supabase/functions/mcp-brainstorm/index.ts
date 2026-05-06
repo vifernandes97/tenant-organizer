@@ -23,6 +23,35 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 type AuthContext = { tenant_id: string; created_by: string };
+type SessionAuth = { auth: AuthContext; expiresAt: number };
+
+const sessionAuthCache = new Map<string, SessionAuth>();
+const SESSION_AUTH_TTL_MS = 60 * 60 * 1000;
+
+function getCachedSessionAuth(req: Request): AuthContext | null {
+  const sessionId = req.headers.get("mcp-session-id");
+  if (!sessionId) return null;
+
+  const cached = sessionAuthCache.get(sessionId);
+  if (!cached) return null;
+
+  if (cached.expiresAt <= Date.now()) {
+    sessionAuthCache.delete(sessionId);
+    return null;
+  }
+
+  return cached.auth;
+}
+
+function cacheSessionAuth(response: Response, auth: AuthContext) {
+  const sessionId = response.headers.get("mcp-session-id");
+  if (!sessionId) return;
+
+  sessionAuthCache.set(sessionId, {
+    auth,
+    expiresAt: Date.now() + SESSION_AUTH_TTL_MS,
+  });
+}
 
 async function authenticate(req: Request): Promise<AuthContext | null> {
   let token: string | null = null;
@@ -46,7 +75,8 @@ async function authenticate(req: Request): Promise<AuthContext | null> {
     token = req.headers.get("x-api-token") || req.headers.get("x-api-key");
   }
 
-  if (!token) return null;
+  // 4) MCP clients may drop the original query string after initialize and rely on mcp-session-id
+  if (!token) return getCachedSessionAuth(req);
 
   // Only accept tokens with our prefix to avoid validating arbitrary OAuth tokens
   if (!token.startsWith("mh_")) return null;
@@ -168,6 +198,7 @@ app.all("/*", async (c) => {
   }
 
   const response = await httpHandler(req, { meta: { auth } });
+  cacheSessionAuth(response, auth);
 
   // Attach CORS headers
   const merged = new Headers(response.headers);
