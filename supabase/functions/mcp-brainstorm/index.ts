@@ -148,11 +148,20 @@ function cacheSessionAuth(response: Response, auth: AuthContext) {
 
 async function authenticate(req: Request): Promise<AuthContext | null> {
   let token: string | null = null;
+  const reqId = crypto.randomUUID().slice(0, 8);
+  const sessionIdHeader = req.headers.get("mcp-session-id");
+  const log: AuthLog = {
+    reqId,
+    tokenSource: "none",
+    sessionIdPresent: !!sessionIdHeader,
+    sessionIdPrefix: maskSessionId(sessionIdHeader),
+  };
 
   // 1) Prefer query params (Claude MCP connector may inject its own Authorization header)
   try {
     const url = new URL(req.url);
     token = url.searchParams.get("token") || url.searchParams.get("api_key");
+    if (token) log.tokenSource = "query";
   } catch (_) {}
 
   // 2) Fallback to Authorization: Bearer header
@@ -160,19 +169,33 @@ async function authenticate(req: Request): Promise<AuthContext | null> {
     const auth = req.headers.get("authorization") || req.headers.get("Authorization");
     if (auth?.toLowerCase().startsWith("bearer ")) {
       token = auth.slice(7).trim();
+      if (token) log.tokenSource = "bearer";
     }
   }
 
   // 3) Fallback to custom header
   if (!token) {
     token = req.headers.get("x-api-token") || req.headers.get("x-api-key");
+    if (token) log.tokenSource = "x-api-token";
   }
 
   // 4) MCP clients may drop the original query string after initialize and rely on mcp-session-id
-  if (!token) return getCachedSessionAuth(req);
+  if (!token) {
+    const ctx = await getCachedSessionAuth(req, log);
+    if (!ctx) {
+      logAuth("unauthorized", log);
+    } else {
+      logAuth("authorized", log, { tenant_id: ctx.tenant_id });
+    }
+    return ctx;
+  }
 
   // Only accept tokens with our prefix to avoid validating arbitrary OAuth tokens
-  if (!token.startsWith("mh_")) return null;
+  if (!token.startsWith("mh_")) {
+    log.reason = "token-wrong-prefix";
+    logAuth("unauthorized", log, { tokenPrefix: token.slice(0, 4) });
+    return null;
+  }
 
   const tokenHash = await sha256Hex(token);
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
@@ -180,8 +203,18 @@ async function authenticate(req: Request): Promise<AuthContext | null> {
   });
 
   const { data, error } = await supabase.rpc("validate_api_token", { _token_hash: tokenHash });
-  if (error || !data || (data as any[]).length === 0) return null;
+  if (error) {
+    log.reason = "rpc-error";
+    logAuth("unauthorized", log, { error: error.message });
+    return null;
+  }
+  if (!data || (data as any[]).length === 0) {
+    log.reason = "token-not-found-or-revoked";
+    logAuth("unauthorized", log);
+    return null;
+  }
   const row = (data as any[])[0];
+  logAuth("authorized", log, { tenant_id: row.tenant_id });
   return { tenant_id: row.tenant_id, created_by: row.created_by };
 }
 
