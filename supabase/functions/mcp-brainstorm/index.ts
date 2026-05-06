@@ -311,6 +311,7 @@ app.all("/*", async (c) => {
   const incomingSession = req.headers.get("mcp-session-id");
   const hasQueryToken = !!(url.searchParams.get("token") || url.searchParams.get("api_key"));
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const hasExplicitMcpAuth = hasQueryToken || !!incomingSession || !!req.headers.get("x-api-token") || !!req.headers.get("x-api-key");
 
   console.log(JSON.stringify({
     scope: "mcp-brainstorm.request",
@@ -321,6 +322,27 @@ app.all("/*", async (c) => {
     hasAuthHeader: !!authHeader,
     authHeaderScheme: authHeader?.split(" ")[0] ?? null,
   }));
+
+  // Claude may probe the MCP URL with a bare GET before sending the tokenized POST initialize.
+  // Keep state-changing/tool requests protected, but don't fail connector discovery with 401.
+  if (req.method === "GET" && !hasExplicitMcpAuth) {
+    console.log(JSON.stringify({
+      scope: "mcp-brainstorm.response",
+      method: req.method,
+      path: url.pathname,
+      status: 200,
+      reason: "unauthenticated-get-probe",
+    }));
+
+    return new Response(JSON.stringify({
+      name: "marketing-hub-brainstorm",
+      status: "ok",
+      transport: "streamable-http",
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const auth = await authenticate(req);
 
