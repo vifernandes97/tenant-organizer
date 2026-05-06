@@ -14,7 +14,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Pencil, Trash2, Send } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, Send, ArchiveRestore } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,12 @@ export const STATUS_CONFIG: Record<
     badgeClass: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
     borderClass: 'border-l-destructive',
     dotClass: 'bg-destructive',
+  },
+  arquivada: {
+    label: 'Arquivada',
+    badgeClass: 'bg-muted text-muted-foreground hover:bg-muted/80',
+    borderClass: 'border-l-muted-foreground/30',
+    dotClass: 'bg-muted-foreground/40',
   },
 };
 

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export type BrainstormIdeaStatus = 'nova' | 'dar_sequencia' | 'reformular' | 'abandonar';
+export type BrainstormIdeaStatus = 'nova' | 'dar_sequencia' | 'reformular' | 'abandonar' | 'arquivada';
 
 export interface BrainstormIdea {
   id: string;
