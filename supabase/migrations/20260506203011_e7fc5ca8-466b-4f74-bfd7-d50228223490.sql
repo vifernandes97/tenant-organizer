@@ -1,0 +1,1 @@
+ALTER TYPE brainstorm_idea_status ADD VALUE IF NOT EXISTS 'arquivada';

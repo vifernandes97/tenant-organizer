@@ -1,42 +1,43 @@
-## Status
+## Objetivo
 
-A alteração na Edge Function `mcp-brainstorm` para aceitar o token via query param **já está aplicada** no código (linhas 27–50 de `supabase/functions/mcp-brainstorm/index.ts`):
+Quando uma ideia do Brainstorm é enviada para o backlog (vira post), ela deve sair do quadro/lista principal mas continuar acessível em uma visão de "Arquivadas" para manter histórico.
 
-- Aceita `Authorization: Bearer mh_live_xxx` (header) **ou**
-- `?token=mh_live_xxx` (query param, com `?api_key=` como alias)
+## Mudanças
 
-Falta apenas redeployar e validar a URL com um token real.
+### 1. Banco — novo status "arquivada"
+- Adicionar valor `'arquivada'` ao enum `brainstorm_idea_status` (migration `ALTER TYPE ... ADD VALUE`).
+- Nenhuma mudança em RLS necessária.
 
-## Plano
+### 2. Hook `useBrainstormIdeas`
+- Incluir `'arquivada'` no tipo `BrainstormIdeaStatus`.
 
-1. **Redeploy** da função `mcp-brainstorm` (já que foi editada).
-2. **Smoke test sem token** → deve retornar 401.
-3. **Smoke test com `?token=...`** → deve passar pelo `authenticate()` e responder ao `initialize` do MCP.
-4. **Sem mudanças de UI ou DB** — apenas Edge Function.
+### 3. Página `Brainstorm.tsx`
+- No `handleSendToBacklog`, ao invés de marcar como `dar_sequencia`, marcar como `arquivada`.
+- Por padrão **ocultar** ideias arquivadas das visões principais (grid e kanban).
+- Adicionar um chip extra "Arquivadas" ao lado de "Todas / Nova / Dar sequência / Reformular / Abandonar":
+  - Quando selecionado, mostra apenas as arquivadas.
+  - Caso contrário, arquivadas ficam fora de todas as outras contagens e listas.
+- Card da ideia arquivada: ação extra "Restaurar" (volta para `nova`) além de editar/excluir. Ocultar a ação "Enviar para backlog" quando já arquivada.
 
-## URL final para colar no conector
+### 4. Kanban
+- Manter as 4 colunas atuais (`nova`, `dar_sequencia`, `reformular`, `abandonar`).
+- Arquivadas não aparecem no kanban — só na visão grid com o filtro "Arquivadas" ativo.
 
-```
-https://wfraqwmoauvyxfqqrlyi.supabase.co/functions/v1/mcp-brainstorm?token=mh_live_xxxxxxxxxxxxxxxx
-```
-
-## Sobre enviar o token
-
-Não preciso do seu token para implementar nem para validar — posso testar com um token inválido só para confirmar que o parser lê o query param (resposta 401 esperada do `validate_api_token`, e não 401 "missing token"). Se você **quiser** que eu teste com um token real:
-
-- **Opção segura**: gere um token descartável em **Configurações → API & MCP**, me envie por aqui, eu testo, e você **revoga** no mesmo painel logo em seguida.
-- Não vou armazenar como secret do projeto — não há motivo (token de owner é gerenciado pela própria UI).
-- **Não cole** o token em produção em canais sem TLS; aqui o chat é seguro, mas a melhor prática continua sendo revogar após o teste.
-
-## Trade-off (registrado)
-
-- Token na URL aparece em logs de acesso e fica salvo na config do conector Claude.
-- Aceitável aqui porque: (1) é ferramenta interna de owner, (2) revogável a qualquer momento na UI, (3) escopo limitado (só cria brainstorm ideas no tenant).
-- **Não usar** esse padrão para tokens de terceiros ou endpoints com permissões mais amplas.
+### 5. `BrainstormCard` / `STATUS_CONFIG`
+- Adicionar config visual (label "Arquivada", cor neutra/cinza, ícone) para o novo status, usado nos chips e badges.
 
 ## Detalhes técnicos
 
-- Edge Function: `supabase/functions/mcp-brainstorm/index.ts`
-- Mudança contida em `authenticate(req)`: tenta header primeiro, faz fallback para `url.searchParams.get("token")`.
-- Sem mudanças em `supabase/config.toml` (já está com `verify_jwt = false`).
-- Sem mudanças no schema do banco nem em `tenant_api_tokens`.
+- Migration:
+  ```sql
+  ALTER TYPE brainstorm_idea_status ADD VALUE IF NOT EXISTS 'arquivada';
+  ```
+- Tipos do Supabase (`types.ts`) regeneram automaticamente após a migration.
+- A criação do post no backlog continua igual (`createPost` + `is_backlog: true`); só muda o status final aplicado à ideia.
+- Filtro padrão (`statusFilter === 'all'`) passa a significar "todas exceto arquivadas". Apenas o chip "Arquivadas" lista as arquivadas.
+
+## Resultado para o usuário
+
+- Enviou para backlog → a ideia some do quadro.
+- Continua encontrável em Brainstorm → filtro "Arquivadas".
+- Pode restaurar a ideia se precisar trazê-la de volta ao fluxo.
