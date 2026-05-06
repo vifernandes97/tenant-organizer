@@ -346,6 +346,24 @@ app.all("/*", async (c) => {
 
   const auth = await authenticate(req);
 
+  // GET on this endpoint is only used by clients trying to open a server→client SSE stream.
+  // We don't support persistent SSE — explicitly tell the client so it stops retrying instead
+  // of getting an opaque 400 from the transport (which Claude surfaces as "Couldn't reach the MCP server").
+  if (auth && req.method === "GET") {
+    console.log(JSON.stringify({
+      scope: "mcp-brainstorm.response",
+      method: req.method,
+      path: url.pathname,
+      status: 405,
+      reason: "sse-stream-not-supported",
+      tenant_id: auth.tenant_id,
+    }));
+    return new Response(
+      JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "Method Not Allowed: server→client SSE stream is not supported" }, id: null }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json", "Allow": "POST, OPTIONS" } },
+    );
+  }
+
   if (!auth) {
     return new Response(
       JSON.stringify({
