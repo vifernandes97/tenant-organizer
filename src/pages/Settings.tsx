@@ -5,9 +5,10 @@ import { TeamList } from '@/components/settings/TeamList';
 import { InviteDialog } from '@/components/settings/InviteDialog';
 import { PendingInvites } from '@/components/settings/PendingInvites';
 import { ChannelStatusManager } from '@/components/settings/ChannelStatusManager';
+import { ApiTokensManager } from '@/components/settings/ApiTokensManager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Settings2, Tag } from 'lucide-react';
+import { Users, Building2, Settings2, Tag, Plug } from 'lucide-react';
 
 export default function Settings() {
   const { tenant, userRole } = useAuth();
