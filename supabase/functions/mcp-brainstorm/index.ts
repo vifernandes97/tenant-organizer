@@ -26,17 +26,30 @@ type AuthContext = { tenant_id: string; created_by: string };
 
 async function authenticate(req: Request): Promise<AuthContext | null> {
   let token: string | null = null;
-  const auth = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (auth?.toLowerCase().startsWith("bearer ")) {
-    token = auth.slice(7).trim();
-  }
+
+  // 1) Prefer query params (Claude MCP connector may inject its own Authorization header)
+  try {
+    const url = new URL(req.url);
+    token = url.searchParams.get("token") || url.searchParams.get("api_key");
+  } catch (_) {}
+
+  // 2) Fallback to Authorization: Bearer header
   if (!token) {
-    try {
-      const url = new URL(req.url);
-      token = url.searchParams.get("token") || url.searchParams.get("api_key");
-    } catch (_) {}
+    const auth = req.headers.get("authorization") || req.headers.get("Authorization");
+    if (auth?.toLowerCase().startsWith("bearer ")) {
+      token = auth.slice(7).trim();
+    }
   }
+
+  // 3) Fallback to custom header
+  if (!token) {
+    token = req.headers.get("x-api-token") || req.headers.get("x-api-key");
+  }
+
   if (!token) return null;
+
+  // Only accept tokens with our prefix to avoid validating arbitrary OAuth tokens
+  if (!token.startsWith("mh_")) return null;
 
   const tokenHash = await sha256Hex(token);
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
