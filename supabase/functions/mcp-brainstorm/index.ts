@@ -69,14 +69,14 @@ async function getCachedSessionAuth(req: Request): Promise<AuthContext | null> {
   if (!sessionId) return null;
 
   const cached = sessionAuthCache.get(sessionId);
-  if (!cached) return null;
+  if (cached) {
+    if (cached.expiresAt <= Date.now()) {
+      sessionAuthCache.delete(sessionId);
+      return null;
+    }
 
-  if (cached.expiresAt <= Date.now()) {
-    sessionAuthCache.delete(sessionId);
-    return null;
+    return cached.auth;
   }
-
-  if (cached) return cached.auth;
 
   if (!sessionId.startsWith("mhmcp_")) return null;
   const [encodedPayload, encodedSignature] = sessionId.slice("mhmcp_".length).split(".");
