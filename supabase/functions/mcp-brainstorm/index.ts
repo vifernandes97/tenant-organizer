@@ -311,7 +311,7 @@ app.all("/*", async (c) => {
   const incomingSession = req.headers.get("mcp-session-id");
   const hasQueryToken = !!(url.searchParams.get("token") || url.searchParams.get("api_key"));
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-  const hasAuthMaterial = hasQueryToken || !!authHeader || !!incomingSession || !!req.headers.get("x-api-token") || !!req.headers.get("x-api-key");
+  const hasExplicitMcpAuth = hasQueryToken || !!incomingSession || !!req.headers.get("x-api-token") || !!req.headers.get("x-api-key");
 
   console.log(JSON.stringify({
     scope: "mcp-brainstorm.request",
@@ -325,7 +325,7 @@ app.all("/*", async (c) => {
 
   // Claude may probe the MCP URL with a bare GET before sending the tokenized POST initialize.
   // Keep state-changing/tool requests protected, but don't fail connector discovery with 401.
-  if (req.method === "GET" && !hasAuthMaterial) {
+  if (req.method === "GET" && !hasExplicitMcpAuth) {
     console.log(JSON.stringify({
       scope: "mcp-brainstorm.response",
       method: req.method,
