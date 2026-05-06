@@ -1,79 +1,90 @@
-# Gerenciamento de Status por Cliente e Canal em Configurações
+# Integração MCP: Claude → Brainstorm
 
-## Objetivo
-Criar uma seção dedicada em **Configurações** onde o owner gerencie os status de post **por cliente e por canal social** (Instagram Feed, Stories, Reels, TikTok, LinkedIn, Facebook, Twitter, YouTube, WordPress), substituindo o modelo atual onde os status são definidos apenas dentro do cadastro do cliente e compartilhados entre todos os canais.
+Criar um servidor MCP hospedado como Supabase Edge Function que expõe uma ferramenta para o Claude enviar várias ideias de uma vez. Cada ideia vira um registro em `brainstorm_ideas` (título = tema, descrição = restante), no tenant correto, identificado por um **API token** gerado nas Configurações.
 
-## Mudanças no banco de dados
+## 1. Banco de dados
 
-Adicionar coluna `channel` em `client_post_statuses`:
-
-- `channel social_channel NOT NULL DEFAULT 'instagram_feed'`
-- Trocar a chave única implícita: status passam a ser únicos por **(client_id, channel, slug)**
-- Migrar registros existentes: como o usuário ainda não usa o sistema em produção com este escopo, todos os status atuais serão duplicados como sendo do canal `instagram_feed` (assumindo o canal mais comum) **OU** serão replicados para todos os canais ativos do cliente. **Decisão recomendada: replicar para todos os canais ativos do cliente** para preservar o comportamento atual de "um conjunto vale para tudo".
-
-RLS: as políticas existentes (owner ou client_access) continuam válidas — apenas adiciona-se a nova coluna.
-
-## Mudanças no frontend
-
-### 1. Nova aba "Status de Posts" em `Settings.tsx` (apenas owner)
-Layout em 3 colunas (responsivo):
+Nova tabela `tenant_api_tokens`:
 
 ```text
-┌─────────────────────────────────────────────────────┐
-│  Cliente: [▼ Selecionar cliente]                    │
-├──────────────┬──────────────────────────────────────┤
-│ Canais       │ Status do canal selecionado          │
-│ ▸ Instagram  │  ┌─ Rascunho        🎨 [×]          │
-│   Feed ✓     │  ├─ Aprovado        🎨 [×]          │
-│ ▸ Stories    │  ├─ Agendado        🎨 [×] ☑ Final  │
-│ ▸ LinkedIn   │  └─ Publicado       🎨 [×] ☑ Final  │
-│ ▸ WordPress  │  [+ Adicionar status]                │
-│ ▸ ...        │  [Carregar padrão] [Copiar de canal]│
-└──────────────┴──────────────────────────────────────┘
+id            uuid pk
+tenant_id     uuid fk tenants
+name          text          -- ex: "Claude Desktop"
+token_hash    text unique   -- SHA-256 do token (nunca guardar plain)
+token_prefix  text          -- primeiros 8 chars p/ exibir "mh_xxxxxxxx…"
+created_by    uuid fk profiles
+created_at    timestamptz
+last_used_at  timestamptz
+revoked_at    timestamptz
 ```
 
-- **Seletor de cliente** no topo (combobox).
-- **Lista lateral de canais** mostrando apenas os canais habilitados no cliente, com badge indicando quantos status estão configurados (ou "padrão do sistema" quando vazio).
-- **Painel direito** com a configuração reutilizando `ClientStatusConfig` adaptado para receber `channel`.
-- **Botão "Copiar de outro canel"** abre menu para clonar status de outro canal do mesmo cliente (acelera setup).
-- **Botão "Carregar padrão"** carrega:
-  - Para `wordpress`: Rascunho, Gerado por IA, Revisado, Aprovado, Publicado
-  - Para os demais: Rascunho, Aprovado, Agendado, Publicado
+- RLS: apenas owners do tenant veem/criam/revogam tokens do próprio tenant.
+- Function `validate_api_token(_token text)` (SECURITY DEFINER) → retorna `tenant_id` + `created_by` quando válido e atualiza `last_used_at`. Usada pela edge function com service role.
+- Sem alteração em `brainstorm_ideas` (estrutura atual já cobre `title` + `description`).
 
-### 2. Hooks (`useClientPostStatuses.ts`)
-- Adicionar parâmetro `channel?: SocialChannel` em `useClientPostStatuses`, `useBulkUpsertClientPostStatuses` e demais mutations.
-- Query key passa a ser `['client-post-statuses', clientId, channel]`.
-- Bulk upsert filtra delete por `client_id + channel` (não apaga status de outros canais).
+## 2. Edge Function `mcp-brainstorm` (servidor MCP)
 
-### 3. Consumidores existentes (sem mudança de comportamento visível)
-Atualizar para passar `channel` ao consultar status:
-- `PostStatusDropdown` — já recebe `channel`, basta repassar para o hook.
-- `PostStatusBadge`, `ScheduleFilters`, `ScheduleListView`, `GroupedPostCard`, `PostCard`, `PostDetails`, `GroupPostDetails` — passar o `channel` do post correspondente.
+Implementada com **mcp-lite + Hono** sobre Streamable HTTP, `verify_jwt = false` (autenticação própria via header `Authorization: Bearer <token>`).
 
-### 4. Cadastro de cliente (`ClientForm.tsx`)
-Remover o bloco atual de configuração de status (que era global por cliente) e adicionar um aviso: *"Os status são configurados por canal em Configurações → Status de Posts."* com link direto para a nova seção. Isso evita duplicidade de UI e centraliza o gerenciamento.
+Tool exposta:
+
+- `create_brainstorm_ideas`
+  - input: `{ ideas: [{ title: string (1-200), description?: string }, ...] }` (1 a 50 itens)
+  - comportamento:
+    1. Lê o token do header → chama `validate_api_token` → obtém `tenant_id` e `created_by`.
+    2. Insere todas as ideias em `brainstorm_ideas` com `status = 'nova'`.
+    3. Retorna resumo: `{ created: N, ids: [...] }`.
+  - Erros tratados: 401 (token inválido/revogado), 400 (payload inválido via Zod), 429/500 amigáveis.
+
+Endpoint público: `https://<project>.supabase.co/functions/v1/mcp-brainstorm` — é a URL que o usuário cola no Claude Desktop.
+
+## 3. UI — Configurações → "API & MCP"
+
+Nova aba em `Settings.tsx` (apenas owner) mostrando:
+
+- Instruções curtas de como conectar no Claude (URL do servidor + token + exemplo de prompt).
+- Lista de tokens existentes (nome, prefixo, criado em, último uso, botão revogar).
+- Botão **"Gerar novo token"** → modal pede um nome → ao criar, mostra **uma única vez** o token completo com botão copiar (depois só fica o prefixo no banco).
+
+Componente novo: `src/components/settings/ApiTokensManager.tsx`.
+
+## 4. Hook `useApiTokens`
+
+CRUD básico (`list`, `create`, `revoke`) usando Supabase client + React Query, escopado pelas RLS.
+
+## 5. Fluxo do usuário
+
+```text
+1. Owner abre Configurações → API & MCP → Gerar token → copia "mh_live_xxx..."
+2. Cola no Claude Desktop como MCP server (URL + Bearer token)
+3. No Claude: "Envie estas 5 ideias para o Marketing Hub: ..."
+4. Claude chama create_brainstorm_ideas com array → ideias aparecem no /brainstorm
+   na coluna "Novas", prontas para o workflow existente (dar sequência → backlog → post)
+```
 
 ## Detalhes técnicos
 
-**Arquivos editados:**
-- `supabase/migrations/<timestamp>_add_channel_to_client_post_statuses.sql` — adiciona coluna, índice único composto e migra dados existentes
-- `src/pages/Settings.tsx` — adiciona aba "Status de Posts"
-- `src/components/settings/ChannelStatusManager.tsx` — **novo**: componente principal da aba (seletor cliente + lista canais + painel)
-- `src/components/settings/ChannelStatusEditor.tsx` — **novo**: painel direito (wraps `ClientStatusConfig` com save/load por canal)
-- `src/hooks/useClientPostStatuses.ts` — adiciona parâmetro `channel`
-- `src/components/clients/ClientForm.tsx` — remove configuração inline, adiciona aviso/link
-- `src/components/schedule/PostStatusDropdown.tsx` — passa `channel` ao hook
-- `src/components/schedule/PostStatusBadge.tsx`, `ScheduleFilters.tsx`, `ScheduleListView.tsx`, `GroupedPostCard.tsx`, `PostCard.tsx`, `PostDetails.tsx`, `GroupPostDetails.tsx` — passar `channel`
+**Arquivos criados**
+- `supabase/migrations/<ts>_tenant_api_tokens.sql` — tabela, RLS, função `validate_api_token`
+- `supabase/functions/mcp-brainstorm/index.ts` — servidor MCP (mcp-lite + Hono)
+- `supabase/functions/mcp-brainstorm/deno.json` — import map com `mcp-lite@^0.10.0`
+- `src/components/settings/ApiTokensManager.tsx`
+- `src/hooks/useApiTokens.ts`
 
-**Tipos:** após a migration, `src/integrations/supabase/types.ts` é regenerado automaticamente e expõe `channel` em `ClientPostStatus`.
+**Arquivos editados**
+- `src/pages/Settings.tsx` — adicionar aba "API & MCP" (owner-only)
+- `supabase/config.toml` — registrar a função (default `verify_jwt = true` é override implícito; manteremos comportamento padrão e validaremos o token manualmente — sem mudança de config necessária)
 
-## Comportamento e regras
-- **Owner-only**: apenas owners veem e podem editar a aba (mesma regra das outras configurações sensíveis).
-- **Fallback**: se um canal não tem status configurados para um cliente, o sistema continua usando os status default por canal (WordPress vs. Default).
-- **Compatibilidade**: posts existentes com `custom_status_id` continuam funcionando — o `id` do status não muda na migration, apenas ganha um `channel`.
-- **Sem alteração** em RLS, edge functions, n8n/WordPress webhook ou auto-publish.
+**Geração do token**
+- Formato: `mh_live_<32 chars random base64url>`. Hash SHA-256 armazenado, prefixo (`mh_live_xxxxxxxx`) para exibição.
+
+**Segurança**
+- Token só aparece em tela uma vez na criação (toast + clipboard).
+- Revogar = `revoked_at` setado; `validate_api_token` ignora revogados.
+- Edge function usa `SUPABASE_SERVICE_ROLE_KEY` apenas internamente para validar token e inserir; nunca exposto ao cliente.
+- Headers MCP: aceitar `Accept: application/json, text/event-stream`.
 
 ## Fora do escopo
-- Status globais do tenant (não atrelados a cliente).
-- Reordenação por drag-and-drop multi-canal (mantém o atual por canal).
-- Aplicação em massa "este conjunto para todos os clientes" (pode virar uma feature posterior).
+- OAuth completo no MCP.
+- Tools adicionais além de criar ideias (listar/atualizar virá depois se quiser).
+- Criar posts diretamente (mantém-se o fluxo: Claude → brainstorm → usuário promove a post).
