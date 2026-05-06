@@ -47,8 +47,7 @@ const mcp = new McpServer({
   version: "1.0.0",
 });
 
-mcp.tool({
-  name: "create_brainstorm_ideas",
+mcp.tool("create_brainstorm_ideas", {
   description:
     "Create one or more brainstorm ideas in Marketing Hub. Each idea has a title (the topic/theme) and an optional description with all the details. Use this to send multiple ideas at once.",
   inputSchema: {
