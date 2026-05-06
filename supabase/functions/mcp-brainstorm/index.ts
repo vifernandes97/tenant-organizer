@@ -23,6 +23,92 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 type AuthContext = { tenant_id: string; created_by: string };
+type SessionAuth = { auth: AuthContext; expiresAt: number };
+type SessionPayload = AuthContext & { exp: number };
+
+const sessionAuthCache = new Map<string, SessionAuth>();
+const SESSION_AUTH_TTL_MS = 60 * 60 * 1000;
+
+function base64UrlEncode(input: string | Uint8Array): string {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64UrlDecode(input: string): Uint8Array {
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (input.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function sessionSigningKey() {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(SERVICE_ROLE),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function createSignedSessionId(auth: AuthContext): Promise<string> {
+  const payload: SessionPayload = {
+    ...auth,
+    exp: Date.now() + SESSION_AUTH_TTL_MS,
+  };
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = new Uint8Array(
+    await crypto.subtle.sign("HMAC", await sessionSigningKey(), new TextEncoder().encode(encodedPayload)),
+  );
+  return `mhmcp_${encodedPayload}.${base64UrlEncode(signature)}`;
+}
+
+async function getCachedSessionAuth(req: Request): Promise<AuthContext | null> {
+  const sessionId = req.headers.get("mcp-session-id");
+  if (!sessionId) return null;
+
+  const cached = sessionAuthCache.get(sessionId);
+  if (cached) {
+    if (cached.expiresAt <= Date.now()) {
+      sessionAuthCache.delete(sessionId);
+      return null;
+    }
+
+    return cached.auth;
+  }
+
+  if (!sessionId.startsWith("mhmcp_")) return null;
+  const [encodedPayload, encodedSignature] = sessionId.slice("mhmcp_".length).split(".");
+  if (!encodedPayload || !encodedSignature) return null;
+
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    await sessionSigningKey(),
+    base64UrlDecode(encodedSignature),
+    new TextEncoder().encode(encodedPayload),
+  );
+  if (!valid) return null;
+
+  const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(encodedPayload))) as SessionPayload;
+  if (!payload.tenant_id || !payload.created_by || payload.exp <= Date.now()) return null;
+
+  sessionAuthCache.set(sessionId, {
+    auth: { tenant_id: payload.tenant_id, created_by: payload.created_by },
+    expiresAt: payload.exp,
+  });
+  return { tenant_id: payload.tenant_id, created_by: payload.created_by };
+}
+
+function cacheSessionAuth(response: Response, auth: AuthContext) {
+  const sessionId = response.headers.get("mcp-session-id");
+  if (!sessionId) return;
+
+  sessionAuthCache.set(sessionId, {
+    auth,
+    expiresAt: Date.now() + SESSION_AUTH_TTL_MS,
+  });
+}
 
 async function authenticate(req: Request): Promise<AuthContext | null> {
   let token: string | null = null;
@@ -46,7 +132,8 @@ async function authenticate(req: Request): Promise<AuthContext | null> {
     token = req.headers.get("x-api-token") || req.headers.get("x-api-key");
   }
 
-  if (!token) return null;
+  // 4) MCP clients may drop the original query string after initialize and rely on mcp-session-id
+  if (!token) return getCachedSessionAuth(req);
 
   // Only accept tokens with our prefix to avoid validating arbitrary OAuth tokens
   if (!token.startsWith("mh_")) return null;
@@ -171,6 +258,11 @@ app.all("/*", async (c) => {
 
   // Attach CORS headers
   const merged = new Headers(response.headers);
+  if (!merged.get("mcp-session-id")) {
+    merged.set("mcp-session-id", await createSignedSessionId(auth));
+  }
+  cacheSessionAuth(new Response(null, { headers: merged }), auth);
+
   for (const [k, v] of Object.entries(corsHeaders)) merged.set(k, v);
   return new Response(response.body, {
     status: response.status,
