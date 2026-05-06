@@ -47,6 +47,7 @@ const FILTER_OPTIONS: { value: FilterValue; label: string }[] = [
   { value: 'dar_sequencia', label: 'Dar sequência' },
   { value: 'reformular', label: 'Reformular' },
   { value: 'abandonar', label: 'Abandonar' },
+  { value: 'arquivada', label: 'Arquivadas' },
 ];
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -56,7 +57,7 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: 'status', label: 'Status' },
 ];
 
-const STATUS_ORDER: BrainstormIdeaStatus[] = ['nova', 'dar_sequencia', 'reformular', 'abandonar'];
+const STATUS_ORDER: BrainstormIdeaStatus[] = ['nova', 'dar_sequencia', 'reformular', 'abandonar', 'arquivada'];
 
 const VIEW_KEY = 'brainstorm:view';
 const SORT_KEY = 'brainstorm:sort';
@@ -124,7 +125,8 @@ export default function Brainstorm() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Counts per status (respect search but not status filter)
+  // Counts per status (respect search but not status filter).
+  // 'all' counts exclude archived ideas (they have their own chip).
   const counts = useMemo(() => {
     const base = search
       ? ideas.filter(
@@ -134,14 +136,16 @@ export default function Brainstorm() {
         )
       : ideas;
     const c: Record<FilterValue, number> = {
-      all: base.length,
+      all: 0,
       nova: 0,
       dar_sequencia: 0,
       reformular: 0,
       abandonar: 0,
+      arquivada: 0,
     };
     base.forEach((i) => {
       c[i.status]++;
+      if (i.status !== 'arquivada') c.all++;
     });
     return c;
   }, [ideas, search]);
@@ -149,7 +153,11 @@ export default function Brainstorm() {
   // Filtered + sorted
   const visibleIdeas = useMemo(() => {
     let list = ideas;
-    if (statusFilter !== 'all') list = list.filter((i) => i.status === statusFilter);
+    if (statusFilter === 'all') {
+      list = list.filter((i) => i.status !== 'arquivada');
+    } else {
+      list = list.filter((i) => i.status === statusFilter);
+    }
     if (search) {
       list = list.filter(
         (i) =>
@@ -229,7 +237,7 @@ export default function Brainstorm() {
       },
       images: [],
     });
-    updateIdeaStatus.mutate({ id: backlogIdea.id, status: 'dar_sequencia' });
+    updateIdeaStatus.mutate({ id: backlogIdea.id, status: 'arquivada' });
     setBacklogIdea(null);
   };
 

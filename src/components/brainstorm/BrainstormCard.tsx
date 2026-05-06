@@ -164,15 +164,27 @@ export function BrainstormCard({
             className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => onSendToBacklog(idea)}
-            >
-              <Send className="mr-1 h-3 w-3" />
-              Backlog
-            </Button>
+            {idea.status === 'arquivada' ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => onStatusChange(idea.id, 'nova')}
+              >
+                <ArchiveRestore className="mr-1 h-3 w-3" />
+                Restaurar
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => onSendToBacklog(idea)}
+              >
+                <Send className="mr-1 h-3 w-3" />
+                Backlog
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
