@@ -5,9 +5,10 @@ import { TeamList } from '@/components/settings/TeamList';
 import { InviteDialog } from '@/components/settings/InviteDialog';
 import { PendingInvites } from '@/components/settings/PendingInvites';
 import { ChannelStatusManager } from '@/components/settings/ChannelStatusManager';
+import { ApiTokensManager } from '@/components/settings/ApiTokensManager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Settings2, Tag } from 'lucide-react';
+import { Users, Building2, Settings2, Tag, Plug } from 'lucide-react';
 
 export default function Settings() {
   const { tenant, userRole } = useAuth();
@@ -17,6 +18,7 @@ export default function Settings() {
   const initialTab = (() => {
     const requested = searchParams.get('tab');
     if (requested === 'statuses' && isOwner) return 'statuses';
+    if (requested === 'integrations' && isOwner) return 'integrations';
     if (requested === 'team' && isOwner) return 'team';
     if (requested === 'organization') return 'organization';
     return isOwner ? 'team' : 'organization';
@@ -61,6 +63,12 @@ export default function Settings() {
             <TabsTrigger value="statuses" className="gap-2">
               <Tag className="h-4 w-4" />
               Status de Posts
+            </TabsTrigger>
+          )}
+          {isOwner && (
+            <TabsTrigger value="integrations" className="gap-2">
+              <Plug className="h-4 w-4" />
+              API & MCP
             </TabsTrigger>
           )}
         </TabsList>
@@ -117,6 +125,12 @@ export default function Settings() {
         {isOwner && (
           <TabsContent value="statuses" className="space-y-6">
             <ChannelStatusManager />
+          </TabsContent>
+        )}
+
+        {isOwner && (
+          <TabsContent value="integrations" className="space-y-6">
+            <ApiTokensManager />
           </TabsContent>
         )}
       </Tabs>

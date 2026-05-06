@@ -472,6 +472,42 @@ export type Database = {
           },
         ]
       }
+      tenant_api_tokens: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          tenant_id: string
+          token_hash: string
+          token_prefix: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          tenant_id: string
+          token_hash: string
+          token_prefix: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          tenant_id?: string
+          token_hash?: string
+          token_prefix?: string
+        }
+        Relationships: []
+      }
       tenants: {
         Row: {
           created_at: string
@@ -596,6 +632,13 @@ export type Database = {
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      validate_api_token: {
+        Args: { _token_hash: string }
+        Returns: {
+          created_by: string
+          tenant_id: string
+        }[]
       }
       validate_invitation_token: { Args: { _token: string }; Returns: Json }
     }

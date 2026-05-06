@@ -1,1 +1,4 @@
 project_id = "wfraqwmoauvyxfqqrlyi"
+
+[functions.mcp-brainstorm]
+verify_jwt = false
