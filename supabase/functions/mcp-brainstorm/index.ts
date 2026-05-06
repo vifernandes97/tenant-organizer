@@ -123,6 +123,7 @@ mcp.tool("create_brainstorm_ideas", {
 });
 
 const transport = new StreamableHttpTransport();
+const httpHandler = transport.bind(mcp);
 const app = new Hono();
 
 app.options("*", (c) => new Response(null, { headers: corsHeaders }));
@@ -145,7 +146,7 @@ app.all("/*", async (c) => {
     );
   }
 
-  const response = await transport.handleRequest(req, mcp, { meta: { auth } });
+  const response = await httpHandler(req, { meta: { auth } });
 
   // Attach CORS headers
   const merged = new Headers(response.headers);
