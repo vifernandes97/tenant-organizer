@@ -198,10 +198,14 @@ app.all("/*", async (c) => {
   }
 
   const response = await httpHandler(req, { meta: { auth } });
-  cacheSessionAuth(response, auth);
 
   // Attach CORS headers
   const merged = new Headers(response.headers);
+  if (!merged.get("mcp-session-id")) {
+    merged.set("mcp-session-id", crypto.randomUUID());
+  }
+  cacheSessionAuth(new Response(null, { headers: merged }), auth);
+
   for (const [k, v] of Object.entries(corsHeaders)) merged.set(k, v);
   return new Response(response.body, {
     status: response.status,
