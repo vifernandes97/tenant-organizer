@@ -259,7 +259,7 @@ app.all("/*", async (c) => {
   // Attach CORS headers
   const merged = new Headers(response.headers);
   if (!merged.get("mcp-session-id")) {
-    merged.set("mcp-session-id", crypto.randomUUID());
+    merged.set("mcp-session-id", await createSignedSessionId(auth));
   }
   cacheSessionAuth(new Response(null, { headers: merged }), auth);
 
