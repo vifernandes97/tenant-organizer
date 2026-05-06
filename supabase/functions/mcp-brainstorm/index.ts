@@ -307,6 +307,21 @@ app.options("*", (c) => new Response(null, { headers: corsHeaders }));
 
 app.all("/*", async (c) => {
   const req = c.req.raw;
+  const url = new URL(req.url);
+  const incomingSession = req.headers.get("mcp-session-id");
+  const hasQueryToken = !!(url.searchParams.get("token") || url.searchParams.get("api_key"));
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+
+  console.log(JSON.stringify({
+    scope: "mcp-brainstorm.request",
+    method: req.method,
+    path: url.pathname,
+    incomingSessionId: maskSessionId(incomingSession),
+    hasQueryToken,
+    hasAuthHeader: !!authHeader,
+    authHeaderScheme: authHeader?.split(" ")[0] ?? null,
+  }));
+
   const auth = await authenticate(req);
 
   if (!auth) {
@@ -333,6 +348,16 @@ app.all("/*", async (c) => {
   cacheSessionAuth(new Response(null, { headers: merged }), auth);
 
   for (const [k, v] of Object.entries(corsHeaders)) merged.set(k, v);
+
+  console.log(JSON.stringify({
+    scope: "mcp-brainstorm.response",
+    method: req.method,
+    path: url.pathname,
+    status: response.status,
+    outgoingSessionId: maskSessionId(merged.get("mcp-session-id")),
+    tenant_id: auth.tenant_id,
+  }));
+
   return new Response(response.body, {
     status: response.status,
     headers: merged,
