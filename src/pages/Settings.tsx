@@ -18,6 +18,7 @@ export default function Settings() {
   const initialTab = (() => {
     const requested = searchParams.get('tab');
     if (requested === 'statuses' && isOwner) return 'statuses';
+    if (requested === 'integrations' && isOwner) return 'integrations';
     if (requested === 'team' && isOwner) return 'team';
     if (requested === 'organization') return 'organization';
     return isOwner ? 'team' : 'organization';
