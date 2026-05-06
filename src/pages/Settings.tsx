@@ -127,6 +127,12 @@ export default function Settings() {
             <ChannelStatusManager />
           </TabsContent>
         )}
+
+        {isOwner && (
+          <TabsContent value="integrations" className="space-y-6">
+            <ApiTokensManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
