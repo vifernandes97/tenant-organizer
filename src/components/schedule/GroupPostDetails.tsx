@@ -833,7 +833,7 @@ function DebouncedCaptionEditor({
       value={local}
       onChange={handleChange}
       placeholder="Digite a legenda..."
-      maxLength={5000}
+      maxLength={10000}
       className="h-full"
       maxHeight={maxHeight}
     />

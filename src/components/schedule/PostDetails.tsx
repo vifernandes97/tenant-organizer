@@ -517,7 +517,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
               value={post.caption || ''}
               onChange={(value) => handleFieldUpdate('caption', value)}
               placeholder="Digite a legenda..."
-              maxLength={5000}
+              maxLength={10000}
               className="h-full"
               maxHeight="calc(85vh - 180px)"
             />
