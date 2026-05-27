@@ -488,7 +488,10 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setCaptionDialogOpen(true)}
+                              onClick={() => {
+                                setCaptionDraft(activePost.caption || '');
+                                setCaptionDialogOpen(true);
+                              }}
                               className="h-6 px-2 text-xs"
                             >
                               <Maximize2 className="mr-1 h-3 w-3" />
