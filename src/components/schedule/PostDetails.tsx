@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,6 +57,8 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [captionSaving, setCaptionSaving] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -380,7 +382,10 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setCaptionDialogOpen(true)}
+                            onClick={() => {
+                              setCaptionDraft(post.caption || '');
+                              setCaptionDialogOpen(true);
+                            }}
                             className="h-6 px-2 text-xs"
                           >
                             <Maximize2 className="mr-1 h-3 w-3" />
@@ -514,14 +519,39 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           </DialogHeader>
           <div className="min-h-0 flex-1">
             <RichTextEditor
-              value={post.caption || ''}
-              onChange={(value) => handleFieldUpdate('caption', value)}
+              value={captionDraft}
+              onChange={setCaptionDraft}
               placeholder="Digite a legenda..."
-              maxLength={10000}
+              maxLength={20000}
               className="h-full"
-              maxHeight="calc(85vh - 180px)"
+              maxHeight="calc(85vh - 220px)"
             />
           </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCaptionDialogOpen(false)}
+              disabled={captionSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                setCaptionSaving(true);
+                try {
+                  await handleFieldUpdate('caption', captionDraft);
+                  setCaptionDialogOpen(false);
+                } finally {
+                  setCaptionSaving(false);
+                }
+              }}
+              disabled={captionSaving || captionDraft === (post.caption || '')}
+            >
+              {captionSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

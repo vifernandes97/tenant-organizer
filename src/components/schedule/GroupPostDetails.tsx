@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -63,6 +63,8 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [captionSaving, setCaptionSaving] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -486,7 +488,10 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setCaptionDialogOpen(true)}
+                              onClick={() => {
+                                setCaptionDraft(activePost.caption || '');
+                                setCaptionDialogOpen(true);
+                              }}
                               className="h-6 px-2 text-xs"
                             >
                               <Maximize2 className="mr-1 h-3 w-3" />
@@ -762,80 +767,48 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
       {/* Caption Expanded Dialog */}
       <Dialog open={captionDialogOpen} onOpenChange={setCaptionDialogOpen}>
         <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">
+          <DialogHeader>
+            <DialogTitle>
               Legenda - {getChannelLabel(activePost.channel)}
-            </h2>
-          </div>
+            </DialogTitle>
+          </DialogHeader>
           <div className="min-h-0 flex-1">
-            <DebouncedCaptionEditor
-              value={activePost.caption || ''}
-              onSave={(value) => handleFieldUpdate('caption', value)}
-              maxHeight="calc(85vh - 180px)"
+            <RichTextEditor
+              value={captionDraft}
+              onChange={setCaptionDraft}
+              placeholder="Digite a legenda..."
+              maxLength={20000}
+              className="h-full"
+              maxHeight="calc(85vh - 220px)"
             />
           </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCaptionDialogOpen(false)}
+              disabled={captionSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                setCaptionSaving(true);
+                try {
+                  await handleFieldUpdate('caption', captionDraft);
+                  setCaptionDialogOpen(false);
+                } finally {
+                  setCaptionSaving(false);
+                }
+              }}
+              disabled={captionSaving || captionDraft === (activePost.caption || '')}
+            >
+              {captionSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-// Wrapper around RichTextEditor that debounces auto-save to avoid
-// firing a save on every keystroke.
-function DebouncedCaptionEditor({
-  value,
-  onSave,
-  maxHeight,
-}: {
-  value: string;
-  onSave: (html: string) => void | Promise<void>;
-  maxHeight?: string;
-}) {
-  const [local, setLocal] = useState(value);
-  const lastSavedRef = useRef(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync external changes only when they differ from what we last saved
-  useEffect(() => {
-    if (value !== lastSavedRef.current) {
-      lastSavedRef.current = value;
-      setLocal(value);
-    }
-  }, [value]);
-
-  const handleChange = (html: string) => {
-    setLocal(html);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      if (html !== lastSavedRef.current) {
-        lastSavedRef.current = html;
-        void onSave(html);
-      }
-    }, 800);
-  };
-
-  // Flush pending save on unmount / close
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        if (local !== lastSavedRef.current) {
-          lastSavedRef.current = local;
-          void onSave(local);
-        }
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <RichTextEditor
-      value={local}
-      onChange={handleChange}
-      placeholder="Digite a legenda..."
-      maxLength={10000}
-      className="h-full"
-      maxHeight={maxHeight}
-    />
   );
 }

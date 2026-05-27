@@ -455,7 +455,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                         <FormLabel>
                           Legenda
                           <span className="ml-2 text-xs text-muted-foreground">
-                            {field.value?.length || 0}/10000
+                            {field.value?.length || 0}/20000
                           </span>
                         </FormLabel>
                         <FormControl>
@@ -464,7 +464,7 @@ export function PostForm({ open, onOpenChange, post, defaultDate }: PostFormProp
                             onChange={field.onChange}
                             placeholder="Escreva a legenda do post..."
                             className="min-h-[120px] resize-none"
-                            maxLength={10000}
+                            maxLength={20000}
                             dialogTitle="Editor de Legenda"
                           />
                         </FormControl>
