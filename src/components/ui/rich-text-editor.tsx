@@ -42,7 +42,7 @@ export function RichTextEditor({
   value = "",
   onChange,
   placeholder = "Escreva sua legenda...",
-  maxLength = 10000,
+  maxLength = 20000,
   className,
   maxHeight,
 }: RichTextEditorProps) {
