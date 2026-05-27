@@ -57,7 +57,7 @@ export function InlineRichTextEditor({
   onSave,
   isLoading,
   placeholder = "Clique para adicionar legenda...",
-  maxLength = 5000,
+  maxLength = 20000,
   className,
 }: InlineRichTextEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
