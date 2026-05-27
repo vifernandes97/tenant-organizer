@@ -519,14 +519,39 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           </DialogHeader>
           <div className="min-h-0 flex-1">
             <RichTextEditor
-              value={post.caption || ''}
-              onChange={(value) => handleFieldUpdate('caption', value)}
+              value={captionDraft}
+              onChange={setCaptionDraft}
               placeholder="Digite a legenda..."
-              maxLength={10000}
+              maxLength={20000}
               className="h-full"
-              maxHeight="calc(85vh - 180px)"
+              maxHeight="calc(85vh - 220px)"
             />
           </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCaptionDialogOpen(false)}
+              disabled={captionSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                setCaptionSaving(true);
+                try {
+                  await handleFieldUpdate('caption', captionDraft);
+                  setCaptionDialogOpen(false);
+                } finally {
+                  setCaptionSaving(false);
+                }
+              }}
+              disabled={captionSaving || captionDraft === (post.caption || '')}
+            >
+              {captionSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
