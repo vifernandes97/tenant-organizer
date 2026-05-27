@@ -63,6 +63,8 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [captionSaving, setCaptionSaving] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
