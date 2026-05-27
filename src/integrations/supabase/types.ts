@@ -612,6 +612,10 @@ export type Database = {
         Args: { _token: string; _user_id: string }
         Returns: Json
       }
+      create_tenant_with_owner: {
+        Args: { _full_name: string; _tenant_name: string }
+        Returns: Json
+      }
       get_tenant_name_for_invitation: {
         Args: { invitation_token: string }
         Returns: string
@@ -629,6 +633,7 @@ export type Database = {
         Returns: boolean
       }
       remove_team_member: { Args: { _member_id: string }; Returns: boolean }
+      unaccent_safe: { Args: { _input: string }; Returns: string }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean

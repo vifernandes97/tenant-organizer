@@ -153,46 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Falha ao criar usuário');
 
-      const userId = authData.user.id;
+      // 2. Create tenant + profile + owner role atomically via RPC
+      const { error: rpcError } = await supabase.rpc('create_tenant_with_owner', {
+        _tenant_name: tenantName,
+        _full_name: fullName,
+      });
 
-      // 2. Create tenant
-      const slug = tenantName
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-        + '-' + Date.now().toString(36);
-
-      const tenantId = crypto.randomUUID();
-
-      const { error: tenantError } = await supabase
-        .from('tenants')
-        .insert({ id: tenantId, name: tenantName, slug });
-
-      if (tenantError) throw tenantError;
-
-      // 3. Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          tenant_id: tenantId,
-          full_name: fullName,
-        });
-
-      if (profileError) throw profileError;
-
-      // 4. Create user role (owner)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          tenant_id: tenantId,
-          role: 'owner',
-        });
-
-      if (roleError) throw roleError;
+      if (rpcError) throw rpcError;
 
       return { error: null };
     } catch (error) {
@@ -207,46 +174,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Create tenant
-      const slug = tenantName
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-        + '-' + Date.now().toString(36);
+      // Create tenant + profile + owner role atomically via RPC
+      const { error: rpcError } = await supabase.rpc('create_tenant_with_owner', {
+        _tenant_name: tenantName,
+        _full_name: fullName,
+      });
 
-      const tenantId = crypto.randomUUID();
+      if (rpcError) throw rpcError;
 
-      const { error: tenantError } = await supabase
-        .from('tenants')
-        .insert({ id: tenantId, name: tenantName, slug });
-
-      if (tenantError) throw tenantError;
-
-      // 2. Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          tenant_id: tenantId,
-          full_name: fullName,
-        });
-
-      if (profileError) throw profileError;
-
-      // 3. Create user role (owner)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          tenant_id: tenantId,
-          role: 'owner',
-        });
-
-      if (roleError) throw roleError;
-
-      // 4. Refresh user data
+      // Refresh user data
       await fetchUserData(user.id);
 
       return { error: null };
