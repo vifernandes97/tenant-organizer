@@ -22,7 +22,7 @@ export interface ExpandableTextareaProps
 }
 
 const ExpandableTextarea = React.forwardRef<HTMLTextAreaElement, ExpandableTextareaProps>(
-  ({ className, value, onChange, maxLength = 10000, placeholder, dialogTitle = "Editor de Legenda", ...props }, ref) => {
+  ({ className, value, onChange, maxLength = 20000, placeholder, dialogTitle = "Editor de Legenda", ...props }, ref) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [tempValue, setTempValue] = useState(value || "");
 
