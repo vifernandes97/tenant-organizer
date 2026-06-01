@@ -428,32 +428,30 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                   </span>
                 </div>
                 
-                {/* Channel Tabs - only show if multi-channel */}
-                {isMultiChannel && (
-                  <div className="mt-3">
-                    <p className="text-xs text-muted-foreground mb-2">Canais</p>
-                    <div className="flex flex-wrap gap-1">
-                      {group.posts.map((post) => (
-                        <button
-                          key={post.id}
-                          onClick={() => {
-                            setActiveChannel(post.channel);
-                            setCurrentImageIndex(0);
-                            setActiveCommentId(null);
-                          }}
-                          className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
-                            post.channel === activeChannel
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          <ChannelBadges channels={[post.channel]} iconOnly />
-                          <span className="hidden sm:inline">{getChannelLabel(post.channel)}</span>
-                        </button>
-                      ))}
-                    </div>
+                {/* Channel Tabs - always show one tab per channel */}
+                <div className="mt-3">
+                  <p className="text-xs text-muted-foreground mb-2">Canais</p>
+                  <div className="flex flex-wrap gap-1">
+                    {group.posts.map((post) => (
+                      <button
+                        key={post.id}
+                        onClick={() => {
+                          setActiveChannel(post.channel);
+                          setCurrentImageIndex(0);
+                          setActiveCommentId(null);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
+                          post.channel === activeChannel
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <ChannelBadges channels={[post.channel]} iconOnly />
+                        <span className="hidden sm:inline">{getChannelLabel(post.channel)}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Tabs */}
