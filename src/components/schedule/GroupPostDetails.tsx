@@ -776,7 +776,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     </div>
 
                     <div className="flex gap-2">
-                      <Button onClick={onEdit} className="flex-1">
+                      <Button onClick={() => onEdit(activePost.id)} className="flex-1">
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </Button>
