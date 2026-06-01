@@ -661,6 +661,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                             <h4 className="text-xs font-medium text-muted-foreground">Texto do Artigo</h4>
                           </div>
                           <RichTextEditor
+                            key={activePost.id}
                             value={(activePost as any).article_content || ''}
                             onChange={(value) => handleFieldUpdate('article_content', value)}
                             placeholder="Escreva o artigo completo..."
