@@ -221,7 +221,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = isWordPressChannel
+    input.accept = isWordPress
       ? 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
       : 'image/*,video/*';
     input.onchange = (e) => {
