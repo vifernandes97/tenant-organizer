@@ -72,6 +72,8 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [localImages, setLocalImages] = useState<any[]>([]);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isDragOverGallery, setIsDragOverGallery] = useState(false);
 
   // Get the current post based on active channel
   const activePost = useMemo(() => {
