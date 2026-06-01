@@ -21,7 +21,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download, X } from 'lucide-react';
+import { Edit, Trash2, Copy, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download, X, Upload, Plus } from 'lucide-react';
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
@@ -45,7 +45,7 @@ interface GroupPostDetailsProps {
   group: PostGroup | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: () => void;
+  onEdit: (postId: string) => void;
 }
 
 export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPostDetailsProps) {
@@ -72,6 +72,8 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [localImages, setLocalImages] = useState<any[]>([]);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isDragOverGallery, setIsDragOverGallery] = useState(false);
 
   // Get the current post based on active channel
   const activePost = useMemo(() => {
@@ -193,6 +195,42 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   };
 
+  
+
+  const handleAddMedia = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    setIsUploadingMedia(true);
+    try {
+      await updatePost.mutateAsync({
+        id: activePost.id,
+        post: {},
+        newImages: files,
+        silent: true,
+      });
+      toast.success(files.length === 1 ? 'Mídia adicionada' : `${files.length} mídias adicionadas`);
+    } catch (error) {
+      console.error('Erro ao adicionar mídias:', error);
+      toast.error('Erro ao adicionar mídias');
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const openMediaPicker = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = isWordPress
+      ? 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+      : 'image/*,video/*';
+    input.onchange = (e) => {
+      const target = e.target as HTMLInputElement;
+      handleAddMedia(target.files);
+    };
+    input.click();
+  };
+
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
   };
@@ -234,7 +272,27 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
         <DialogContent className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col gap-0 overflow-hidden p-0">
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             {/* Left Column - Image Gallery with Comments (60%) */}
-            <div className="relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5">
+            <div
+              className={`relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5 ${
+                isDragOverGallery ? 'ring-2 ring-primary ring-inset' : ''
+              }`}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('Files')) {
+                  e.preventDefault();
+                  setIsDragOverGallery(true);
+                }
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget === e.target) setIsDragOverGallery(false);
+              }}
+              onDrop={(e) => {
+                if (e.dataTransfer.files.length > 0) {
+                  e.preventDefault();
+                  setIsDragOverGallery(false);
+                  handleAddMedia(e.dataTransfer.files);
+                }
+              }}
+            >
               {images.length > 0 ? (
                 <>
                   <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
@@ -317,7 +375,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     )}
                   </div>
 
-                  {images.length > 1 && (
+                  {images.length >= 1 && (
                     <div className="flex shrink-0 items-center overflow-x-auto border-t bg-background/50 p-4 gap-0">
                       {images.map((img, idx) => {
                         const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
@@ -394,14 +452,51 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                           </div>
                         );
                       })}
+                      <button
+                        type="button"
+                        onClick={openMediaPicker}
+                        disabled={isUploadingMedia}
+                        title="Adicionar mídias"
+                        className="h-16 w-16 flex-shrink-0 ml-1 flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
+                      >
+                        {isUploadingMedia ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Plus className="h-5 w-5" />
+                        )}
+                      </button>
                     </div>
                   )}
                 </>
               ) : (
-                <div className="flex flex-1 items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <Image className="mx-auto h-16 w-16 opacity-50" />
-                    <p className="mt-3 text-sm">Sem imagens</p>
+                <button
+                  type="button"
+                  onClick={openMediaPicker}
+                  disabled={isUploadingMedia}
+                  className="flex flex-1 flex-col items-center justify-center gap-3 border-2 border-dashed border-muted-foreground/30 m-6 rounded-lg text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {isUploadingMedia ? (
+                    <Loader2 className="h-10 w-10 animate-spin" />
+                  ) : (
+                    <Upload className="h-10 w-10 opacity-70" />
+                  )}
+                  <div className="text-center">
+                    <p className="text-sm font-medium">
+                      {isUploadingMedia ? 'Enviando...' : 'Adicionar mídias'}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {isWordPress
+                        ? 'Imagens, vídeos ou documentos (PDF, DOCX, ...)'
+                        : 'Clique ou arraste imagens e vídeos'}
+                    </p>
+                  </div>
+                </button>
+              )}
+              {isUploadingMedia && images.length > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-30">
+                  <div className="flex items-center gap-2 rounded-md bg-background px-4 py-2 shadow-lg">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Enviando mídias...</span>
                   </div>
                 </div>
               )}
@@ -681,7 +776,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     </div>
 
                     <div className="flex gap-2">
-                      <Button onClick={onEdit} className="flex-1">
+                      <Button onClick={() => onEdit(activePost.id)} className="flex-1">
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </Button>

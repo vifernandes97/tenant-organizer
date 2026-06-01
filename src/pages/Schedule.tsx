@@ -157,9 +157,11 @@ export default function Schedule() {
     setIsFormOpen(true);
   };
 
-  const handleEditPost = () => {
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  const handleEditPost = (postId: string) => {
+    setEditingPostId(postId);
     setIsDetailsOpen(false);
-    // For editing, pass the primary post to the form
     setIsFormOpen(true);
   };
 
@@ -300,8 +302,15 @@ export default function Schedule() {
       {/* Post Form Dialog */}
       <PostForm
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        post={selectedGroup?.posts[0] || null}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingPostId(null);
+        }}
+        post={
+          editingPostId
+            ? selectedGroup?.posts.find((p) => p.id === editingPostId) || null
+            : selectedGroup?.posts[0] || null
+        }
         defaultDate={defaultDate}
       />
 
