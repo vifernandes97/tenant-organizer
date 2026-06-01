@@ -157,9 +157,11 @@ export default function Schedule() {
     setIsFormOpen(true);
   };
 
-  const handleEditPost = () => {
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  const handleEditPost = (postId: string) => {
+    setEditingPostId(postId);
     setIsDetailsOpen(false);
-    // For editing, pass the primary post to the form
     setIsFormOpen(true);
   };
 
