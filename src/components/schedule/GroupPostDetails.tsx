@@ -195,7 +195,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   };
 
-  const isWordPressChannel = activePost.channel === 'wordpress';
+  
 
   const handleAddMedia = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
