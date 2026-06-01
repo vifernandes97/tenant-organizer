@@ -509,6 +509,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         </div>
                         <div className="[&_.ProseMirror]:min-h-[280px] [&_.prose]:min-h-[260px]">
                           <InlineRichTextEditor
+                            key={activePost.id}
                             value={activePost.caption || ''}
                             onSave={(value) => handleFieldUpdate('caption', value)}
                             isLoading={savingField === 'caption'}
