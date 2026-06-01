@@ -784,6 +784,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
           </DialogHeader>
           <div className="min-h-0 flex-1">
             <RichTextEditor
+              key={activePost.id}
               value={captionDraft}
               onChange={setCaptionDraft}
               placeholder="Digite a legenda..."
