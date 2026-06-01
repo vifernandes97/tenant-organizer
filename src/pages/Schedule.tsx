@@ -302,8 +302,15 @@ export default function Schedule() {
       {/* Post Form Dialog */}
       <PostForm
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        post={selectedGroup?.posts[0] || null}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setEditingPostId(null);
+        }}
+        post={
+          editingPostId
+            ? selectedGroup?.posts.find((p) => p.id === editingPostId) || null
+            : selectedGroup?.posts[0] || null
+        }
         defaultDate={defaultDate}
       />
 
