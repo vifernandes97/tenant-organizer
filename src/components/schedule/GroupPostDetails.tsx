@@ -452,6 +452,19 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                           </div>
                         );
                       })}
+                      <button
+                        type="button"
+                        onClick={openMediaPicker}
+                        disabled={isUploadingMedia}
+                        title="Adicionar mídias"
+                        className="h-16 w-16 flex-shrink-0 ml-1 flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
+                      >
+                        {isUploadingMedia ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Plus className="h-5 w-5" />
+                        )}
+                      </button>
                     </div>
                   )}
                 </>
