@@ -272,7 +272,27 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
         <DialogContent className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col gap-0 overflow-hidden p-0">
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             {/* Left Column - Image Gallery with Comments (60%) */}
-            <div className="relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5">
+            <div
+              className={`relative flex h-[45vh] min-h-0 w-full flex-col bg-muted/30 lg:h-auto lg:flex-1 lg:w-3/5 ${
+                isDragOverGallery ? 'ring-2 ring-primary ring-inset' : ''
+              }`}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('Files')) {
+                  e.preventDefault();
+                  setIsDragOverGallery(true);
+                }
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget === e.target) setIsDragOverGallery(false);
+              }}
+              onDrop={(e) => {
+                if (e.dataTransfer.files.length > 0) {
+                  e.preventDefault();
+                  setIsDragOverGallery(false);
+                  handleAddMedia(e.dataTransfer.files);
+                }
+              }}
+            >
               {images.length > 0 ? (
                 <>
                   <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
