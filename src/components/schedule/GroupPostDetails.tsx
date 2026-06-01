@@ -456,10 +456,34 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                   )}
                 </>
               ) : (
-                <div className="flex flex-1 items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <Image className="mx-auto h-16 w-16 opacity-50" />
-                    <p className="mt-3 text-sm">Sem imagens</p>
+                <button
+                  type="button"
+                  onClick={openMediaPicker}
+                  disabled={isUploadingMedia}
+                  className="flex flex-1 flex-col items-center justify-center gap-3 border-2 border-dashed border-muted-foreground/30 m-6 rounded-lg text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {isUploadingMedia ? (
+                    <Loader2 className="h-10 w-10 animate-spin" />
+                  ) : (
+                    <Upload className="h-10 w-10 opacity-70" />
+                  )}
+                  <div className="text-center">
+                    <p className="text-sm font-medium">
+                      {isUploadingMedia ? 'Enviando...' : 'Adicionar mídias'}
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {isWordPress
+                        ? 'Imagens, vídeos ou documentos (PDF, DOCX, ...)'
+                        : 'Clique ou arraste imagens e vídeos'}
+                    </p>
+                  </div>
+                </button>
+              )}
+              {isUploadingMedia && images.length > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-30">
+                  <div className="flex items-center gap-2 rounded-md bg-background px-4 py-2 shadow-lg">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Enviando mídias...</span>
                   </div>
                 </div>
               )}
