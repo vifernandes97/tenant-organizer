@@ -195,6 +195,42 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   };
 
+  const isWordPressChannel = activePost.channel === 'wordpress';
+
+  const handleAddMedia = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    setIsUploadingMedia(true);
+    try {
+      await updatePost.mutateAsync({
+        id: activePost.id,
+        post: {},
+        newImages: files,
+        silent: true,
+      });
+      toast.success(files.length === 1 ? 'Mídia adicionada' : `${files.length} mídias adicionadas`);
+    } catch (error) {
+      console.error('Erro ao adicionar mídias:', error);
+      toast.error('Erro ao adicionar mídias');
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const openMediaPicker = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = isWordPressChannel
+      ? 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+      : 'image/*,video/*';
+    input.onchange = (e) => {
+      const target = e.target as HTMLInputElement;
+      handleAddMedia(target.files);
+    };
+    input.click();
+  };
+
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
   };
