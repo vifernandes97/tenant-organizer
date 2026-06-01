@@ -1,0 +1,2 @@
+ALTER TABLE public.client_post_statuses DROP CONSTRAINT client_post_statuses_client_slug_unique;
+ALTER TABLE public.client_post_statuses ADD CONSTRAINT client_post_statuses_client_channel_slug_unique UNIQUE (client_id, channel, slug);
