@@ -21,7 +21,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
 import { ChannelBadges } from '@/components/clients/ChannelBadges';
-import { Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download, X, Upload, Plus } from 'lucide-react';
+import { Edit, Trash2, Copy, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Play, Wand2, Loader2, Download, X, Upload, Plus } from 'lucide-react';
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
