@@ -1,42 +1,22 @@
 ## Problema
 
-O campo **Legenda** tem dois modos:
+Hoje, ao abrir o modal de detalhes de uma postagem agrupada, as abas de canal aparecem mas os campos exibidos (mídias, legenda, status, artigo do WordPress) não trocam de verdade ao alternar de aba — continuam refletindo a primeira postagem do grupo. Causa principal:
 
-1. **Editor inline** (`InlineRichTextEditor` em PostDetails e GroupPostDetails) — exige clicar em **Salvar** explicitamente, limite atual de 5.000 caracteres.
-2. **Editor expandido** (modal aberto pelo botão "Expandir") — sem botão Salvar, usa salvamento automático (PostDetails dispara save a cada tecla; GroupPostDetails debounce de 800ms via `DebouncedCaptionEditor`). Limite atual de 10.000.
+- `localImages` é inicializado apenas no `useEffect` que depende de `group.groupId`, e nunca é resincronizado quando `activeChannel` muda.
+- O `InlineRichTextEditor` da legenda mantém estado interno do TipTap; ao trocar de aba ele só atualiza se não estiver em foco, criando a sensação de "mesmo campo".
+- Quando há apenas 1 canal, as abas nem aparecem (`isMultiChannel` esconde a barra).
 
-Isso causa a sensação de campos diferentes:
-- comportamento de salvar divergente (manual vs. automático)
-- limites de caracteres diferentes (5k vs. 10k)
-- ao fechar o modal as alterações nem sempre aparecem imediatamente no inline (o editor inline tem estado interno que só sincroniza quando não está em edição)
+## O que vai mudar (apenas frontend, em `src/components/schedule/GroupPostDetails.tsx`)
 
-## O que vou fazer
+1. **Abas de canal sempre visíveis** — uma aba por canal da postagem, mesmo quando há só um. Cabeçalho "Canais" continua aparecendo.
+2. **Mídias por canal** — `localImages` passa a sincronizar com `activePost.post_images` sempre que `activePost.id` mudar (novo `useEffect` dependente de `activePost.id`). Reordenação/exclusão continuam afetando apenas o post do canal ativo.
+3. **Legenda por canal** — adicionar `key={activePost.id}` ao `InlineRichTextEditor` (e ao `RichTextEditor` do diálogo "Expandir") para forçar remount ao trocar de aba, garantindo que o conteúdo carregado seja sempre o do canal atual. O draft do modal expandido (`captionDraft`) também é resetado ao trocar de canal.
+4. **WordPress** — quando a aba ativa for `wordpress`, a legenda é substituída pelos campos do artigo (`article_title`, `seo_keyword`, `project_type`, `article_content`) — comportamento já existente, mantido e também recebe `key={activePost.id}` no `RichTextEditor` do artigo para evitar conteúdo "preso".
+5. **Status e contagem de comentários** continuam por canal (já estão), agora ficam consistentes com mídias/legenda também trocando.
+6. Campos compartilhados (Cliente, Data/Hora, Título) permanecem com `handleSharedFieldUpdate` — comportamento atual mantido.
 
-### 1. Unificar limite em 20.000 caracteres
-Atualizar `maxLength`/`maxChars` em todos os pontos relacionados à legenda:
-- `src/components/ui/rich-text-editor.tsx` (default)
-- `src/components/ui/inline-rich-text-editor.tsx` (default — hoje 5000)
-- `src/components/ui/expandable-textarea.tsx` (default)
-- `src/components/schedule/PostForm.tsx` (campo legenda + contador exibido)
-- `src/components/schedule/PostDetails.tsx` (modal expandido)
-- `src/components/schedule/GroupPostDetails.tsx` (modal expandido — campo legenda; o campo "conteúdo do artigo" do WordPress permanece em 50.000)
-- `src/components/schedule/FullscreenViewer.tsx` (`maxChars`)
+## Fora de escopo
 
-### 2. Unificar comportamento do editor expandido
-Trocar o autosave do modal expandido por **Salvar / Cancelar com estado local**, igual ao inline editor:
-
-- **PostDetails**: o `captionDialogOpen` hoje chama `handleFieldUpdate` no `onChange` (salva por tecla). Será refatorado para manter um `tempCaption` local; rodapé com botões **Cancelar** (descarta) e **Salvar** (persiste e fecha). Fechar o modal sem salvar pede confirmação somente se houver alterações pendentes (ou simplesmente descarta — manter simples: descarta).
-- **GroupPostDetails**: o `DebouncedCaptionEditor` será substituído pelo mesmo padrão (estado local + botões Salvar/Cancelar). A função `DebouncedCaptionEditor` deixa de ser necessária e é removida.
-
-### 3. Sincronização entre inline e expandido
-Após o **Salvar** no modal, a mutação `useUpdatePost` invalida a query de posts e o `InlineRichTextEditor` recebe o novo `value` via prop. O efeito existente (linhas 102–108 de `inline-rich-text-editor.tsx`) já sincroniza quando não está em edição — nenhuma mudança necessária ali. Como o salvamento agora é explícito, o usuário verá a atualização imediatamente ao fechar.
-
-### Escopo fora
-- Não altero a coluna `caption` no banco (já é `text`, sem limite).
-- Não toco no `FullscreenViewer` além do `maxChars` (ele já tem padrão Salvar/Cancelar correto).
-- Não altero o editor de conteúdo do artigo WordPress (continua 50.000).
-
-## Resultado esperado
-- Mesmo limite (20.000) e mesmo padrão Salvar/Cancelar em ambos os modos.
-- Ao salvar no modal, o conteúdo aparece imediatamente no inline editor.
-- Fechar o modal sem salvar descarta alterações (comportamento previsível e idêntico ao "Cancelar" do inline).
+- Não alterar `PostForm` (criação/edição em massa) nem `PostDetails` (não está mais em uso).
+- Sem mudanças de schema ou backend — cada canal já é uma linha em `posts` com `group_id` compartilhado.
+- Sem alterações no layout do modal além das abas sempre visíveis.

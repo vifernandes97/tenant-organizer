@@ -95,6 +95,16 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   }, [group?.groupId]);
 
+  // Sync local images and reset caption draft whenever the active channel/post changes
+  useEffect(() => {
+    if (!activePost) return;
+    setLocalImages(activePost.post_images || []);
+    setCurrentImageIndex(0);
+    setCaptionDraft(activePost.caption || '');
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }, [activePost?.id]);
+
   if (!group || !activePost) return null;
 
   const scheduledDate = new Date(activePost.scheduled_at);
