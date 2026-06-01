@@ -45,7 +45,7 @@ interface GroupPostDetailsProps {
   group: PostGroup | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: () => void;
+  onEdit: (postId: string) => void;
 }
 
 export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPostDetailsProps) {
