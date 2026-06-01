@@ -95,6 +95,16 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
     }
   }, [group?.groupId]);
 
+  // Sync local images and reset caption draft whenever the active channel/post changes
+  useEffect(() => {
+    if (!activePost) return;
+    setLocalImages(activePost.post_images || []);
+    setCurrentImageIndex(0);
+    setCaptionDraft(activePost.caption || '');
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }, [activePost?.id]);
+
   if (!group || !activePost) return null;
 
   const scheduledDate = new Date(activePost.scheduled_at);
@@ -418,32 +428,30 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                   </span>
                 </div>
                 
-                {/* Channel Tabs - only show if multi-channel */}
-                {isMultiChannel && (
-                  <div className="mt-3">
-                    <p className="text-xs text-muted-foreground mb-2">Canais</p>
-                    <div className="flex flex-wrap gap-1">
-                      {group.posts.map((post) => (
-                        <button
-                          key={post.id}
-                          onClick={() => {
-                            setActiveChannel(post.channel);
-                            setCurrentImageIndex(0);
-                            setActiveCommentId(null);
-                          }}
-                          className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
-                            post.channel === activeChannel
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          <ChannelBadges channels={[post.channel]} iconOnly />
-                          <span className="hidden sm:inline">{getChannelLabel(post.channel)}</span>
-                        </button>
-                      ))}
-                    </div>
+                {/* Channel Tabs - always show one tab per channel */}
+                <div className="mt-3">
+                  <p className="text-xs text-muted-foreground mb-2">Canais</p>
+                  <div className="flex flex-wrap gap-1">
+                    {group.posts.map((post) => (
+                      <button
+                        key={post.id}
+                        onClick={() => {
+                          setActiveChannel(post.channel);
+                          setCurrentImageIndex(0);
+                          setActiveCommentId(null);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
+                          post.channel === activeChannel
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <ChannelBadges channels={[post.channel]} iconOnly />
+                        <span className="hidden sm:inline">{getChannelLabel(post.channel)}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Tabs */}
@@ -501,6 +509,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         </div>
                         <div className="[&_.ProseMirror]:min-h-[280px] [&_.prose]:min-h-[260px]">
                           <InlineRichTextEditor
+                            key={activePost.id}
                             value={activePost.caption || ''}
                             onSave={(value) => handleFieldUpdate('caption', value)}
                             isLoading={savingField === 'caption'}
@@ -652,6 +661,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                             <h4 className="text-xs font-medium text-muted-foreground">Texto do Artigo</h4>
                           </div>
                           <RichTextEditor
+                            key={activePost.id}
                             value={(activePost as any).article_content || ''}
                             onChange={(value) => handleFieldUpdate('article_content', value)}
                             placeholder="Escreva o artigo completo..."
@@ -774,6 +784,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
           </DialogHeader>
           <div className="min-h-0 flex-1">
             <RichTextEditor
+              key={activePost.id}
               value={captionDraft}
               onChange={setCaptionDraft}
               placeholder="Digite a legenda..."
