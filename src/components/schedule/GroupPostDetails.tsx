@@ -375,7 +375,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                     )}
                   </div>
 
-                  {images.length > 1 && (
+                  {images.length >= 1 && (
                     <div className="flex shrink-0 items-center overflow-x-auto border-t bg-background/50 p-4 gap-0">
                       {images.map((img, idx) => {
                         const showLeftBar = dragOverIndex === idx && dragIndex !== null && dragIndex > idx && dragIndex !== idx;
