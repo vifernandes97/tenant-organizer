@@ -452,14 +452,25 @@ export function useUpdatePost() {
         }
       }
 
-      const { data: updatedPost, error: postError } = await supabase
-        .from('posts')
-        .update(postUpdate)
-        .eq('id', id)
-        .select()
-        .single();
+      let updatedPost: any = null;
+      if (Object.keys(postUpdate).length > 0) {
+        const { data, error: postError } = await supabase
+          .from('posts')
+          .update(postUpdate)
+          .eq('id', id)
+          .select()
+          .single();
 
-      if (postError) throw postError;
+        if (postError) throw postError;
+        updatedPost = data;
+      } else {
+        const { data } = await supabase
+          .from('posts')
+          .select()
+          .eq('id', id)
+          .single();
+        updatedPost = data;
+      }
 
       // Remove images
       if (removedImageIds && removedImageIds.length > 0) {
