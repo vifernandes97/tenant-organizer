@@ -23,7 +23,22 @@ export function CommentsList({
   onCommentClick,
 }: CommentsListProps) {
   const { data: comments = [], isLoading } = useAllPostComments(postId);
+  const createComment = useCreateComment();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [isComposing, setIsComposing] = useState(false);
+
+  const handleCreateGeneralComment = (content: string) => {
+    createComment.mutate(
+      {
+        post_id: postId,
+        image_id: null,
+        content,
+        x_position: null,
+        y_position: null,
+      },
+      { onSuccess: () => setIsComposing(false) }
+    );
+  };
 
   const filteredComments = comments.filter(comment => {
     if (filter === 'all') return true;
