@@ -74,6 +74,30 @@ export function CommentsList({
 
   return (
     <div className="flex h-full flex-col">
+      {/* New comment composer */}
+      <div className="shrink-0 border-b p-2">
+        {isComposing ? (
+          <CommentForm
+            onSubmit={handleCreateGeneralComment}
+            onCancel={() => setIsComposing(false)}
+            placeholder="Escreva um comentário geral sobre o post..."
+            autoFocus
+            compact
+            isLoading={createComment.isPending}
+          />
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-full justify-start text-xs"
+            onClick={() => setIsComposing(true)}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Adicionar comentário
+          </Button>
+        )}
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex shrink-0 gap-1 border-b p-2">
         <Button
