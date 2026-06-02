@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CommentItem } from './CommentItem';
-import { useAllPostComments, type PostCommentWithAuthor, type CommentStatus } from '@/hooks/useComments';
-import { MessageSquare, CircleDot, CheckCircle, Filter } from 'lucide-react';
+import { CommentForm } from './CommentForm';
+import { useAllPostComments, useCreateComment, type PostCommentWithAuthor, type CommentStatus } from '@/hooks/useComments';
+import { MessageSquare, CircleDot, CheckCircle, Filter, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CommentsListProps {
