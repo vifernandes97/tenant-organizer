@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CommentItem } from './CommentItem';
-import { useAllPostComments, type PostCommentWithAuthor, type CommentStatus } from '@/hooks/useComments';
-import { MessageSquare, CircleDot, CheckCircle, Filter } from 'lucide-react';
+import { CommentForm } from './CommentForm';
+import { useAllPostComments, useCreateComment, type PostCommentWithAuthor, type CommentStatus } from '@/hooks/useComments';
+import { MessageSquare, CircleDot, CheckCircle, Filter, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CommentsListProps {
@@ -22,7 +23,22 @@ export function CommentsList({
   onCommentClick,
 }: CommentsListProps) {
   const { data: comments = [], isLoading } = useAllPostComments(postId);
+  const createComment = useCreateComment();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [isComposing, setIsComposing] = useState(false);
+
+  const handleCreateGeneralComment = (content: string) => {
+    createComment.mutate(
+      {
+        post_id: postId,
+        image_id: null,
+        content,
+        x_position: null,
+        y_position: null,
+      },
+      { onSuccess: () => setIsComposing(false) }
+    );
+  };
 
   const filteredComments = comments.filter(comment => {
     if (filter === 'all') return true;
@@ -58,6 +74,30 @@ export function CommentsList({
 
   return (
     <div className="flex h-full flex-col">
+      {/* New comment composer */}
+      <div className="shrink-0 border-b p-2">
+        {isComposing ? (
+          <CommentForm
+            onSubmit={handleCreateGeneralComment}
+            onCancel={() => setIsComposing(false)}
+            placeholder="Escreva um comentário geral sobre o post..."
+            autoFocus
+            compact
+            isLoading={createComment.isPending}
+          />
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-full justify-start text-xs"
+            onClick={() => setIsComposing(true)}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Adicionar comentário
+          </Button>
+        )}
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex shrink-0 gap-1 border-b p-2">
         <Button
