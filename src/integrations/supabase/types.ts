@@ -372,6 +372,7 @@ export type Database = {
           project_type: Database["public"]["Enums"]["project_type"] | null
           scheduled_at: string | null
           seo_keyword: string | null
+          seo_keywords: string[]
           status: Database["public"]["Enums"]["post_status"]
           tenant_id: string
           title: string | null
@@ -390,6 +391,7 @@ export type Database = {
           project_type?: Database["public"]["Enums"]["project_type"] | null
           scheduled_at?: string | null
           seo_keyword?: string | null
+          seo_keywords?: string[]
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id: string
           title?: string | null
@@ -408,6 +410,7 @@ export type Database = {
           project_type?: Database["public"]["Enums"]["project_type"] | null
           scheduled_at?: string | null
           seo_keyword?: string | null
+          seo_keywords?: string[]
           status?: Database["public"]["Enums"]["post_status"]
           tenant_id?: string
           title?: string | null
