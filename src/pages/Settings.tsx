@@ -145,6 +145,12 @@ export default function Settings() {
             <ApiTokensManager />
           </TabsContent>
         )}
+
+        {isOwner && (
+          <TabsContent value="billing" className="space-y-6">
+            <BillingPanel />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
