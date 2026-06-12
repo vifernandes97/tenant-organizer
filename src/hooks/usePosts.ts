@@ -434,6 +434,14 @@ export function useUpdatePost() {
       if (post.status) postUpdate.status = post.status;
       if (post.title !== undefined) postUpdate.title = post.title || null;
 
+      // WordPress-specific fields (passed through via cast on caller side)
+      const anyPost = post as any;
+      if (anyPost.article_title !== undefined) (postUpdate as any).article_title = anyPost.article_title || null;
+      if (anyPost.article_content !== undefined) (postUpdate as any).article_content = anyPost.article_content || null;
+      if (anyPost.seo_keyword !== undefined) (postUpdate as any).seo_keyword = anyPost.seo_keyword || null;
+      if (anyPost.seo_keywords !== undefined) (postUpdate as any).seo_keywords = anyPost.seo_keywords || [];
+      if (anyPost.project_type !== undefined) (postUpdate as any).project_type = anyPost.project_type || null;
+
       // Regenerate AI title if caption changed (only if title wasn't explicitly set)
       if (post.caption !== undefined && post.title === undefined) {
         const plainText = extractPlainText(post.caption || '');
