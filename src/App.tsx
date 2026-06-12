@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import AcceptInvite from "./pages/AcceptInvite";
 import Brainstorm from "./pages/Brainstorm";
 import NotFound from "./pages/NotFound";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <UpgradeModal />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
