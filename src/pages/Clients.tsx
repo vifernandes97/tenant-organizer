@@ -18,11 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, Lock } from "lucide-react";
 import { useClients, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
 import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { ClientDetails } from "@/components/clients/ClientDetails";
+import { usePlan } from "@/hooks/usePlan";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -32,6 +34,7 @@ export default function Clients() {
   const { data: clients = [], isLoading } = useClients();
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
+  const { canCreateClient, usage, isLocked } = usePlan();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClientStatus | "all">("all");
@@ -104,10 +107,26 @@ export default function Clients() {
             {clients.length} {clients.length === 1 ? "cliente" : "clientes"} cadastrados
           </p>
         </div>
-        <Button onClick={handleNewClient}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button onClick={handleNewClient} disabled={!canCreateClient}>
+                  {!canCreateClient && <Lock className="h-4 w-4 mr-2" />}
+                  {canCreateClient && <Plus className="h-4 w-4 mr-2" />}
+                  Novo Cliente
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!canCreateClient && (
+              <TooltipContent>
+                {isLocked
+                  ? "Organização em modo somente leitura"
+                  : `Limite do plano atingido (${usage.clients.used}/${usage.clients.limit}). Faça upgrade ou arquive um cliente.`}
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
