@@ -7,9 +7,10 @@ import { PendingInvites } from '@/components/settings/PendingInvites';
 import { ChannelStatusManager } from '@/components/settings/ChannelStatusManager';
 import { ApiTokensManager } from '@/components/settings/ApiTokensManager';
 import { RolesList } from '@/components/settings/RolesList';
+import { BillingPanel } from '@/components/billing/BillingPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Settings2, Tag, Plug, ShieldCheck } from 'lucide-react';
+import { Users, Building2, Settings2, Tag, Plug, ShieldCheck, CreditCard } from 'lucide-react';
 
 export default function Settings() {
   const { tenant, userRole } = useAuth();
@@ -21,6 +22,7 @@ export default function Settings() {
     if (requested === 'statuses' && isOwner) return 'statuses';
     if (requested === 'integrations' && isOwner) return 'integrations';
     if (requested === 'roles' && isOwner) return 'roles';
+    if (requested === 'billing' && isOwner) return 'billing';
     if (requested === 'team' && isOwner) return 'team';
     if (requested === 'organization') return 'organization';
     return isOwner ? 'team' : 'organization';
@@ -75,6 +77,12 @@ export default function Settings() {
             <TabsTrigger value="integrations" className="gap-2">
               <Plug className="h-4 w-4" />
               API & MCP
+            </TabsTrigger>
+          )}
+          {isOwner && (
+            <TabsTrigger value="billing" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Plano e Cobrança
             </TabsTrigger>
           )}
         </TabsList>
