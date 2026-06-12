@@ -25,6 +25,7 @@ import { Edit, Trash2, Copy, Maximize2, ChevronLeft, ChevronRight, MessageSquare
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
+import { SeoKeywordsInput } from './SeoKeywordsInput';
 
 type PostStatus = Database['public']['Enums']['post_status'];
 type SocialChannel = Database['public']['Enums']['social_channel'];
