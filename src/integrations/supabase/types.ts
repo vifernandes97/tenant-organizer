@@ -240,6 +240,54 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          billing_period: string
+          code: string
+          created_at: string
+          currency: string
+          display_order: number
+          features: Json
+          id: string
+          is_active: boolean
+          max_active_clients: number | null
+          max_members: number | null
+          name: string
+          price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          billing_period?: string
+          code: string
+          created_at?: string
+          currency?: string
+          display_order?: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_active_clients?: number | null
+          max_members?: number | null
+          name: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          billing_period?: string
+          code?: string
+          created_at?: string
+          currency?: string
+          display_order?: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_active_clients?: number | null
+          max_members?: number | null
+          name?: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       post_comments: {
         Row: {
           author_id: string
@@ -591,6 +639,63 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          plan_id: string
+          plan_override: boolean
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tenant_id: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_id: string
+          plan_override?: boolean
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tenant_id: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string
+          plan_override?: boolean
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tenant_id?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
@@ -713,6 +818,22 @@ export type Database = {
         Args: { invitation_token: string }
         Returns: string
       }
+      get_tenant_subscription: {
+        Args: { _tenant_id: string }
+        Returns: {
+          current_period_end: string
+          effective_status: Database["public"]["Enums"]["subscription_status"]
+          features: Json
+          max_active_clients: number
+          max_members: number
+          plan_code: string
+          plan_id: string
+          plan_name: string
+          plan_override: boolean
+          raw_status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_client_access: {
         Args: { _client_id: string; _user_id: string }
@@ -726,6 +847,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_plan_feature: {
+        Args: { _feature: string; _tenant_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -733,6 +858,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_tenant_locked: { Args: { _tenant_id: string }; Returns: boolean }
       remove_team_member: { Args: { _member_id: string }; Returns: boolean }
       seed_default_roles_for_tenant: {
         Args: { _tenant_id: string }
@@ -751,6 +877,10 @@ export type Database = {
         }[]
       }
       validate_invitation_token: { Args: { _token: string }; Returns: Json }
+      within_plan_limit: {
+        Args: { _resource: string; _tenant_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_action: "view" | "create" | "edit" | "delete"
@@ -789,6 +919,12 @@ export type Database = {
         | "twitter"
         | "youtube"
         | "wordpress"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "locked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -955,6 +1091,13 @@ export const Constants = {
         "twitter",
         "youtube",
         "wordpress",
+      ],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "locked",
       ],
     },
   },
