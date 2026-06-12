@@ -36,6 +36,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import logoApproveeDark from '@/assets/logo-approvee-dark.png';
+import { PlanStatusBanner } from '@/components/billing/PlanStatusBanner';
+import { PaymentTestModeBanner } from '@/components/billing/PaymentTestModeBanner';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -227,6 +229,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
+        <PaymentTestModeBanner />
+        <PlanStatusBanner />
         <AppHeader />
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           {children}

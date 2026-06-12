@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { maybeHandlePlanError } from '@/lib/planErrors';
 
 export interface ApiToken {
   id: string;
@@ -70,7 +71,10 @@ export function useApiTokens() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-api-tokens'] });
     },
-    onError: (e: any) => toast.error(e?.message || 'Erro ao criar token'),
+    onError: (e: any) => {
+      if (maybeHandlePlanError(e)) return;
+      toast.error(e?.message || 'Erro ao criar token');
+    },
   });
 
   const revokeToken = useMutation({

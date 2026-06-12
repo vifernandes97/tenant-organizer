@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { z } from "zod";
+import { maybeHandlePlanError } from "@/lib/planErrors";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -100,10 +101,12 @@ export function useCreateClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["plan-usage"] });
       toast.success("Cliente criado com sucesso!");
     },
     onError: (error) => {
       console.error("Error creating client:", error);
+      if (maybeHandlePlanError(error)) return;
       toast.error("Erro ao criar cliente");
     },
   });
@@ -134,10 +137,12 @@ export function useUpdateClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["plan-usage"] });
       toast.success("Cliente atualizado com sucesso!");
     },
     onError: (error) => {
       console.error("Error updating client:", error);
+      if (maybeHandlePlanError(error)) return;
       toast.error("Erro ao atualizar cliente");
     },
   });
@@ -153,10 +158,12 @@ export function useDeleteClient() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["plan-usage"] });
       toast.success("Cliente excluído com sucesso!");
     },
     onError: (error) => {
       console.error("Error deleting client:", error);
+      if (maybeHandlePlanError(error)) return;
       toast.error("Erro ao excluir cliente");
     },
   });
