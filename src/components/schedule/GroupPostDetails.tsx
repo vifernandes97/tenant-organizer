@@ -25,6 +25,7 @@ import { Edit, Trash2, Copy, Maximize2, ChevronLeft, ChevronRight, MessageSquare
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import { FilePreview, isDocumentFile, getFileIcon, getFileTypeLabel } from './FilePreview';
 import type { Database } from '@/integrations/supabase/types';
+import { SeoKeywordsInput } from './SeoKeywordsInput';
 
 type PostStatus = Database['public']['Enums']['post_status'];
 type SocialChannel = Database['public']['Enums']['social_channel'];
@@ -724,13 +725,25 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         </div>
 
                         <div className="mb-4">
-                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Palavra-chave SEO</h4>
-                          <InlineEditable
-                            type="text"
-                            value={(activePost as any).seo_keyword || ''}
-                            displayValue={(activePost as any).seo_keyword || 'Clique para adicionar...'}
-                            onSave={(value) => handleFieldUpdate('seo_keyword', value)}
-                            isLoading={savingField === 'seo_keyword'}
+                          <h4 className="mb-1 text-xs font-medium text-muted-foreground">Palavras-chave SEO</h4>
+                          <SeoKeywordsInput
+                            value={(activePost as any).seo_keywords || []}
+                            isLoading={savingField === 'seo_keywords'}
+                            onChange={async (next) => {
+                              setSavingField('seo_keywords');
+                              try {
+                                await updatePost.mutateAsync({
+                                  id: activePost.id,
+                                  post: { seo_keywords: next, seo_keyword: next[0] || null } as any,
+                                  silent: true,
+                                });
+                              } catch (error) {
+                                console.error('Erro ao salvar palavras-chave SEO:', error);
+                                toast.error('Erro ao salvar alteração');
+                              } finally {
+                                setSavingField(null);
+                              }
+                            }}
                           />
                         </div>
 

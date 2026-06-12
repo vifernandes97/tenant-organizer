@@ -1,0 +1,2 @@
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS seo_keywords text[] NOT NULL DEFAULT '{}'::text[];
+UPDATE public.posts SET seo_keywords = ARRAY[seo_keyword] WHERE seo_keyword IS NOT NULL AND seo_keyword <> '' AND (seo_keywords IS NULL OR array_length(seo_keywords,1) IS NULL);
