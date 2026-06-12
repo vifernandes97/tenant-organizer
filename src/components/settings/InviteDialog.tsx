@@ -21,8 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { UserPlus, Loader2, Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { usePlan } from '@/hooks/usePlan';
 
 interface InviteDialogProps {
   trigger?: React.ReactNode;
@@ -37,6 +39,7 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const { createInvitation, isCreating } = useInvitations();
   const { roles } = useRoles();
+  const { canInviteMember, usage, isLocked } = usePlan();
 
   // Default to "Editor" role when available
   useEffect(() => {
@@ -94,13 +97,28 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => canInviteMember && setOpen(o)}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Convidar membro
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button disabled={!canInviteMember}>
+                    {canInviteMember ? <UserPlus className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                    Convidar membro
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!canInviteMember && (
+                <TooltipContent>
+                  {isLocked
+                    ? 'Organização em modo somente leitura'
+                    : `Limite de membros atingido (${usage.members.used}/${usage.members.limit}). Faça upgrade ou cancele um convite pendente.`}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

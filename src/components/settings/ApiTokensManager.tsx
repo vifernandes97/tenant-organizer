@@ -22,19 +22,46 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Copy, Check, KeyRound, Trash2, AlertCircle, Plug } from 'lucide-react';
+import { Copy, Check, KeyRound, Trash2, AlertCircle, Plug, Lock, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { usePlan } from '@/hooks/usePlan';
+import { Link } from 'react-router-dom';
 
 const MCP_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp-brainstorm`;
 
 export function ApiTokensManager() {
   const { tokens, isLoading, createToken, revokeToken, deleteToken } = useApiTokens();
+  const { hasFeature, plan } = usePlan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [createdToken, setCreatedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  if (!hasFeature('api_access')) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            API & MCP indisponível no plano {plan?.name ?? 'atual'}
+          </CardTitle>
+          <CardDescription>
+            Tokens de API e integração com Claude (MCP) estão disponíveis nos planos Agência e Pro.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link to="/configuracoes?tab=billing">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Ver planos
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleCreate = async () => {
     if (!name.trim()) {
