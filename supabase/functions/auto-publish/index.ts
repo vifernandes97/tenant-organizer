@@ -40,12 +40,30 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    const { data, error } = await supabase
+    // Excluir tenants bloqueados (status efetivo = locked)
+    const { data: subs } = await supabase
+      .from("tenant_subscriptions")
+      .select("tenant_id, status, trial_ends_at, current_period_end, plan_override");
+
+    const lockedTenants = (subs || [])
+      .filter((s: any) => {
+        if (s.plan_override === true) return false;
+        if (s.status === "active") return false;
+        if (s.status === "trialing" && s.trial_ends_at && new Date(s.trial_ends_at) > new Date()) return false;
+        if (s.status === "past_due" && s.current_period_end && new Date(s.current_period_end).getTime() + 7 * 86400000 > Date.now()) return false;
+        return true;
+      })
+      .map((s: any) => s.tenant_id);
+
+    let q = supabase
       .from("posts")
       .update({ status: "published" })
       .eq("status", "scheduled")
-      .lte("scheduled_at", now)
-      .select("id");
+      .lte("scheduled_at", now);
+    if (lockedTenants.length > 0) {
+      q = q.not("tenant_id", "in", `(${lockedTenants.join(",")})`);
+    }
+    const { data, error } = await q.select("id");
 
     if (error) {
       console.error("Error updating posts:", error);
