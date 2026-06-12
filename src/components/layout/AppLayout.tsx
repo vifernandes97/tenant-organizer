@@ -1,6 +1,7 @@
 import { ReactNode, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -43,6 +44,7 @@ interface AppLayoutProps {
 function AppSidebar() {
   const { user, profile, signOut } = useAuth();
   const { userRole } = useAuth();
+  const { can } = usePermissions();
   const isOwner = userRole?.role === 'owner';
   const location = useLocation();
   const navigate = useNavigate();
@@ -68,12 +70,12 @@ function AppSidebar() {
   };
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ...(isOwner ? [{ href: '/clientes', label: 'Clientes', icon: Users }] : []),
-    { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays },
-    { href: '/brainstorm', label: 'Brainstorm', icon: Lightbulb },
-    { href: '/configuracoes', label: 'Configurações', icon: Settings },
-  ];
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
+    { href: '/clientes', label: 'Clientes', icon: Users, show: can('clients', 'view') },
+    { href: '/cronogramas', label: 'Cronogramas', icon: CalendarDays, show: can('posts', 'view') },
+    { href: '/brainstorm', label: 'Brainstorm', icon: Lightbulb, show: can('brainstorm', 'view') },
+    { href: '/configuracoes', label: 'Configurações', icon: Settings, show: true },
+  ].filter((i) => i.show);
 
   const handleSignOut = async () => {
     await signOut();

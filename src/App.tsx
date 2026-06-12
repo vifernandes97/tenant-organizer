@@ -44,7 +44,7 @@ const App = () => (
             <Route
               path="/clientes"
               element={
-                <ProtectedRoute requireOwner>
+                <ProtectedRoute requirePermission={{ feature: 'clients', action: 'view' }}>
                   <AppLayout>
                     <Clients />
                   </AppLayout>
@@ -54,7 +54,7 @@ const App = () => (
             <Route
               path="/cronogramas"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requirePermission={{ feature: 'posts', action: 'view' }}>
                   <AppLayout>
                     <Schedule />
                   </AppLayout>
@@ -74,7 +74,7 @@ const App = () => (
             <Route
               path="/brainstorm"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requirePermission={{ feature: 'brainstorm', action: 'view' }}>
                   <AppLayout>
                     <Brainstorm />
                   </AppLayout>
