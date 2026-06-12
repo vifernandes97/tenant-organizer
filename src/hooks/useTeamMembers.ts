@@ -8,6 +8,7 @@ export interface TeamMember {
   full_name: string | null;
   avatar_url: string | null;
   role: 'owner' | 'member';
+  custom_role_id: string | null;
 }
 
 export function useTeamMembers() {
@@ -19,15 +20,13 @@ export function useTeamMembers() {
     queryFn: async () => {
       if (!profile?.tenant_id) return [];
 
-      // Buscar roles do tenant
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role')
+        .select('user_id, role, custom_role_id')
         .eq('tenant_id', profile.tenant_id);
 
       if (rolesError) throw rolesError;
 
-      // Buscar profiles dos usuários
       const userIds = roles?.map(r => r.user_id) || [];
       if (userIds.length === 0) return [];
 
@@ -38,18 +37,17 @@ export function useTeamMembers() {
 
       if (profilesError) throw profilesError;
 
-      // Combinar dados
       const members: TeamMember[] = (profiles || []).map(p => {
-        const userRole = roles?.find(r => r.user_id === p.id);
+        const userRole = roles?.find(r => r.user_id === p.id) as any;
         return {
           id: p.id,
           full_name: p.full_name,
           avatar_url: p.avatar_url,
           role: userRole?.role || 'member',
+          custom_role_id: userRole?.custom_role_id || null,
         };
       });
 
-      // Ordenar: owners primeiro
       return members.sort((a, b) => {
         if (a.role === 'owner' && b.role !== 'owner') return -1;
         if (a.role !== 'owner' && b.role === 'owner') return 1;

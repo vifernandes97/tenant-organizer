@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useInvitations } from '@/hooks/useInvitations';
+import { useRoles } from '@/hooks/useRoles';
 import { ClientAccessSelector } from './ClientAccessSelector';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,9 +32,19 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'owner'>('member');
+  const [customRoleId, setCustomRoleId] = useState<string>('');
   const [accessMode, setAccessMode] = useState<'all' | 'selected'>('selected');
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const { createInvitation, isCreating } = useInvitations();
+  const { roles } = useRoles();
+
+  // Default to "Editor" role when available
+  useEffect(() => {
+    if (!customRoleId && roles.length) {
+      const editor = roles.find((r) => r.name === 'Editor') || roles[0];
+      setCustomRoleId(editor.id);
+    }
+  }, [roles, customRoleId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,19 +60,20 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
       return;
     }
 
-    // Para membros com acesso selecionado, verificar se selecionou algum cliente
+    if (role === 'member' && !customRoleId) {
+      toast.error('Selecione um papel para o membro');
+      return;
+    }
+
     if (role === 'member' && accessMode === 'selected' && selectedClientIds.length === 0) {
       toast.error('Selecione pelo menos um cliente para o membro acessar');
       return;
     }
 
-    // Determinar client_ids: null para owners ou membros com acesso total
-    const clientIds = role === 'owner' || accessMode === 'all' 
-      ? null 
-      : selectedClientIds;
+    const clientIds = role === 'owner' || accessMode === 'all' ? null : selectedClientIds;
 
     createInvitation(
-      { email, role, clientIds },
+      { email, role, clientIds, customRoleId: role === 'owner' ? null : customRoleId },
       {
         onSuccess: () => {
           setOpen(false);
@@ -76,7 +88,6 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
 
   const handleRoleChange = (newRole: 'member' | 'owner') => {
     setRole(newRole);
-    // Owners sempre têm acesso total
     if (newRole === 'owner') {
       setAccessMode('all');
     }
@@ -114,14 +125,10 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">Papel</Label>
-              <Select
-                value={role}
-                onValueChange={handleRoleChange}
-                disabled={isCreating}
-              >
+              <Label htmlFor="role">Tipo de acesso</Label>
+              <Select value={role} onValueChange={handleRoleChange} disabled={isCreating}>
                 <SelectTrigger id="role">
-                  <SelectValue placeholder="Selecione o papel" />
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="member">Membro</SelectItem>
@@ -129,43 +136,52 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {role === 'owner' 
-                  ? 'Proprietários têm acesso total a todos os clientes.'
-                  : 'Membros podem ter acesso restrito a clientes específicos.'}
+                {role === 'owner'
+                  ? 'Proprietários têm acesso total a tudo.'
+                  : 'Membros têm permissões definidas pelo papel atribuído.'}
               </p>
             </div>
 
             {role === 'member' && (
-              <div className="space-y-2">
-                <Label>Acesso a clientes</Label>
-                <ClientAccessSelector
-                  selectedClientIds={selectedClientIds}
-                  onSelectionChange={setSelectedClientIds}
-                  accessMode={accessMode}
-                  onAccessModeChange={setAccessMode}
-                  showModeSelector={false}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="custom-role">Papel</Label>
+                  <Select value={customRoleId} onValueChange={setCustomRoleId} disabled={isCreating}>
+                    <SelectTrigger id="custom-role">
+                      <SelectValue placeholder="Selecione o papel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}{r.is_system ? ' (padrão)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Defina e gerencie papéis na aba "Papéis e permissões".
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Acesso a clientes</Label>
+                  <ClientAccessSelector
+                    selectedClientIds={selectedClientIds}
+                    onSelectionChange={setSelectedClientIds}
+                    accessMode={accessMode}
+                    onAccessModeChange={setAccessMode}
+                    showModeSelector={false}
+                  />
+                </div>
+              </>
             )}
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isCreating}
-            >
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isCreating}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isCreating}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                'Criar convite'
-              )}
+              {isCreating ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>) : 'Criar convite'}
             </Button>
           </DialogFooter>
         </form>
@@ -173,3 +189,4 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
     </Dialog>
   );
 }
+

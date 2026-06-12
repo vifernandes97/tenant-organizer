@@ -6,9 +6,10 @@ import { InviteDialog } from '@/components/settings/InviteDialog';
 import { PendingInvites } from '@/components/settings/PendingInvites';
 import { ChannelStatusManager } from '@/components/settings/ChannelStatusManager';
 import { ApiTokensManager } from '@/components/settings/ApiTokensManager';
+import { RolesList } from '@/components/settings/RolesList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Settings2, Tag, Plug } from 'lucide-react';
+import { Users, Building2, Settings2, Tag, Plug, ShieldCheck } from 'lucide-react';
 
 export default function Settings() {
   const { tenant, userRole } = useAuth();
@@ -19,6 +20,7 @@ export default function Settings() {
     const requested = searchParams.get('tab');
     if (requested === 'statuses' && isOwner) return 'statuses';
     if (requested === 'integrations' && isOwner) return 'integrations';
+    if (requested === 'roles' && isOwner) return 'roles';
     if (requested === 'team' && isOwner) return 'team';
     if (requested === 'organization') return 'organization';
     return isOwner ? 'team' : 'organization';
@@ -40,9 +42,7 @@ export default function Settings() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">
-            Gerencie sua organização e equipe
-          </p>
+          <p className="text-muted-foreground">Gerencie sua organização e equipe</p>
         </div>
         {isOwner && <InviteDialog />}
       </div>
@@ -53,6 +53,12 @@ export default function Settings() {
             <TabsTrigger value="team" className="gap-2">
               <Users className="h-4 w-4" />
               Equipe
+            </TabsTrigger>
+          )}
+          {isOwner && (
+            <TabsTrigger value="roles" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Papéis e permissões
             </TabsTrigger>
           )}
           <TabsTrigger value="organization" className="gap-2">
@@ -80,6 +86,12 @@ export default function Settings() {
           </TabsContent>
         )}
 
+        {isOwner && (
+          <TabsContent value="roles" className="space-y-6">
+            <RolesList />
+          </TabsContent>
+        )}
+
         <TabsContent value="organization" className="space-y-6">
           <Card>
             <CardHeader>
@@ -88,18 +100,12 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Nome da Organização
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">Nome da Organização</label>
                 <p className="text-lg font-medium">{tenant?.name || 'Não definido'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Identificador (slug)
-                </label>
-                <p className="text-sm font-mono text-muted-foreground">
-                  {tenant?.slug || 'Não definido'}
-                </p>
+                <label className="text-sm font-medium text-muted-foreground">Identificador (slug)</label>
+                <p className="text-sm font-mono text-muted-foreground">{tenant?.slug || 'Não definido'}</p>
               </div>
             </CardContent>
           </Card>
@@ -110,9 +116,7 @@ export default function Settings() {
                 <Settings2 className="h-5 w-5" />
                 Configurações Avançadas
               </CardTitle>
-              <CardDescription>
-                Opções adicionais de configuração
-              </CardDescription>
+              <CardDescription>Opções adicionais de configuração</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground text-center py-8">
@@ -137,3 +141,4 @@ export default function Settings() {
     </div>
   );
 }
+

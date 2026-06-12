@@ -1,14 +1,17 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions, type Feature, type Action } from '@/hooks/usePermissions';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireOwner?: boolean;
+  requirePermission?: { feature: Feature; action: Action };
 }
 
-export function ProtectedRoute({ children, requireOwner = false }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requireOwner = false, requirePermission }: ProtectedRouteProps) {
   const { user, isLoading, profile, profileNotFound, userRole } = useAuth();
+  const { can, isLoading: permsLoading } = usePermissions();
   const location = useLocation();
 
   if (isLoading) {
@@ -26,12 +29,10 @@ export function ProtectedRoute({ children, requireOwner = false }: ProtectedRout
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If user exists but profile not found, redirect to setup
   if (profileNotFound) {
     return <Navigate to="/setup" state={{ from: location }} replace />;
   }
 
-  // Wait for profile to load (but not indefinitely)
   if (!profile && !profileNotFound) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -43,9 +44,21 @@ export function ProtectedRoute({ children, requireOwner = false }: ProtectedRout
     );
   }
 
-  // Check owner requirement
   if (requireOwner && userRole?.role !== 'owner') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (requirePermission) {
+    if (permsLoading) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+    if (!can(requirePermission.feature, requirePermission.action)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;

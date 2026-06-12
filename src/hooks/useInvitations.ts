@@ -46,11 +46,13 @@ export function useInvitations() {
     mutationFn: async ({ 
       email, 
       role, 
-      clientIds 
+      clientIds,
+      customRoleId,
     }: { 
       email: string; 
       role: 'member' | 'owner';
       clientIds?: string[] | null;
+      customRoleId?: string | null;
     }) => {
       if (!profile?.tenant_id || !user?.id) {
         throw new Error('Dados do usuário não encontrados');
@@ -70,15 +72,14 @@ export function useInvitations() {
           status: 'pending',
           expires_at: expiresAt.toISOString(),
           client_ids: clientIds || null,
-        })
+          custom_role_id: customRoleId || null,
+        } as any)
         .select()
         .single();
 
       if (error) throw error;
 
-      // Gerar link de convite
       const inviteUrl = `${window.location.origin}/convite/${token}`;
-
       return { invitation: data, inviteUrl };
     },
     onSuccess: ({ inviteUrl }) => {

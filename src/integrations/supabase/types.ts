@@ -185,6 +185,7 @@ export type Database = {
           accepted_at: string | null
           client_ids: string[] | null
           created_at: string
+          custom_role_id: string | null
           email: string
           expires_at: string
           id: string
@@ -198,6 +199,7 @@ export type Database = {
           accepted_at?: string | null
           client_ids?: string[] | null
           created_at?: string
+          custom_role_id?: string | null
           email: string
           expires_at: string
           id?: string
@@ -211,6 +213,7 @@ export type Database = {
           accepted_at?: string | null
           client_ids?: string[] | null
           created_at?: string
+          custom_role_id?: string | null
           email?: string
           expires_at?: string
           id?: string
@@ -221,6 +224,13 @@ export type Database = {
           token?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invitations_custom_role_id_fkey"
+            columns: ["custom_role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invitations_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -475,6 +485,76 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          action: Database["public"]["Enums"]["app_action"]
+          created_at: string
+          feature: Database["public"]["Enums"]["app_feature"]
+          id: string
+          role_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["app_action"]
+          created_at?: string
+          feature: Database["public"]["Enums"]["app_feature"]
+          id?: string
+          role_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["app_action"]
+          created_at?: string
+          feature?: Database["public"]["Enums"]["app_feature"]
+          id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_api_tokens: {
         Row: {
           created_at: string
@@ -577,6 +657,7 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          custom_role_id: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           tenant_id: string
@@ -584,6 +665,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_role_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id: string
@@ -591,12 +673,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_role_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_roles_custom_role_id_fkey"
+            columns: ["custom_role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_roles_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -628,6 +718,14 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      has_permission: {
+        Args: {
+          _action: Database["public"]["Enums"]["app_action"]
+          _feature: Database["public"]["Enums"]["app_feature"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -636,6 +734,10 @@ export type Database = {
         Returns: boolean
       }
       remove_team_member: { Args: { _member_id: string }; Returns: boolean }
+      seed_default_roles_for_tenant: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
       unaccent_safe: { Args: { _input: string }; Returns: string }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
@@ -651,6 +753,8 @@ export type Database = {
       validate_invitation_token: { Args: { _token: string }; Returns: Json }
     }
     Enums: {
+      app_action: "view" | "create" | "edit" | "delete"
+      app_feature: "clients" | "posts" | "post_status" | "brainstorm"
       app_role: "owner" | "member"
       brainstorm_idea_status:
         | "nova"
@@ -812,6 +916,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_action: ["view", "create", "edit", "delete"],
+      app_feature: ["clients", "posts", "post_status", "brainstorm"],
       app_role: ["owner", "member"],
       brainstorm_idea_status: [
         "nova",
