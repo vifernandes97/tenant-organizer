@@ -181,6 +181,11 @@ serve(async (req) => {
     const updateFields: Record<string, unknown> = {};
     if (data.article_title !== undefined) updateFields.article_title = data.article_title;
     if (data.seo_keyword !== undefined) updateFields.seo_keyword = data.seo_keyword;
+    if (Array.isArray(data.seo_keywords)) {
+      const arr = data.seo_keywords.filter((k: unknown): k is string => typeof k === 'string' && k.trim() !== '');
+      updateFields.seo_keywords = arr;
+      if (arr.length > 0) updateFields.seo_keyword = arr[0];
+    }
     if (data.article_content !== undefined) updateFields.article_content = data.article_content;
 
     const mappedType = mapProjectType(data.project_type);
