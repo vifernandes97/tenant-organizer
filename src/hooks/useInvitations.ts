@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { maybeHandlePlanError } from '@/lib/planErrors';
 import type { Database } from '@/integrations/supabase/types';
 
 type InvitationStatus = Database['public']['Enums']['invitation_status'];
@@ -84,6 +85,7 @@ export function useInvitations() {
     },
     onSuccess: ({ inviteUrl }) => {
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
       toast.success('Convite criado com sucesso!', {
         description: 'O link foi copiado para a área de transferência.',
       });
@@ -91,6 +93,7 @@ export function useInvitations() {
     },
     onError: (error: any) => {
       console.error('Error creating invitation:', error);
+      if (maybeHandlePlanError(error)) return;
       if (error.code === '23505') {
         toast.error('Este email já possui um convite pendente');
       } else {
@@ -110,10 +113,12 @@ export function useInvitations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['plan-usage'] });
       toast.success('Convite revogado');
     },
     onError: (error) => {
       console.error('Error revoking invitation:', error);
+      if (maybeHandlePlanError(error)) return;
       toast.error('Erro ao revogar convite');
     },
   });
