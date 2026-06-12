@@ -65,8 +65,7 @@ export function usePlan() {
       const [clientsResult, rolesResult, invitesResult] = await Promise.all([
         supabase
           .from("clients")
-          .select("id", { count: "exact", head: true })
-          .neq("status", "archived"),
+          .select("id", { count: "exact", head: true }),
         supabase
           .from("user_roles")
           .select("user_id", { count: "exact", head: true }),
