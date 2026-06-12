@@ -57,28 +57,27 @@ export function usePlan() {
     },
   });
 
+  const planMaxClients = planQuery.data?.maxActiveClients ?? null;
+  const planMaxMembers = planQuery.data?.maxMembers ?? null;
+
   const usageQuery = useQuery({
-    queryKey: ["plan-usage", tenantId],
-    enabled: !!tenantId,
+    queryKey: ["plan-usage", tenantId, planMaxClients, planMaxMembers],
+    enabled: !!tenantId && !!planQuery.data,
     staleTime: 15_000,
     queryFn: async (): Promise<PlanUsage> => {
       const [clientsResult, rolesResult, invitesResult] = await Promise.all([
-        supabase
-          .from("clients")
-          .select("id", { count: "exact", head: true }),
-        supabase
-          .from("user_roles")
-          .select("user_id", { count: "exact", head: true }),
+        supabase.from("clients").select("id", { count: "exact", head: true }),
+        supabase.from("user_roles").select("user_id", { count: "exact", head: true }),
         supabase
           .from("invitations")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending"),
       ]);
       return {
-        clients: { used: clientsResult.count ?? 0, limit: planQuery.data?.maxActiveClients ?? null },
+        clients: { used: clientsResult.count ?? 0, limit: planMaxClients },
         members: {
           used: (rolesResult.count ?? 0) + (invitesResult.count ?? 0),
-          limit: planQuery.data?.maxMembers ?? null,
+          limit: planMaxMembers,
         },
       };
     },
