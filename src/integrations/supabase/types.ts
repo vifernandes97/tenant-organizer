@@ -842,7 +842,7 @@ export type Database = {
     }
     Functions: {
       accept_invitation: {
-        Args: { _token: string; _user_id: string }
+        Args: { _token: string; _user_id?: string }
         Returns: Json
       }
       create_tenant_with_owner: {
