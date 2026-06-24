@@ -380,20 +380,32 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                     <div>
                       <div className="mb-2 flex items-center justify-between">
                         <h4 className="text-xs font-medium text-muted-foreground">Legenda</h4>
-                        {post.caption && (
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setCaptionDraft(post.caption || '');
-                              setCaptionDialogOpen(true);
-                            }}
+                            onClick={() => setCaptionHistoryOpen(true)}
                             className="h-6 px-2 text-xs"
+                            title="Ver histórico de versões"
                           >
-                            <Maximize2 className="mr-1 h-3 w-3" />
-                            Expandir
+                            <History className="mr-1 h-3 w-3" />
+                            Histórico
                           </Button>
-                        )}
+                          {post.caption && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setCaptionDraft(post.caption || '');
+                                setCaptionDialogOpen(true);
+                              }}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Maximize2 className="mr-1 h-3 w-3" />
+                              Expandir
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <InlineRichTextEditor
                         value={post.caption || ''}
