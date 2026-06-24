@@ -60,6 +60,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
   const [captionDraft, setCaptionDraft] = useState('');
   const [captionSaving, setCaptionSaving] = useState(false);
+  const [captionHistoryOpen, setCaptionHistoryOpen] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
