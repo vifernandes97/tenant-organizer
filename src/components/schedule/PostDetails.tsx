@@ -17,7 +17,8 @@ import { InlineRichTextEditor } from '@/components/ui/inline-rich-text-editor';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ImageCommentLayer } from '@/components/comments/ImageCommentLayer';
 import { CommentsList } from '@/components/comments/CommentsList';
-import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Download, Loader2, X } from 'lucide-react';
+import { Calendar, Clock, Edit, Trash2, Copy, Image, Maximize2, ChevronLeft, ChevronRight, MessageSquare, Download, Loader2, X, History } from 'lucide-react';
+import { CaptionHistoryDialog } from './CaptionHistoryDialog';
 import { toast } from 'sonner';
 import { downloadPostFilesAsZip, buildZipName, getFileNameFromUrl } from '@/lib/downloadZip';
 import type { Database } from '@/integrations/supabase/types';
@@ -59,6 +60,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
   const [captionDialogOpen, setCaptionDialogOpen] = useState(false);
   const [captionDraft, setCaptionDraft] = useState('');
   const [captionSaving, setCaptionSaving] = useState(false);
+  const [captionHistoryOpen, setCaptionHistoryOpen] = useState(false);
   const [savingField, setSavingField] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -378,20 +380,32 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                     <div>
                       <div className="mb-2 flex items-center justify-between">
                         <h4 className="text-xs font-medium text-muted-foreground">Legenda</h4>
-                        {post.caption && (
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setCaptionDraft(post.caption || '');
-                              setCaptionDialogOpen(true);
-                            }}
+                            onClick={() => setCaptionHistoryOpen(true)}
                             className="h-6 px-2 text-xs"
+                            title="Ver histórico de versões"
                           >
-                            <Maximize2 className="mr-1 h-3 w-3" />
-                            Expandir
+                            <History className="mr-1 h-3 w-3" />
+                            Histórico
                           </Button>
-                        )}
+                          {post.caption && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setCaptionDraft(post.caption || '');
+                                setCaptionDialogOpen(true);
+                              }}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Maximize2 className="mr-1 h-3 w-3" />
+                              Expandir
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <InlineRichTextEditor
                         value={post.caption || ''}
@@ -554,6 +568,16 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CaptionHistoryDialog
+        postId={post.id}
+        currentCaption={post.caption}
+        open={captionHistoryOpen}
+        onOpenChange={setCaptionHistoryOpen}
+        onRestore={async (caption) => {
+          await handleFieldUpdate('caption', caption);
+        }}
+      />
     </>
   );
 }

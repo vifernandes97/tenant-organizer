@@ -288,6 +288,41 @@ export type Database = {
         }
         Relationships: []
       }
+      post_caption_history: {
+        Row: {
+          caption: string | null
+          created_at: string
+          edited_by: string | null
+          id: string
+          post_id: string
+          tenant_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          post_id: string
+          tenant_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          post_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_caption_history_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_comments: {
         Row: {
           author_id: string
