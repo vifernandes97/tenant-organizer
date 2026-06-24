@@ -177,12 +177,11 @@ export function useAcceptInvitation() {
   }, []);
 
   const acceptInvitationMutation = useMutation({
-    mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
-      // Usar função SECURITY DEFINER para aceitar convite atomicamente
+    mutationFn: async ({ token }: { token: string; userId?: string }) => {
+      // Função SECURITY DEFINER usa auth.uid() internamente; não confiamos em ID vindo do cliente
       const { data, error } = await supabase
-        .rpc('accept_invitation', { 
-          _token: token, 
-          _user_id: userId 
+        .rpc('accept_invitation', {
+          _token: token,
         });
 
       if (error) throw error;
