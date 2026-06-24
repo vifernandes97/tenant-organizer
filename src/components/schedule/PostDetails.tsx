@@ -568,6 +568,16 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CaptionHistoryDialog
+        postId={post.id}
+        currentCaption={post.caption}
+        open={captionHistoryOpen}
+        onOpenChange={setCaptionHistoryOpen}
+        onRestore={async (caption) => {
+          await handleFieldUpdate('caption', caption);
+        }}
+      />
     </>
   );
 }
