@@ -26,7 +26,13 @@ export function ImageCommentLayer({
   disabled = false,
 }: ImageCommentLayerProps) {
   const { data: comments = [] } = useComments(postId, imageId);
+  const { data: allComments = [] } = useAllPostComments(postId);
   const createComment = useCreateComment();
+
+  const numberFor = (id: string) => {
+    const idx = allComments.findIndex((c) => c.id === id);
+    return idx >= 0 ? idx + 1 : 0;
+  };
   
   const [newCommentPosition, setNewCommentPosition] = useState<{ x: number; y: number } | null>(null);
   const [openCommentId, setOpenCommentId] = useState<string | null>(null);
