@@ -3,7 +3,7 @@ import { CommentPin } from './CommentPin';
 import { CommentPopover } from './CommentPopover';
 import { CommentForm } from './CommentForm';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useComments, useCreateComment, type PostCommentWithAuthor } from '@/hooks/useComments';
+import { useComments, useAllPostComments, useCreateComment, type PostCommentWithAuthor } from '@/hooks/useComments';
 import { cn } from '@/lib/utils';
 
 interface ImageCommentLayerProps {
