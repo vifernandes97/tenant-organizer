@@ -335,7 +335,7 @@ export function GroupPostDetails({ group, open, onOpenChange, onEdit }: GroupPos
                         imageUrl={images[currentImageIndex]?.image_url}
                         className="h-full w-full"
                         activeCommentId={activeCommentId}
-                        onCommentClick={(comment) => setActiveCommentId(comment.id)}
+                        onCommentClick={(comment) => { setActiveCommentId(comment.id); setActiveTab('comments'); }}
                       />
                     )}
                     
