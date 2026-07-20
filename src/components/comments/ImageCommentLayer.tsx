@@ -3,7 +3,7 @@ import { CommentPin } from './CommentPin';
 import { CommentPopover } from './CommentPopover';
 import { CommentForm } from './CommentForm';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useComments, useCreateComment, type PostCommentWithAuthor } from '@/hooks/useComments';
+import { useComments, useAllPostComments, useCreateComment, type PostCommentWithAuthor } from '@/hooks/useComments';
 import { cn } from '@/lib/utils';
 
 interface ImageCommentLayerProps {
@@ -26,7 +26,13 @@ export function ImageCommentLayer({
   disabled = false,
 }: ImageCommentLayerProps) {
   const { data: comments = [] } = useComments(postId, imageId);
+  const { data: allComments = [] } = useAllPostComments(postId);
   const createComment = useCreateComment();
+
+  const numberFor = (id: string) => {
+    const idx = allComments.findIndex((c) => c.id === id);
+    return idx >= 0 ? idx + 1 : 0;
+  };
   
   const [newCommentPosition, setNewCommentPosition] = useState<{ x: number; y: number } | null>(null);
   const [openCommentId, setOpenCommentId] = useState<string | null>(null);
@@ -90,28 +96,31 @@ export function ImageCommentLayer({
         onClick={handleImageClick}
       >
         {/* Existing comment pins */}
-        {comments.map((comment, index) => (
-          <CommentPopover
-            key={comment.id}
-            comment={comment}
-            number={index + 1}
-            open={openCommentId === comment.id}
-            onOpenChange={(open) => setOpenCommentId(open ? comment.id : null)}
-            onReply={(content) => handleReply(comment, content)}
-          >
-            <div>
-              <CommentPin
-                number={index + 1}
-                x={comment.x_position ?? 50}
-                y={comment.y_position ?? 50}
-                status={comment.status}
-                isActive={activeCommentId === comment.id}
-                preview={comment.content}
-                onClick={() => handlePinClick(comment)}
-              />
-            </div>
-          </CommentPopover>
-        ))}
+        {comments.map((comment) => {
+          const n = numberFor(comment.id);
+          return (
+            <CommentPopover
+              key={comment.id}
+              comment={comment}
+              number={n}
+              open={openCommentId === comment.id}
+              onOpenChange={(open) => setOpenCommentId(open ? comment.id : null)}
+              onReply={(content) => handleReply(comment, content)}
+            >
+              <div>
+                <CommentPin
+                  number={n}
+                  x={comment.x_position ?? 50}
+                  y={comment.y_position ?? 50}
+                  status={comment.status}
+                  isActive={activeCommentId === comment.id}
+                  preview={comment.content}
+                  onClick={() => handlePinClick(comment)}
+                />
+              </div>
+            </CommentPopover>
+          );
+        })}
 
         {/* New comment popover */}
         {newCommentPosition && (
