@@ -117,6 +117,8 @@ export function ImageCommentLayer({
                   isActive={activeCommentId === comment.id}
                   preview={comment.content}
                   onClick={() => handlePinClick(comment)}
+                  draggable={!disabled && comment.x_position !== null && comment.y_position !== null}
+                  onDragEnd={(nx, ny) => updatePosition.mutate({ id: comment.id, x: nx, y: ny })}
                 />
               </div>
             </CommentPopover>
