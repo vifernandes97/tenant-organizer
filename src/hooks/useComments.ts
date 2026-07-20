@@ -288,6 +288,31 @@ export function useResolveComment() {
   });
 }
 
+export function useUpdateCommentPosition() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, x, y }: { id: string; x: number; y: number }) => {
+      const { data, error } = await supabase
+        .from('post_comments')
+        .update({ x_position: x, y_position: y })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['comments', data.post_id] });
+      queryClient.invalidateQueries({ queryKey: ['all-comments', data.post_id] });
+    },
+    onError: (error) => {
+      console.error('Erro ao mover comentário:', error);
+      toast.error('Erro ao mover comentário');
+    },
+  });
+}
+
 export function useDeleteComment() {
   const queryClient = useQueryClient();
 
