@@ -26,15 +26,16 @@ export function MemberPermissionsDialog({
   onOpenChange,
   member,
 }: MemberPermissionsDialogProps) {
-  const { accessibleClientIds, isLoading, updateAccess, isUpdating } = useUserClientAccess(member.id);
+  const { userAccess, accessibleClientIds, isLoading, updateAccess, isUpdating } = useUserClientAccess(member.id);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
 
-  // Sincronizar com os dados carregados
+  // Sincronizar com os dados carregados (apenas quando o dado do servidor muda, não a cada render)
   useEffect(() => {
     if (open && !isLoading) {
-      setSelectedClientIds(accessibleClientIds);
+      setSelectedClientIds(userAccess.map(a => a.client_id));
     }
-  }, [open, isLoading, accessibleClientIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isLoading, userAccess]);
 
   const handleSave = () => {
     updateAccess(
