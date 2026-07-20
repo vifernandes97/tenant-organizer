@@ -32,21 +32,22 @@ export function CommentPin({
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!draggable) return;
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     const parent = buttonRef.current?.parentElement as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
     movedRef.current = false;
-    buttonRef.current?.setPointerCapture(e.pointerId);
     setDragging(true);
 
     const startX = e.clientX;
     const startY = e.clientY;
 
-    const move = (ev: PointerEvent) => {
+    const move = (ev: MouseEvent) => {
+      ev.preventDefault();
       const dx = Math.abs(ev.clientX - startX);
       const dy = Math.abs(ev.clientY - startY);
       if (dx > 3 || dy > 3) movedRef.current = true;
@@ -55,27 +56,28 @@ export function CommentPin({
       setDragPos({ x: nx, y: ny });
     };
 
-    const up = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+    const up = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
       setDragging(false);
       if (movedRef.current) {
         const nx = Math.max(0, Math.min(100, ((ev.clientX - rect.left) / rect.width) * 100));
         const ny = Math.max(0, Math.min(100, ((ev.clientY - rect.top) / rect.height) * 100));
         onDragEnd?.(nx, ny);
+        // keep movedRef true briefly so the following click is swallowed
+        setTimeout(() => { movedRef.current = false; }, 0);
       }
       setDragPos(null);
     };
 
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
   };
 
   const handleClick = (e: React.MouseEvent) => {
     if (movedRef.current) {
       e.preventDefault();
       e.stopPropagation();
-      movedRef.current = false;
       return;
     }
     onClick?.();
@@ -90,7 +92,7 @@ export function CommentPin({
         <TooltipTrigger asChild>
           <button
             ref={buttonRef}
-            onPointerDown={handlePointerDown}
+            onMouseDown={handleMouseDown}
             onClick={handleClick}
             className={cn(
               "absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full font-semibold shadow-lg transition-all duration-200",
