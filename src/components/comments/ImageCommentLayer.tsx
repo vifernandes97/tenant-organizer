@@ -28,6 +28,7 @@ export function ImageCommentLayer({
   const { data: comments = [] } = useComments(postId, imageId);
   const { data: allComments = [] } = useAllPostComments(postId);
   const createComment = useCreateComment();
+  const updatePosition = useUpdateCommentPosition();
 
   const numberFor = (id: string) => {
     const idx = allComments.findIndex((c) => c.id === id);
