@@ -96,28 +96,31 @@ export function ImageCommentLayer({
         onClick={handleImageClick}
       >
         {/* Existing comment pins */}
-        {comments.map((comment, index) => (
-          <CommentPopover
-            key={comment.id}
-            comment={comment}
-            number={index + 1}
-            open={openCommentId === comment.id}
-            onOpenChange={(open) => setOpenCommentId(open ? comment.id : null)}
-            onReply={(content) => handleReply(comment, content)}
-          >
-            <div>
-              <CommentPin
-                number={index + 1}
-                x={comment.x_position ?? 50}
-                y={comment.y_position ?? 50}
-                status={comment.status}
-                isActive={activeCommentId === comment.id}
-                preview={comment.content}
-                onClick={() => handlePinClick(comment)}
-              />
-            </div>
-          </CommentPopover>
-        ))}
+        {comments.map((comment) => {
+          const n = numberFor(comment.id);
+          return (
+            <CommentPopover
+              key={comment.id}
+              comment={comment}
+              number={n}
+              open={openCommentId === comment.id}
+              onOpenChange={(open) => setOpenCommentId(open ? comment.id : null)}
+              onReply={(content) => handleReply(comment, content)}
+            >
+              <div>
+                <CommentPin
+                  number={n}
+                  x={comment.x_position ?? 50}
+                  y={comment.y_position ?? 50}
+                  status={comment.status}
+                  isActive={activeCommentId === comment.id}
+                  preview={comment.content}
+                  onClick={() => handlePinClick(comment)}
+                />
+              </div>
+            </CommentPopover>
+          );
+        })}
 
         {/* New comment popover */}
         {newCommentPosition && (
