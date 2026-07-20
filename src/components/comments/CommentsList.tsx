@@ -148,11 +148,11 @@ export function CommentsList({
               )}
             </div>
           ) : (
-            filteredComments.map((comment, index) => (
+            filteredComments.map((comment) => (
               <CommentItem
                 key={comment.id}
                 comment={comment}
-                number={index + 1}
+                number={comments.findIndex((c) => c.id === comment.id) + 1}
                 isActive={activeCommentId === comment.id}
                 onClick={() => handleCommentClick(comment)}
                 imageNumber={getImageIndex(comment.image_id)}
