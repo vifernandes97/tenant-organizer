@@ -166,7 +166,7 @@ export function PostDetails({ post, open, onOpenChange, onEdit }: PostDetailsPro
                       imageUrl={images[currentImageIndex]?.image_url}
                       className="h-full w-full"
                       activeCommentId={activeCommentId}
-                      onCommentClick={(comment) => setActiveCommentId(comment.id)}
+                      onCommentClick={(comment) => { setActiveCommentId(comment.id); setActiveTab('comments'); }}
                     />
                     
                     {/* Navigation Arrows */}
