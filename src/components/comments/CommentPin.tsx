@@ -37,7 +37,7 @@ export function CommentPin({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const parent = buttonRef.current?.parentElement as HTMLElement | null;
+    const parent = buttonRef.current?.offsetParent as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
     movedRef.current = false;
