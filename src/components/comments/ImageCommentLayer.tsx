@@ -3,7 +3,7 @@ import { CommentPin } from './CommentPin';
 import { CommentPopover } from './CommentPopover';
 import { CommentForm } from './CommentForm';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useComments, useAllPostComments, useCreateComment, type PostCommentWithAuthor } from '@/hooks/useComments';
+import { useComments, useAllPostComments, useCreateComment, useUpdateCommentPosition, type PostCommentWithAuthor } from '@/hooks/useComments';
 import { cn } from '@/lib/utils';
 
 interface ImageCommentLayerProps {
@@ -28,6 +28,7 @@ export function ImageCommentLayer({
   const { data: comments = [] } = useComments(postId, imageId);
   const { data: allComments = [] } = useAllPostComments(postId);
   const createComment = useCreateComment();
+  const updatePosition = useUpdateCommentPosition();
 
   const numberFor = (id: string) => {
     const idx = allComments.findIndex((c) => c.id === id);
@@ -116,6 +117,8 @@ export function ImageCommentLayer({
                   isActive={activeCommentId === comment.id}
                   preview={comment.content}
                   onClick={() => handlePinClick(comment)}
+                  draggable={!disabled && comment.x_position !== null && comment.y_position !== null}
+                  onDragEnd={(nx, ny) => updatePosition.mutate({ id: comment.id, x: nx, y: ny })}
                 />
               </div>
             </CommentPopover>
