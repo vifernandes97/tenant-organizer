@@ -92,7 +92,7 @@ export function CommentPin({
         <TooltipTrigger asChild>
           <button
             ref={buttonRef}
-            onPointerDown={handlePointerDown}
+            onMouseDown={handleMouseDown}
             onClick={handleClick}
             className={cn(
               "absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full font-semibold shadow-lg transition-all duration-200",
