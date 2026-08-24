@@ -39,7 +39,9 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const { createInvitation, isCreating } = useInvitations();
   const { roles } = useRoles();
-  const { canInviteMember, usage, isLocked } = usePlan();
+  const { canInviteMember, usage, isLocked, isLoading: isPlanLoading } = usePlan();
+  const blocked = !isPlanLoading && !canInviteMember;
+
 
   // Default to "Editor" role when available
   useEffect(() => {
