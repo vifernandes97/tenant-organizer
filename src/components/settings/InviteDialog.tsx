@@ -10,7 +10,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -100,29 +99,29 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button disabled={blocked}>
-                    {!blocked ? <UserPlus className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                    Convidar membro
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {blocked && (
-                <TooltipContent>
-                  {isLocked
-                    ? 'Organização em modo somente leitura'
-                    : `Limite de membros atingido (${usage.members.used}/${usage.members.limit}). Faça upgrade ou cancele um convite pendente.`}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </DialogTrigger>
+      {trigger ? (
+        <span onClick={() => !blocked && setOpen(true)}>{trigger}</span>
+      ) : (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button type="button" disabled={blocked} onClick={() => setOpen(true)}>
+                  {!blocked ? <UserPlus className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                  Convidar membro
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {blocked && (
+              <TooltipContent>
+                {isLocked
+                  ? 'Organização em modo somente leitura'
+                  : `Limite de membros atingido (${usage.members.used}/${usage.members.limit}). Faça upgrade ou cancele um convite pendente.`}
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      )}
       <DialogContent className="sm:max-w-md">
 
         <form onSubmit={handleSubmit}>
