@@ -39,7 +39,9 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const { createInvitation, isCreating } = useInvitations();
   const { roles } = useRoles();
-  const { canInviteMember, usage, isLocked } = usePlan();
+  const { canInviteMember, usage, isLocked, isLoading: isPlanLoading } = usePlan();
+  const blocked = !isPlanLoading && !canInviteMember;
+
 
   // Default to "Editor" role when available
   useEffect(() => {
@@ -97,20 +99,20 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => canInviteMember && setOpen(o)}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <Button disabled={!canInviteMember}>
-                    {canInviteMember ? <UserPlus className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                  <Button disabled={blocked}>
+                    {!blocked ? <UserPlus className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                     Convidar membro
                   </Button>
                 </span>
               </TooltipTrigger>
-              {!canInviteMember && (
+              {blocked && (
                 <TooltipContent>
                   {isLocked
                     ? 'Organização em modo somente leitura'
@@ -122,6 +124,7 @@ export function InviteDialog({ trigger }: InviteDialogProps) {
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
+
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Convidar novo membro</DialogTitle>
